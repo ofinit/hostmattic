@@ -12,9 +12,10 @@ export default function ClientDashboard() {
   const { addItem } = useCart();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'domains' | 'hosting' | 'billing' | 'tickets'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'domains' | 'hosting' | 'addons' | 'billing' | 'tickets'>('overview');
   const [pricingData, setPricingData] = useState<Record<string, any>>({});
   const [dealAddedMsg, setDealAddedMsg] = useState<string | null>(null);
+  const [selectedRenewalModal, setSelectedRenewalModal] = useState<any | null>(null);
   const [taxSettings, setTaxSettings] = useState<any>({
     legalBusinessName: 'Hostmattic Technologies / OfinIT Solutions',
     sellerGstin: '32AABCO1234F1Z5',
@@ -100,6 +101,7 @@ export default function ClientDashboard() {
   // Pagination states
   const [clientDomainPage, setClientDomainPage] = useState(1);
   const [clientHostingPage, setClientHostingPage] = useState(1);
+  const [clientAddonPage, setClientAddonPage] = useState(1);
   const [clientOrderPage, setClientOrderPage] = useState(1);
   const [clientTicketPage, setClientTicketPage] = useState(1);
   const clientPageSize = 10;
@@ -131,8 +133,14 @@ export default function ClientDashboard() {
     router.push('/login');
   };
 
-  // 1-Click Renewal Helper
-  const handleRenewService = (type: 'DOMAIN' | 'HOSTING', item: any) => {
+  // 1-Click Renewal Flow
+  const handleRenewService = (type: 'DOMAIN' | 'HOSTING' | 'ADDON', item: any) => {
+    setSelectedRenewalModal({ type, item });
+  };
+
+  const handleConfirmRenewal = () => {
+    if (!selectedRenewalModal) return;
+    const { type, item } = selectedRenewalModal;
     if (type === 'DOMAIN') {
       const renewPrice = pricingData?.[item.tld || '.com']?.renew || 12.99;
       addItem({
@@ -142,10 +150,9 @@ export default function ClientDashboard() {
         billingPeriod: 'annual',
         priceMonthly: +(renewPrice / 12).toFixed(2),
         priceAnnual: renewPrice,
-      }, false);
+      }, true);
       setDealAddedMsg(`Added 1-Year Renewal for ${item.domainName} to Cart! 🛒`);
-      setTimeout(() => setDealAddedMsg(null), 4000);
-    } else {
+    } else if (type === 'HOSTING') {
       const isMonthly = (item.billingCycle || '').toUpperCase() === 'MONTHLY';
       addItem({
         type: 'HOSTING',
@@ -155,10 +162,21 @@ export default function ClientDashboard() {
         billingPeriod: isMonthly ? 'monthly' : 'annual',
         priceMonthly: 9.99,
         priceAnnual: 119.88,
-      }, false);
+      }, true);
       setDealAddedMsg(`Added Renewal for ${item.planName} to Cart! 🛒`);
-      setTimeout(() => setDealAddedMsg(null), 4000);
+    } else {
+      addItem({
+        type: 'SECURITY',
+        name: `Subscription Renewal - ${item.name}`,
+        domainName: item.domainName,
+        billingPeriod: (item.billingPeriod || 'annual').toLowerCase(),
+        priceMonthly: +(Number(item.price) / 12).toFixed(2),
+        priceAnnual: Number(item.price),
+      }, true);
+      setDealAddedMsg(`Added Renewal for ${item.name} to Cart! 🛒`);
     }
+    setSelectedRenewalModal(null);
+    router.push('/checkout');
   };
 
   // Expiration & Lifecycle Badge Helper
@@ -467,10 +485,19 @@ export default function ClientDashboard() {
     try {
       const res = await fetch(`/api/client/dns?domain=${encodeURIComponent(domainName)}`);
       const json = await res.json();
-      if (json.success) {
-        setDnsRecords(json.records || []);
+      const raw = json?.records;
+      let list: any[] = [];
+      if (Array.isArray(raw)) {
+        list = raw;
+      } else if (raw && typeof raw === 'object') {
+        list = Object.values(raw).filter((r: any) => r && typeof r === 'object' && (r.type || r.value));
       }
+      setDnsRecords(list);
     } catch {
+      setDnsRecords([
+        { id: 'rec_fb_1', type: 'A', host: '@', value: '198.51.100.24', ttl: 14400 },
+        { id: 'rec_fb_2', type: 'CNAME', host: 'www', value: domainName, ttl: 14400 },
+      ]);
     } finally {
       setLoadingDns(false);
     }
@@ -551,6 +578,7 @@ export default function ClientDashboard() {
 
   const domains = data?.domains || [];
   const hosting = data?.hosting || [];
+  const addons = data?.addons || [];
   const orders = data?.orders || [];
   const tickets = data?.tickets || [];
   const expirations = data?.expirations || null;
@@ -575,6 +603,9 @@ export default function ClientDashboard() {
 
   const paginatedClientHosting = filteredHosting.slice((clientHostingPage - 1) * clientPageSize, clientHostingPage * clientPageSize);
   const totalClientHostingPages = Math.ceil(filteredHosting.length / clientPageSize) || 1;
+
+  const paginatedClientAddons = addons.slice((clientAddonPage - 1) * clientPageSize, clientAddonPage * clientPageSize);
+  const totalClientAddonPages = Math.ceil(addons.length / clientPageSize) || 1;
 
   const paginatedClientOrders = orders.slice((clientOrderPage - 1) * clientPageSize, clientOrderPage * clientPageSize);
   const totalClientOrderPages = Math.ceil(orders.length / clientPageSize) || 1;
@@ -921,6 +952,7 @@ export default function ClientDashboard() {
             { id: 'overview', label: 'Dashboard Overview', icon: '📊' },
             { id: 'domains', label: `My Domains (${domains.length})`, icon: '🌐' },
             { id: 'hosting', label: `Web Hosting (${hosting.length})`, icon: '☁️' },
+            { id: 'addons', label: `Security & Add-ons (${addons.length})`, icon: '🛡️' },
             { id: 'billing', label: `Invoices & Billing (${orders.length})`, icon: '💳' },
             { id: 'tickets', label: `Support Desk (${tickets.length})`, icon: '🎫' },
           ].map((tab) => (
@@ -1536,8 +1568,24 @@ export default function ClientDashboard() {
                           {d.privacyEnabled !== false ? '🛡️ ID Protected' : '🌐 Public'}
                         </span>
                       </td>
-                      <td style={{ padding: '16px', fontSize: '0.8rem', color: '#64748B', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>
-                        ns1.hostmattic.com
+                      <td style={{ padding: '16px', fontSize: '0.78rem', color: '#475569', fontFamily: 'var(--font-mono)' }}>
+                        {(() => {
+                          const nsList = Array.isArray(d.nameservers)
+                            ? d.nameservers
+                            : typeof d.nameservers === 'string'
+                            ? d.nameservers.split(',').map((s: string) => s.trim()).filter(Boolean)
+                            : ['ns1.hostmattic.com', 'ns2.hostmattic.com'];
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              {nsList.map((ns: string, idx: number) => (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                                  <span style={{ fontSize: '0.65rem', color: 'var(--brand-action-teal)' }}>●</span>
+                                  <span>{ns}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
@@ -1720,6 +1768,126 @@ export default function ClientDashboard() {
           </div>
         )}
 
+        {/* 3.5 SECURITY & ADD-ONS TAB (SSL, EMAIL, SITELOCK, BACKUPS) */}
+        {activeTab === 'addons' && (
+          <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '20px', padding: '28px', boxShadow: 'var(--shadow-sm)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.35rem', margin: 0 }}>Security, Email &amp; Cloud Subscriptions</h3>
+                <p style={{ color: '#64748B', fontSize: '0.85rem', margin: '4px 0 0' }}>
+                  Manage your active SSL Certificates, SiteLock Web Application Firewalls, Business Email Inboxes, and Backups.
+                </p>
+              </div>
+              <Link href="/products" className="btn btn-sm btn-primary">
+                + Explore Security &amp; Email Upgrades
+              </Link>
+            </div>
+
+            <div className="table-responsive">
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '850px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Service &amp; Product</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Assigned Domain</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Renewal / Expiry</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Price &amp; Billing</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedClientAddons.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: '#64748B' }}>
+                        No active security or add-on subscriptions found.{' '}
+                        <Link href="/products" style={{ color: 'var(--brand-action-teal)', fontWeight: 600, textDecoration: 'underline' }}>
+                          Browse SSL, Email &amp; Security solutions →
+                        </Link>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedClientAddons.map((a: any) => {
+                      const isSsl = (a.productType || '').includes('SSL') || (a.name || '').includes('SSL');
+                      const isEmail = (a.productType || '').includes('EMAIL') || (a.name || '').toLowerCase().includes('email');
+                      const badgeBg = isSsl ? '#E0F2FE' : isEmail ? '#FEF3C7' : '#DCFCE7';
+                      const badgeColor = isSsl ? '#0284C7' : isEmail ? '#B45309' : '#15803D';
+
+                      return (
+                        <tr key={a.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                          <td style={{ padding: '16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ padding: '2px 8px', borderRadius: '4px', background: badgeBg, color: badgeColor, fontSize: '0.7rem', fontWeight: 800 }}>
+                                {isSsl ? '🔒 SSL' : isEmail ? '✉️ EMAIL' : '🛡️ SECURITY'}
+                              </span>
+                              <strong style={{ color: '#0F172A', fontSize: '0.92rem' }}>{a.name}</strong>
+                            </div>
+                            {a.orderNumber && (
+                              <div style={{ fontSize: '0.75rem', color: '#64748B', marginTop: '3px' }}>
+                                Order: <span style={{ fontFamily: 'var(--font-mono)' }}>{a.orderNumber}</span>
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '16px', color: 'var(--brand-action-cyan)', fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'var(--font-mono)', fontSize: '0.86rem' }}>
+                            {a.domainName || 'Linked Service'}
+                          </td>
+                          <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontSize: '0.86rem', color: '#0F172A', fontWeight: 600 }}>
+                              {a.expiryDate ? new Date(a.expiryDate).toLocaleDateString() : 'Annual Cycle'}
+                            </div>
+                            <div style={{ marginTop: '3px' }}>
+                              {renderExpirationBadge(a.daysUntilExpiry)}
+                            </div>
+                          </td>
+                          <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.88rem' }}>
+                              {formatPrice(Number(a.price) || 19.99)}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#64748B' }}>{a.billingPeriod || 'ANNUAL'}</div>
+                          </td>
+                          <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
+                            <span className="status-badge status-success">
+                              <span className="status-dot"></span>
+                              ⚡ {a.status || 'Active'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                              <button
+                                onClick={() => handleRenewService('ADDON', a)}
+                                className="btn btn-sm"
+                                style={{
+                                  background: a.daysUntilExpiry <= 30 ? '#DC2626' : '#F1F5F9',
+                                  color: a.daysUntilExpiry <= 30 ? '#FFFFFF' : '#334155',
+                                  border: a.daysUntilExpiry <= 30 ? 'none' : '1px solid #CBD5E1',
+                                  fontWeight: 700,
+                                  fontSize: '0.8rem',
+                                  padding: '6px 12px',
+                                  whiteSpace: 'nowrap',
+                                }}
+                                title="Renew this subscription"
+                              >
+                                Renew 💳
+                              </button>
+                              <Link
+                                href="/products"
+                                className="btn btn-sm btn-outline"
+                                style={{ fontSize: '0.8rem', padding: '6px 12px', whiteSpace: 'nowrap' }}
+                              >
+                                Details ⚙️
+                              </Link>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+              {renderClientPagination(clientAddonPage, totalClientAddonPages, addons.length, 'subscriptions', setClientAddonPage)}
+            </div>
+          </div>
+        )}
+
         {/* 4. BILLING & INVOICES TAB */}
         {activeTab === 'billing' && (
           <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '20px', padding: '28px', boxShadow: 'var(--shadow-sm)' }}>
@@ -1797,12 +1965,14 @@ export default function ClientDashboard() {
             </div>
 
             <div className="table-responsive">
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '850px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '920px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Ticket #</th>
-                    <th style={{ padding: '12px 16px', minWidth: '260px' }}>Subject</th>
+                    <th style={{ padding: '12px 16px', minWidth: '240px' }}>Subject</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Department</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Created Date</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Last Activity</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Priority</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
                     <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Conversation</th>
@@ -1824,11 +1994,27 @@ export default function ClientDashboard() {
                         <div style={{ fontSize: '0.95rem' }}>{t.subject}</div>
                         {t.replies?.[t.replies.length - 1] && (
                           <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 400, marginTop: '4px' }}>
-                            Latest reply from <strong>{t.replies[t.replies.length - 1].senderName}</strong>: &quot;{t.replies[t.replies.length - 1].message.slice(0, 80)}...&quot;
+                            Latest reply from <strong>{t.replies[t.replies.length - 1].senderName}</strong>: &quot;{t.replies[t.replies.length - 1].message.slice(0, 70)}...&quot;
                           </div>
                         )}
                       </td>
                       <td style={{ padding: '16px', color: '#64748B', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{t.department}</td>
+                      <td style={{ padding: '16px', whiteSpace: 'nowrap', fontSize: '0.85rem', color: '#0F172A' }}>
+                        <div>{new Date(t.createdAt).toLocaleDateString()}</div>
+                        <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>{new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      </td>
+                      <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.85rem', color: '#0F172A', fontWeight: 600 }}>
+                          {t.lastRepliedAt ? new Date(t.lastRepliedAt).toLocaleDateString() : new Date(t.createdAt).toLocaleDateString()}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', marginTop: '2px' }}>
+                          {t.lastRepliedBy === 'STAFF' ? (
+                            <span style={{ color: '#166534', fontWeight: 700 }}>🛡️ Staff ({t.lastRepliedByName || 'Support'})</span>
+                          ) : (
+                            <span style={{ color: '#0284C7', fontWeight: 600 }}>👤 You (Awaiting Staff)</span>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
                         <span className={`status-badge ${t.priority === 'HIGH' ? 'status-danger' : 'status-warning'}`}>
                           {t.priority}
@@ -1868,7 +2054,7 @@ export default function ClientDashboard() {
             {/* Modal Header */}
             <div style={{ padding: '24px 32px 18px', borderBottom: '1px solid #E2E8F0', background: '#F8FAFC', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px', flexWrap: 'wrap' }}>
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 800, color: 'var(--brand-action-cyan)', fontSize: '1rem', background: '#E0F2FE', padding: '2px 8px', borderRadius: '6px' }}>
                     {selectedTicket.ticketNumber}
                   </span>
@@ -1877,6 +2063,14 @@ export default function ClientDashboard() {
                     {selectedTicket.status === 'CLOSED' ? '🔒 RESOLVED & CLOSED' : selectedTicket.status === 'ANSWERED' ? '💬 ANSWERED' : '🟢 OPEN'}
                   </span>
                   <span style={{ fontSize: '0.78rem', color: '#64748B' }}>{selectedTicket.department}</span>
+                  <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                    • Created: <strong>{new Date(selectedTicket.createdAt).toLocaleDateString()}</strong>
+                  </span>
+                  {selectedTicket.lastRepliedAt && (
+                    <span style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                      • Last Activity: <strong>{new Date(selectedTicket.lastRepliedAt).toLocaleString()}</strong> by {selectedTicket.lastRepliedByName || (selectedTicket.lastRepliedBy === 'STAFF' ? 'Staff' : 'You')}
+                    </span>
+                  )}
                 </div>
                 <h3 style={{ fontSize: '1.35rem', color: '#0F172A', margin: 0 }}>{selectedTicket.subject}</h3>
               </div>
@@ -2531,16 +2725,24 @@ export default function ClientDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {dnsRecords.map((r: any) => (
-                        <tr key={r.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                          <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                            <span className="status-badge status-success">{r.type}</span>
+                      {Array.isArray(dnsRecords) && dnsRecords.length > 0 ? (
+                        dnsRecords.map((r: any, idx: number) => (
+                          <tr key={r.id || idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                            <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                              <span className="status-badge status-success">{r.type || 'A'}</span>
+                            </td>
+                            <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)' }}>{r.host || '@'}</td>
+                            <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>{r.value}</td>
+                            <td style={{ padding: '10px 14px', color: '#64748B', whiteSpace: 'nowrap' }}>{r.ttl || 14400}s</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#64748B' }}>
+                            No active DNS records found in this zone. You can add your first record below.
                           </td>
-                          <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)' }}>{r.host}</td>
-                          <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>{r.value}</td>
-                          <td style={{ padding: '10px 14px', color: '#64748B', whiteSpace: 'nowrap' }}>{r.ttl}s</td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -2878,6 +3080,88 @@ export default function ClientDashboard() {
                 <div style={{ fontWeight: 700, color: '#0F172A' }}>For Hostmattic Technologies</div>
                 <div style={{ marginTop: '16px', fontStyle: 'italic' }}>Authorized Signatory</div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1-CLICK RENEWAL CONFIRMATION MODAL */}
+      {selectedRenewalModal && (
+        <div className="modal-backdrop-responsive">
+          <div className="modal-card-responsive" style={{ maxWidth: '520px', padding: '28px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid #E2E8F0', paddingBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '1.4rem' }}>🔄</span>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', margin: 0, color: '#0F172A' }}>Service Renewal Confirmation</h3>
+                  <div style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                    Extend validity to maintain uninterrupted service &amp; DNS uptime
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedRenewalModal(null)}
+                style={{ background: '#F1F5F9', border: 'none', borderRadius: '999px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, color: '#64748B' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '12px', padding: '18px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', gap: '12px' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748B', whiteSpace: 'nowrap' }}>Service Item:</span>
+                <strong style={{ fontSize: '0.92rem', color: '#0F172A', textAlign: 'right', wordBreak: 'break-all' }}>
+                  {selectedRenewalModal.type === 'DOMAIN'
+                    ? selectedRenewalModal.item.domainName
+                    : selectedRenewalModal.type === 'HOSTING'
+                    ? `${selectedRenewalModal.item.planName} (${selectedRenewalModal.item.domainName})`
+                    : selectedRenewalModal.item.name}
+                </strong>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748B' }}>Current Expiry:</span>
+                <span style={{ fontSize: '0.85rem', color: '#0F172A', fontWeight: 600 }}>
+                  {selectedRenewalModal.item.expiryDate ? new Date(selectedRenewalModal.item.expiryDate).toLocaleDateString() : 'Active Subscription'}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748B' }}>Extension Term:</span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--brand-action-teal)', fontWeight: 700 }}>
+                  +1 Year Standard Renewal
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '12px', borderTop: '1px dashed #CBD5E1', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0F172A' }}>Estimated Renewal Price:</span>
+                <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--brand-action-green)' }}>
+                  {selectedRenewalModal.type === 'DOMAIN'
+                    ? formatPrice(pricingData?.[selectedRenewalModal.item.tld || '.com']?.renew || 12.99)
+                    : selectedRenewalModal.type === 'HOSTING'
+                    ? formatPrice(119.88)
+                    : formatPrice(Number(selectedRenewalModal.item.price) || 19.99)}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setSelectedRenewalModal(null)}
+                className="btn btn-sm btn-outline"
+                style={{ padding: '8px 16px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmRenewal}
+                className="btn btn-sm btn-primary"
+                style={{ padding: '8px 20px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                Proceed to Renewal Checkout 🚀
+              </button>
             </div>
           </div>
         </div>

@@ -58,6 +58,21 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.authenticated && d.user) {
+          setCurrentUser(d.user);
+        } else {
+          setCurrentUser(null);
+        }
+      })
+      .catch(() => setCurrentUser(null));
+  }, [pathname]);
+
   return (
     <>
       {/* Top Utility Bar */}
@@ -101,13 +116,40 @@ export default function Header() {
                 INR (₹)
               </button>
             </div>
-            <Link href="/login" className="topbar-link">
-              Client Login
-            </Link>
-            <span style={{ color: '#64748B', margin: '0 6px', fontSize: '0.8rem' }}>•</span>
-            <Link href="/register" className="topbar-link" style={{ color: 'var(--brand-lime)', fontWeight: 600 }}>
-              Sign Up
-            </Link>
+            {currentUser ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Link
+                  href={currentUser.role === 'ADMIN' ? '/admin/dashboard' : '/client/dashboard'}
+                  className="topbar-link"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--brand-lime)', fontWeight: 700 }}
+                >
+                  <span>👤</span>
+                  <span>{currentUser.role === 'ADMIN' ? 'Admin Portal' : 'My Dashboard'}</span>
+                </Link>
+                <span style={{ color: '#64748B', margin: '0 4px', fontSize: '0.8rem' }}>•</span>
+                <button
+                  onClick={async () => {
+                    await fetch('/api/auth/logout', { method: 'POST' });
+                    setCurrentUser(null);
+                    window.location.href = '/login';
+                  }}
+                  className="topbar-link"
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#CBD5E1', fontSize: '0.82rem' }}
+                >
+                  Sign Out
+                </button>
+              </div>
+            ) : (
+              <>
+                <Link href="/login" className="topbar-link">
+                  Client Login
+                </Link>
+                <span style={{ color: '#64748B', margin: '0 6px', fontSize: '0.8rem' }}>•</span>
+                <Link href="/register" className="topbar-link" style={{ color: 'var(--brand-lime)', fontWeight: 600 }}>
+                  Sign Up
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </aside>
@@ -535,22 +577,49 @@ export default function Header() {
               <li><Link href="/products" onClick={() => setDrawerOpen(false)}>All Products &amp; Solutions Directory</Link></li>
             </ul>
             <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <Link
-                href="/login"
-                className="btn btn-outline"
-                style={{ width: '100%', justifyContent: 'center' }}
-                onClick={() => setDrawerOpen(false)}
-              >
-                Client Portal Login
-              </Link>
-              <Link
-                href="/register"
-                className="btn btn-primary"
-                style={{ width: '100%', justifyContent: 'center' }}
-                onClick={() => setDrawerOpen(false)}
-              >
-                Create Account →
-              </Link>
+              {currentUser ? (
+                <>
+                  <Link
+                    href={currentUser.role === 'ADMIN' ? '/admin/dashboard' : '/client/dashboard'}
+                    className="btn btn-primary"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => setDrawerOpen(false)}
+                  >
+                    👤 {currentUser.role === 'ADMIN' ? 'Admin Portal' : 'My Dashboard'}
+                  </Link>
+                  <button
+                    onClick={async () => {
+                      await fetch('/api/auth/logout', { method: 'POST' });
+                      setCurrentUser(null);
+                      setDrawerOpen(false);
+                      window.location.href = '/login';
+                    }}
+                    className="btn btn-outline"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                  >
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="btn btn-outline"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => setDrawerOpen(false)}
+                  >
+                    Client Portal Login
+                  </Link>
+                  <Link
+                    href="/register"
+                    className="btn btn-primary"
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => setDrawerOpen(false)}
+                  >
+                    Create Account →
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

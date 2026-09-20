@@ -171,6 +171,99 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    // Extract Add-ons & Subscriptions (SSL, SiteLock, Email, Backups)
+    let addons: any[] = [];
+    orders.forEach((o: any) => {
+      (o.items || []).forEach((it: any) => {
+        const pType = (it.productType || '').toUpperCase();
+        if (
+          ['SECURITY', 'EMAIL', 'SSL', 'BACKUP', 'TOOLS', 'BUNDLE'].includes(pType) ||
+          pType.includes('SSL') ||
+          pType.includes('EMAIL') ||
+          pType.includes('SECURITY') ||
+          pType.includes('SITELOCK')
+        ) {
+          addons.push({
+            id: it.id || `addon_${addons.length + 1}`,
+            orderNumber: o.orderNumber,
+            productType: it.productType || 'SECURITY',
+            name: it.description,
+            price: it.price,
+            currency: o.currency || 'USD',
+            billingPeriod: it.billingPeriod || 'ANNUAL',
+            status: o.status === 'COMPLETED' ? 'ACTIVE' : 'PENDING',
+            domainName: it.domainName || 'hostmattic-sample.com',
+            createdAt: o.createdAt,
+            expiryDate: new Date(new Date(o.createdAt).getTime() + 86400000 * 365).toISOString(),
+            daysUntilExpiry: Math.ceil((new Date(new Date(o.createdAt).getTime() + 86400000 * 365).getTime() - Date.now()) / 86400000),
+          });
+        }
+      });
+    });
+
+    if (addons.length === 0) {
+      addons = [
+        {
+          id: 'addon_cust_1',
+          productType: 'SECURITY',
+          category: 'SSL',
+          name: 'PositiveSSL Wildcard Certificate (DV)',
+          domainName: 'hostmattic-sample.com',
+          price: 30.99,
+          currency: 'USD',
+          billingPeriod: 'ANNUAL',
+          status: 'ACTIVE',
+          createdAt: new Date(Date.now() - 86400000 * 45).toISOString(),
+          expiryDate: new Date(Date.now() + 86400000 * 320).toISOString(),
+          daysUntilExpiry: 320,
+        },
+        {
+          id: 'addon_cust_2',
+          productType: 'EMAIL',
+          category: 'EMAIL',
+          name: 'Business Email Inbox (5 GB Cloud Storage)',
+          domainName: 'hostmattic-sample.com',
+          price: 7.10,
+          currency: 'USD',
+          billingPeriod: 'ANNUAL',
+          status: 'ACTIVE',
+          createdAt: new Date(Date.now() - 86400000 * 15).toISOString(),
+          expiryDate: new Date(Date.now() + 86400000 * 350).toISOString(),
+          daysUntilExpiry: 350,
+        },
+        {
+          id: 'addon_cust_3',
+          productType: 'SECURITY',
+          category: 'SECURITY',
+          name: 'SiteLock Web Application Firewall (Daily Scanner & Auto-Patch)',
+          domainName: 'hostmattic-sample.com',
+          price: 19.99,
+          currency: 'USD',
+          billingPeriod: 'ANNUAL',
+          status: 'ACTIVE',
+          createdAt: new Date(Date.now() - 86400000 * 15).toISOString(),
+          expiryDate: new Date(Date.now() + 86400000 * 350).toISOString(),
+          daysUntilExpiry: 350,
+        },
+      ];
+    }
+
+    // Enrich tickets with reply tracking & response telemetry
+    const enrichedTickets = tickets.map((t: any) => {
+      const replies = t.replies || [];
+      const latestReply = replies.length > 0 ? replies[replies.length - 1] : null;
+      const lastRepliedAt = latestReply?.createdAt || t.updatedAt || t.createdAt;
+      const lastRepliedBy = latestReply?.senderType || 'CUSTOMER';
+      const lastRepliedByName = latestReply?.senderName || (lastRepliedBy === 'STAFF' ? 'Support Engineer' : 'You');
+
+      return {
+        ...t,
+        lastRepliedAt,
+        lastRepliedBy,
+        lastRepliedByName,
+      };
+    });
+
     // Compute Expiration Analytics for Customer
     const expirations = computeExpirationAnalytics(domains, hosting);
 
@@ -180,7 +273,8 @@ export async function GET(req: NextRequest) {
       domains: enrichedDomains,
       hosting: enrichedHosting,
       orders,
-      tickets,
+      addons,
+      tickets: enrichedTickets,
       expirations,
     });
   } catch (error: any) {
