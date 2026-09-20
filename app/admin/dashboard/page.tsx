@@ -9,8 +9,22 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'customers' | 'hosting' | 'domains' | 'orders' | 'tickets' | 'taxes' | 'gateway'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'orders' | 'domains' | 'hosting' | 'customers' | 'tickets' | 'taxes' | 'gateway'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Financial & Reports State
+  const [reportPeriod, setReportPeriod] = useState<'allTime' | 'mtd' | 'last30d' | 'last7d'>('allTime');
+  const [reportCurrency, setReportCurrency] = useState<'CONSOLIDATED' | 'INR' | 'USD'>('CONSOLIDATED');
+  const [selectedTransaction, setSelectedTransaction] = useState<any | null>(null);
+
+  // Expiration & Lifecycle Filter States
+  const [domainFilter, setDomainFilter] = useState<'all' | 'warning' | 'critical' | 'expired'>('all');
+  const [hostingFilter, setHostingFilter] = useState<'all' | 'warning' | 'critical' | 'expired'>('all');
+
+  // Orders Ledger Filters
+  const [orderGatewayFilter, setOrderGatewayFilter] = useState<'ALL' | 'RAZORPAY' | 'INSTAMOJO' | 'MANUAL'>('ALL');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL' | 'COMPLETED' | 'PAID' | 'PENDING'>('ALL');
+  const [orderCurrencyFilter, setOrderCurrencyFilter] = useState<'ALL' | 'INR' | 'USD'>('ALL');
 
   // Tax & GST Engine Settings state
   const [taxSettings, setTaxSettings] = useState<any>({
@@ -51,6 +65,54 @@ export default function AdminDashboardPage() {
   const [orderPage, setOrderPage] = useState(1);
   const [ticketPage, setTicketPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // CSV Export for Financial Ledger & P&L
+  const exportFinancialsCsv = () => {
+    const ordersList = data?.orders || [];
+    if (ordersList.length === 0) return;
+    const headers = [
+      'Order Number',
+      'Date',
+      'Customer Name',
+      'Customer Email',
+      'Customer GSTIN',
+      'Currency',
+      'Gross Total',
+      'Subtotal (Ex-Tax)',
+      'Tax (GST)',
+      'Wholesale COGS',
+      'Gross Profit',
+      'Margin %',
+      'Payment Gateway',
+      'Gateway Payment ID',
+      'Payment Status',
+    ];
+    const rows = ordersList.map((o: any) => [
+      `"${o.orderNumber}"`,
+      `"${new Date(o.createdAt).toISOString().split('T')[0]}"`,
+      `"${(o.user?.name || '').replace(/"/g, '""')}"`,
+      `"${(o.user?.email || '').replace(/"/g, '""')}"`,
+      `"${(o.customerGstin || '').replace(/"/g, '""')}"`,
+      o.currency || 'INR',
+      o.totalAmount || 0,
+      o.subtotalAmount || o.totalAmount || 0,
+      o.taxAmount || 0,
+      o.financials?.wholesaleCost || 0,
+      o.financials?.grossProfit || 0,
+      (o.financials?.profitMargin || 0).toFixed(2) + '%',
+      o.gatewayName || o.paymentMethod || 'MANUAL',
+      `"${(o.gatewayPaymentId || '').replace(/"/g, '""')}"`,
+      o.paymentStatus || 'PAID',
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((r: any) => r.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `hostmattic_financial_pnl_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const fetchTaxSettings = () => {
     fetch('/api/admin/settings/tax')
@@ -260,21 +322,47 @@ export default function AdminDashboardPage() {
     (c.upstreamCustomerId || '').includes(searchQuery)
   );
 
-  const hosting = (data?.hosting || []).filter((h: any) =>
-    (h.domainName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (h.planName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (h.cpanelUsername || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (h.serverIp || '').includes(searchQuery)
-  );
+  const hosting = (data?.hosting || []).filter((h: any) => {
+    const matchesSearch =
+      (h.domainName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (h.planName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (h.cpanelUsername || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (h.serverIp || '').includes(searchQuery);
+    if (!matchesSearch) return false;
+    if (hostingFilter === 'critical') return h.daysUntilExpiry !== undefined && h.daysUntilExpiry <= 7 && h.daysUntilExpiry >= 0;
+    if (hostingFilter === 'warning') return h.daysUntilExpiry !== undefined && h.daysUntilExpiry <= 30 && h.daysUntilExpiry >= 0;
+    if (hostingFilter === 'expired') return h.daysUntilExpiry !== undefined && h.daysUntilExpiry < 0;
+    return true;
+  });
 
-  const domains = (data?.domains || []).filter((d: any) =>
-    (d.domainName || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const domains = (data?.domains || []).filter((d: any) => {
+    const matchesSearch = (d.domainName || '').toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    if (domainFilter === 'critical') return d.daysUntilExpiry !== undefined && d.daysUntilExpiry <= 7 && d.daysUntilExpiry >= 0;
+    if (domainFilter === 'warning') return d.daysUntilExpiry !== undefined && d.daysUntilExpiry <= 30 && d.daysUntilExpiry >= 0;
+    if (domainFilter === 'expired') return d.daysUntilExpiry !== undefined && d.daysUntilExpiry < 0;
+    return true;
+  });
 
-  const orders = (data?.orders || []).filter((o: any) =>
-    (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (o.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const orders = (data?.orders || []).filter((o: any) => {
+    const matchesSearch =
+      (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (o.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (o.gatewayPaymentId || '').toLowerCase().includes(searchQuery.toLowerCase());
+    if (!matchesSearch) return false;
+    if (orderGatewayFilter !== 'ALL') {
+      const gw = (o.gatewayName || o.paymentMethod || '').toUpperCase();
+      if (!gw.includes(orderGatewayFilter)) return false;
+    }
+    if (orderStatusFilter !== 'ALL') {
+      const st = (o.paymentStatus || '').toUpperCase();
+      if (st !== orderStatusFilter) return false;
+    }
+    if (orderCurrencyFilter !== 'ALL') {
+      if (o.currency !== orderCurrencyFilter) return false;
+    }
+    return true;
+  });
 
   const tickets = (data?.tickets || []).filter((t: any) =>
     (t.ticketNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -531,6 +619,102 @@ export default function AdminDashboardPage() {
             </button>
           </div>
         )}
+        {/* TOP EXPIRATION & LIFECYCLE ALERT BANNER */}
+        {data?.expirations?.totalRequiringAttention > 0 && (
+          <div
+            style={{
+              padding: '16px 20px',
+              borderRadius: '14px',
+              marginBottom: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: (data.expirations.criticalCount > 0 || data.expirations.expiredCount > 0)
+                ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.22) 0%, rgba(185, 28, 28, 0.12) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 205, 0, 0.2) 0%, rgba(217, 119, 6, 0.12) 100%)',
+              border: (data.expirations.criticalCount > 0 || data.expirations.expiredCount > 0)
+                ? '1px solid rgba(239, 68, 68, 0.45)'
+                : '1px solid rgba(255, 205, 0, 0.45)',
+              flexWrap: 'wrap',
+              gap: '14px',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <span style={{ fontSize: '1.6rem' }}>
+                {(data.expirations.criticalCount > 0 || data.expirations.expiredCount > 0) ? '🚨' : '⚠️'}
+              </span>
+              <div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>30-Day Service Expiration Alert:</span>
+                  <span style={{ color: (data.expirations.criticalCount > 0 || data.expirations.expiredCount > 0) ? '#FCA5A5' : '#FFCD00' }}>
+                    {data.expirations.totalRequiringAttention} Service{data.expirations.totalRequiringAttention > 1 ? 's' : ''} Require Immediate Attention
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#CBD5E1', marginTop: '3px' }}>
+                  {data.expirations.criticalCount > 0 && (
+                    <strong style={{ color: '#F87171' }}>{data.expirations.criticalCount} critical in ≤7 days &bull; </strong>
+                  )}
+                  {data.expirations.warningCount > 0 && (
+                    <span style={{ color: '#FDE047' }}>{data.expirations.warningCount} expiring in ≤30 days &bull; </span>
+                  )}
+                  {data.expirations.expiredCount > 0 && (
+                    <span style={{ color: '#FCA5A5' }}>{data.expirations.expiredCount} past expiration &bull; </span>
+                  )}
+                  <span>Notify registrants or process upstream registrar renewal.</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <button
+                onClick={() => {
+                  setActiveTab('domains');
+                  setDomainFilter('warning');
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.12)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  color: '#FFFFFF',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>Filter Domains (≤30d)</span>
+                <span>🌐</span>
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTab('hosting');
+                  setHostingFilter('warning');
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.12)',
+                  border: '1px solid rgba(255, 255, 255, 0.25)',
+                  color: '#FFFFFF',
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>Filter Hosting (≤30d)</span>
+                <span>☁️</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* KPI Telemetry Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '32px' }}>
           <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '20px', backdropFilter: 'blur(10px)' }}>
@@ -586,10 +770,11 @@ export default function AdminDashboardPage() {
           <div className="horizontal-scroll-touch" style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '4px', gap: '4px', maxWidth: '100%' }}>
             {[
               { id: 'overview', label: 'Overview', icon: '📊' },
-              { id: 'customers', label: `Customers (${customers.length})`, icon: '👥' },
-              { id: 'hosting', label: `Hosting (${hosting.length})`, icon: '☁️' },
-              { id: 'domains', label: `Domains (${domains.length})`, icon: '🌐' },
+              { id: 'reports', label: 'Reports & P&L', icon: '📈' },
               { id: 'orders', label: `Orders (${orders.length})`, icon: '💳' },
+              { id: 'domains', label: `Domains (${domains.length})${data?.expirations?.domains?.warning > 0 ? ' ⚠️' : ''}`, icon: '🌐' },
+              { id: 'hosting', label: `Hosting (${hosting.length})${data?.expirations?.hosting?.warning > 0 ? ' ⚠️' : ''}`, icon: '☁️' },
+              { id: 'customers', label: `Customers (${customers.length})`, icon: '👥' },
               { id: 'tickets', label: `Support Queue (${tickets.length})`, icon: '🎫' },
               { id: 'taxes', label: 'Tax & GST Settings', icon: '🏛️' },
               { id: 'gateway', label: 'API Gateway', icon: '⚙️' },
@@ -644,7 +829,7 @@ export default function AdminDashboardPage() {
 
         {/* 1. OVERVIEW */}
         {activeTab === 'overview' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '24px' }}>
             <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h3 style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0 }}>Recent Customers</h3>
@@ -671,6 +856,103 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* 30-Day Expiration & Renewal Monitor */}
+            <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h3 style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>⏳</span>
+                  <span>30-Day Expiration Monitor</span>
+                </h3>
+                <span style={{ fontSize: '0.75rem', padding: '3px 8px', borderRadius: '999px', background: data?.expirations?.totalRequiringAttention > 0 ? 'rgba(239, 68, 68, 0.2)' : 'rgba(155, 203, 68, 0.2)', color: data?.expirations?.totalRequiringAttention > 0 ? '#FCA5A5' : '#9BCB44', fontWeight: 700 }}>
+                  {data?.expirations?.totalRequiringAttention || 0} Alert{data?.expirations?.totalRequiringAttention !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              {/* Status summary pills */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
+                <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '8px', padding: '8px 10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#FCA5A5', fontWeight: 600 }}>Critical (≤7d)</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#F87171', marginTop: '2px' }}>
+                    {data?.expirations?.criticalCount || 0}
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(255, 205, 0, 0.12)', border: '1px solid rgba(255, 205, 0, 0.25)', borderRadius: '8px', padding: '8px 10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#FDE047', fontWeight: 600 }}>Expiring (≤30d)</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FFCD00', marginTop: '2px' }}>
+                    {data?.expirations?.warningCount || 0}
+                  </div>
+                </div>
+                <div style={{ background: 'rgba(148, 163, 184, 0.12)', border: '1px solid rgba(148, 163, 184, 0.25)', borderRadius: '8px', padding: '8px 10px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7rem', color: '#94A3B8', fontWeight: 600 }}>Past Due</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#CBD5E1', marginTop: '2px' }}>
+                    {data?.expirations?.expiredCount || 0}
+                  </div>
+                </div>
+              </div>
+
+              {/* Top expiring items preview list */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
+                {(data?.expirations?.upcomingExpiringItems || []).slice(0, 3).map((item: any, idx: number) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '8px 12px',
+                      background: 'rgba(15, 23, 42, 0.6)',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1, marginRight: '8px' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.name}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>
+                        {item.type === 'DOMAIN' ? '🌐 Domain' : '☁️ Hosting'} &bull; {item.customerName}
+                      </div>
+                    </div>
+                    <div>
+                      {item.daysUntilExpiry < 0 ? (
+                        <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.2)', color: '#FCA5A5', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          Expired ({Math.abs(item.daysUntilExpiry)}d ago)
+                        </span>
+                      ) : item.daysUntilExpiry <= 7 ? (
+                        <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.25)', color: '#F87171', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                          {item.daysUntilExpiry}d left 🚨
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255, 205, 0, 0.2)', color: '#FFCD00', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {item.daysUntilExpiry}d left
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {(!data?.expirations?.upcomingExpiringItems || data.expirations.upcomingExpiringItems.length === 0) && (
+                  <div style={{ textAlign: 'center', padding: '16px', color: '#94A3B8', fontSize: '0.8rem' }}>
+                    ✓ All customer services are healthy and active (&gt;30 days remaining).
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <button
+                  onClick={() => { setActiveTab('domains'); setDomainFilter('warning'); }}
+                  style={{ background: 'rgba(155, 203, 68, 0.15)', border: '1px solid rgba(155, 203, 68, 0.35)', color: '#9BCB44', padding: '8px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Expiring Domains →
+                </button>
+                <button
+                  onClick={() => { setActiveTab('hosting'); setHostingFilter('warning'); }}
+                  style={{ background: 'rgba(41, 180, 213, 0.15)', border: '1px solid rgba(41, 180, 213, 0.35)', color: '#29B4D5', padding: '8px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Expiring Hosting →
+                </button>
               </div>
             </div>
 
@@ -720,6 +1002,367 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         )}
+
+        {/* 2. REPORTS & PROFIT / LOSS STATEMENT */}
+        {activeTab === 'reports' && (() => {
+          const activeReport = data?.financials?.[reportPeriod] || data?.financials?.allTime || {
+            period: 'all',
+            currencyBreakdown: { INR: {}, USD: {} },
+            consolidatedInr: {},
+            productBreakdown: { domains: {}, hosting: {}, other: {} },
+            gstSummary: {},
+            invoiceCount: 0,
+          };
+          const activeLedger = reportCurrency === 'CONSOLIDATED'
+            ? activeReport?.consolidatedInr
+            : reportCurrency === 'INR'
+            ? activeReport?.currencyBreakdown?.INR
+            : activeReport?.currencyBreakdown?.USD;
+          const currSymbol = reportCurrency === 'USD' ? '$' : '₹';
+
+          const grossRev = activeLedger?.grossRevenue || 0;
+          const wholesale = activeLedger?.wholesaleCost || 0;
+          const profit = activeLedger?.grossProfit || 0;
+          const margin = activeLedger?.profitMargin || 0;
+          const gstTax = activeLedger?.taxAmount || 0;
+          const turnover = activeLedger?.netTurnover || 0;
+
+          const cogsPct = grossRev > 0 ? ((wholesale / grossRev) * 100) : 0;
+          const profitPct = grossRev > 0 ? ((profit / grossRev) * 100) : 0;
+          const taxPct = grossRev > 0 ? ((gstTax / grossRev) * 100) : 0;
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              {/* Report Header & Controls */}
+              <div
+                style={{
+                  background: 'rgba(30, 41, 59, 0.6)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '18px',
+                  padding: '24px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '20px',
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFFFFF', margin: 0 }}>
+                      Financial Reports &amp; Profit / Loss Statement
+                    </h2>
+                    <span style={{ fontSize: '0.75rem', padding: '3px 10px', borderRadius: '999px', background: 'rgba(155, 203, 68, 0.18)', color: '#9BCB44', border: '1px solid rgba(155, 203, 68, 0.35)', fontWeight: 700 }}>
+                      Live Ledger Engine
+                    </span>
+                  </div>
+                  <p style={{ color: '#94A3B8', fontSize: '0.85rem', margin: '6px 0 0' }}>
+                    Real-time transaction reconciliation, upstream wholesale COGS attribution, statutory GST tax liabilities, and net profit margins.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  {/* Period Filter */}
+                  <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '10px', padding: '3px' }}>
+                    {[
+                      { id: 'allTime', label: 'All Time' },
+                      { id: 'mtd', label: 'MTD' },
+                      { id: 'last30d', label: '30 Days' },
+                      { id: 'last7d', label: '7 Days' },
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setReportPeriod(p.id as any)}
+                        style={{
+                          background: reportPeriod === p.id ? '#FFCD00' : 'transparent',
+                          color: reportPeriod === p.id ? '#090D12' : '#CBD5E1',
+                          border: 'none',
+                          borderRadius: '7px',
+                          padding: '6px 12px',
+                          fontSize: '0.78rem',
+                          fontWeight: reportPeriod === p.id ? 800 : 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Currency Filter */}
+                  <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '10px', padding: '3px' }}>
+                    {[
+                      { id: 'CONSOLIDATED', label: 'Consolidated (₹ Eq.)' },
+                      { id: 'INR', label: 'INR (₹)' },
+                      { id: 'USD', label: 'USD ($)' },
+                    ].map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => setReportCurrency(c.id as any)}
+                        style={{
+                          background: reportCurrency === c.id ? '#29B4D5' : 'transparent',
+                          color: reportCurrency === c.id ? '#090D12' : '#CBD5E1',
+                          border: 'none',
+                          borderRadius: '7px',
+                          padding: '6px 12px',
+                          fontSize: '0.78rem',
+                          fontWeight: reportCurrency === c.id ? 800 : 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Export CSV Button */}
+                  <button
+                    onClick={exportFinancialsCsv}
+                    style={{
+                      background: 'rgba(155, 203, 68, 0.15)',
+                      border: '1px solid rgba(155, 203, 68, 0.4)',
+                      color: '#9BCB44',
+                      padding: '8px 16px',
+                      borderRadius: '10px',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <span>📥</span>
+                    <span>Export P&amp;L (CSV)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Financial KPI Summary Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '20px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Gross Invoiced Turnover</span>
+                    <span style={{ color: '#FFCD00' }}>💵</span>
+                  </div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#FFFFFF', marginTop: '6px' }}>
+                    {currSymbol}{grossRev.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '4px' }}>
+                    {activeReport?.invoiceCount || 0} customer invoice(s)
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '20px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Upstream Wholesale COGS</span>
+                    <span style={{ color: '#F59E0B' }}>📦</span>
+                  </div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#F59E0B', marginTop: '6px' }}>
+                    {currSymbol}{wholesale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '4px' }}>
+                    Domain registries &amp; server licenses ({cogsPct.toFixed(1)}% of rev)
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '20px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Net Gross Profit</span>
+                    <span style={{ color: '#9BCB44' }}>📈</span>
+                  </div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#9BCB44', marginTop: '6px' }}>
+                    {currSymbol}{profit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#9BCB44', marginTop: '4px', fontWeight: 700 }}>
+                    Gross Profit Margin: {margin.toFixed(2)}%
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '20px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Output GST Tax Collected</span>
+                    <span style={{ color: '#29B4D5' }}>🏛️</span>
+                  </div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#29B4D5', marginTop: '6px' }}>
+                    {currSymbol}{gstTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '4px' }}>
+                    Payable to statutory authorities
+                  </div>
+                </div>
+              </div>
+
+              {/* Turnover Distribution Bar */}
+              <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#FFFFFF', margin: 0 }}>
+                    Revenue &amp; Cost Structure Allocation
+                  </h3>
+                  <div style={{ fontSize: '0.8rem', color: '#94A3B8' }}>
+                    Net Turnover (Ex-Tax): <strong style={{ color: '#FFFFFF' }}>{currSymbol}{turnover.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                  </div>
+                </div>
+
+                {/* Progress bar container */}
+                <div style={{ height: '22px', borderRadius: '11px', background: 'rgba(15, 23, 42, 0.8)', overflow: 'hidden', display: 'flex', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                  <div
+                    title={`Upstream Wholesale COGS: ${cogsPct.toFixed(1)}%`}
+                    style={{ width: `${Math.max(cogsPct, 0)}%`, background: '#F59E0B', transition: 'width 0.4s ease' }}
+                  />
+                  <div
+                    title={`Net Gross Profit: ${profitPct.toFixed(1)}%`}
+                    style={{ width: `${Math.max(profitPct, 0)}%`, background: '#9BCB44', transition: 'width 0.4s ease' }}
+                  />
+                  <div
+                    title={`Output GST Tax: ${taxPct.toFixed(1)}%`}
+                    style={{ width: `${Math.max(taxPct, 0)}%`, background: '#29B4D5', transition: 'width 0.4s ease' }}
+                  />
+                </div>
+
+                {/* Legend */}
+                <div style={{ display: 'flex', gap: '24px', marginTop: '14px', flexWrap: 'wrap', fontSize: '0.82rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#F59E0B', display: 'inline-block' }}></span>
+                    <span style={{ color: '#CBD5E1' }}>Wholesale COGS ({cogsPct.toFixed(1)}% &bull; {currSymbol}{wholesale.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#9BCB44', display: 'inline-block' }}></span>
+                    <span style={{ color: '#CBD5E1' }}>Net Gross Profit ({profitPct.toFixed(1)}% &bull; {currSymbol}{profit.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#29B4D5', display: 'inline-block' }}></span>
+                    <span style={{ color: '#CBD5E1' }}>Output GST ({taxPct.toFixed(1)}% &bull; {currSymbol}{gstTax.toLocaleString(undefined, { minimumFractionDigits: 2 })})</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Product Line Breakdown & Statutory GST Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 480px), 1fr))', gap: '24px' }}>
+                {/* Product Line Performance */}
+                <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
+                  <h3 style={{ fontSize: '1.15rem', color: '#FFFFFF', marginTop: 0, marginBottom: '16px' }}>
+                    Product Line Profitability Analysis
+                  </h3>
+                  <div className="table-responsive" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(15, 23, 42, 0.8)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#94A3B8' }}>
+                          <th style={{ padding: '10px 14px' }}>Category</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'right' }}>Revenue</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'right' }}>Wholesale COGS</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'right' }}>Gross Profit</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'right' }}>Margin</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                          <td style={{ padding: '12px 14px', fontWeight: 700, color: '#FFFFFF' }}>
+                            <span>🌐 Domain Registrations</span>
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#FFFFFF' }}>
+                            {currSymbol}{(activeReport?.productBreakdown?.domains?.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#F59E0B' }}>
+                            {currSymbol}{(activeReport?.productBreakdown?.domains?.wholesaleCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#9BCB44', fontWeight: 700 }}>
+                            {currSymbol}{(activeReport?.productBreakdown?.domains?.grossProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'rgba(155, 203, 68, 0.15)', color: '#9BCB44', fontWeight: 700 }}>
+                              {(activeReport?.productBreakdown?.domains?.profitMargin || 0).toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                        <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                          <td style={{ padding: '12px 14px', fontWeight: 700, color: '#FFFFFF' }}>
+                            <span>☁️ Cloud &amp; Web Hosting</span>
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#FFFFFF' }}>
+                            {currSymbol}{(activeReport?.productBreakdown?.hosting?.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#F59E0B' }}>
+                            {currSymbol}{(activeReport?.productBreakdown?.hosting?.wholesaleCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#9BCB44', fontWeight: 700 }}>
+                            {currSymbol}{(activeReport?.productBreakdown?.hosting?.grossProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'rgba(155, 203, 68, 0.15)', color: '#9BCB44', fontWeight: 700 }}>
+                              {(activeReport?.productBreakdown?.hosting?.profitMargin || 0).toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '12px 14px', fontWeight: 700, color: '#CBD5E1' }}>
+                            <span>🛡️ SSL &amp; Addon Services</span>
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#FFFFFF' }}>
+                            {currSymbol}{(activeReport?.productBreakdown?.other?.revenue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#F59E0B' }}>
+                            {currSymbol}{(activeReport?.productBreakdown?.other?.wholesaleCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right', color: '#9BCB44', fontWeight: 700 }}>
+                            {currSymbol}{(activeReport?.productBreakdown?.other?.grossProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'rgba(155, 203, 68, 0.15)', color: '#9BCB44', fontWeight: 700 }}>
+                              {(activeReport?.productBreakdown?.other?.profitMargin || 0).toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Dual Ledger & Statutory Tax Breakdown */}
+                <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
+                  <h3 style={{ fontSize: '1.15rem', color: '#FFFFFF', marginTop: 0, marginBottom: '16px' }}>
+                    Statutory GST Tax Reconciliation
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <span style={{ color: '#94A3B8', fontSize: '0.85rem' }}>Central Tax (CGST 9%):</span>
+                      <strong style={{ color: '#29B4D5', fontSize: '0.85rem' }}>
+                        ₹{(activeReport?.gstSummary?.cgstInr || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <span style={{ color: '#94A3B8', fontSize: '0.85rem' }}>State Tax (SGST 9%):</span>
+                      <strong style={{ color: '#29B4D5', fontSize: '0.85rem' }}>
+                        ₹{(activeReport?.gstSummary?.sgstInr || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <span style={{ color: '#94A3B8', fontSize: '0.85rem' }}>Integrated Tax (IGST 18%):</span>
+                      <strong style={{ color: '#29B4D5', fontSize: '0.85rem' }}>
+                        ₹{(activeReport?.gstSummary?.igstInr || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <span style={{ color: '#94A3B8', fontSize: '0.85rem' }}>Zero-Rated Export (LUT USD Invoices):</span>
+                      <strong style={{ color: '#9BCB44', fontSize: '0.85rem' }}>
+                        {activeReport?.gstSummary?.lutExportInvoices || 0} Invoice(s) &bull; $0.00 IGST
+                      </strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 14px', background: 'rgba(41, 180, 213, 0.1)', borderRadius: '10px', border: '1px solid rgba(41, 180, 213, 0.3)' }}>
+                      <span style={{ color: '#FFFFFF', fontWeight: 700, fontSize: '0.9rem' }}>Total GST Output Liability:</span>
+                      <strong style={{ color: '#29B4D5', fontSize: '1rem' }}>
+                        ₹{(activeReport?.gstSummary?.totalGstInr || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 2. CUSTOMERS TABLE */}
         {activeTab === 'customers' && (
@@ -797,193 +1440,431 @@ export default function AdminDashboardPage() {
 
         {/* 3. HOSTING TAB */}
         {activeTab === 'hosting' && (
-          <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '850px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Service Plan</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Domain Name</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Server IP</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>cPanel User</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Operations</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedHosting.map((h: any) => (
-                  <tr key={h.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>
-                      {h.planName}
-                      <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 400 }}>{h.user?.name}</div>
-                    </td>
-                    <td style={{ padding: '14px 16px', color: '#29B4D5', fontWeight: 600, whiteSpace: 'nowrap' }}>{h.domainName}</td>
-                    <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{h.serverIp}</td>
-                    <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#FFCD00', whiteSpace: 'nowrap' }}>{h.cpanelUsername}</td>
-                    <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                      <span className={`status-badge ${h.status === 'SUSPENDED' ? 'status-badge-dark-danger' : 'status-badge-dark-success'}`}>
-                        <span className="status-dot"></span>
-                        {h.status === 'SUSPENDED' ? '🔒 Suspended' : '⚡ Active'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button
-                          onClick={() => setSelectedHostingForAction(h)}
-                          style={{ background: 'rgba(255, 205, 0, 0.15)', border: '1px solid rgba(255, 205, 0, 0.35)', color: '#FFCD00', padding: '6px 12px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                        >
-                          Manage Service ⚙️
-                        </button>
-                        <button
-                          onClick={() => window.open(`https://${h.serverIp}:2083`, '_blank')}
-                          style={{ background: 'rgba(41, 180, 213, 0.15)', border: '1px solid rgba(41, 180, 213, 0.35)', color: '#29B4D5', padding: '6px 12px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                        >
-                          cPanel :2083 ↗
-                        </button>
-                      </div>
-                    </td>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Quick Expiration Filter Pills */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600, marginRight: '4px' }}>Lifecycle Filter:</span>
+              {[
+                { id: 'all', label: `All Hosting (${data?.hosting?.length || 0})` },
+                { id: 'warning', label: `Expiring ≤30 Days (${data?.expirations?.hosting?.warning || 0})`, icon: '⚠️' },
+                { id: 'critical', label: `Critical ≤7 Days (${data?.expirations?.hosting?.critical || 0})`, icon: '🚨' },
+                { id: 'expired', label: `Past Due (${data?.expirations?.hosting?.expired || 0})`, icon: '🔴' },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => { setHostingFilter(f.id as any); setHostingPage(1); }}
+                  style={{
+                    background: hostingFilter === f.id ? 'rgba(255, 205, 0, 0.2)' : 'rgba(30, 41, 59, 0.7)',
+                    border: `1px solid ${hostingFilter === f.id ? '#FFCD00' : 'rgba(255, 255, 255, 0.1)'}`,
+                    color: hostingFilter === f.id ? '#FFCD00' : '#CBD5E1',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '0.8rem',
+                    fontWeight: hostingFilter === f.id ? 700 : 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {f.icon && <span>{f.icon}</span>}
+                  <span>{f.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '920px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Service Plan</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Domain Name</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Server IP</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>cPanel User</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Next Due / Renewal</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Operations</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {renderPagination(hostingPage, totalHostingPages, hosting.length, 'hosting accounts', setHostingPage)}
+                </thead>
+                <tbody>
+                  {paginatedHosting.map((h: any) => (
+                    <tr key={h.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>
+                        {h.planName}
+                        <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 400 }}>{h.user?.name}</div>
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#29B4D5', fontWeight: 600, whiteSpace: 'nowrap' }}>{h.domainName}</td>
+                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{h.serverIp}</td>
+                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#FFCD00', whiteSpace: 'nowrap' }}>{h.cpanelUsername}</td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.84rem', color: '#CBD5E1', marginBottom: '4px' }}>
+                          {h.nextDueDate ? new Date(h.nextDueDate).toLocaleDateString() : 'Next Cycle'}
+                        </div>
+                        {h.daysUntilExpiry !== undefined && (
+                          h.daysUntilExpiry < 0 ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.2)', color: '#FCA5A5', border: '1px solid rgba(239, 68, 68, 0.4)', fontSize: '0.72rem', fontWeight: 700 }}>
+                              <span>🔴</span>
+                              <span>Overdue ({Math.abs(h.daysUntilExpiry)}d)</span>
+                            </span>
+                          ) : h.daysUntilExpiry <= 7 ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.25)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.5)', fontSize: '0.72rem', fontWeight: 800 }}>
+                              <span>🚨</span>
+                              <span>Due in {h.daysUntilExpiry}d</span>
+                            </span>
+                          ) : h.daysUntilExpiry <= 30 ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(255, 205, 0, 0.2)', color: '#FFCD00', border: '1px solid rgba(255, 205, 0, 0.45)', fontSize: '0.72rem', fontWeight: 700 }}>
+                              <span>⚠️</span>
+                              <span>Due in {h.daysUntilExpiry}d</span>
+                            </span>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(155, 203, 68, 0.15)', color: '#9BCB44', border: '1px solid rgba(155, 203, 68, 0.35)', fontSize: '0.72rem', fontWeight: 600 }}>
+                              <span>🟢</span>
+                              <span>Active ({h.daysUntilExpiry}d)</span>
+                            </span>
+                          )
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        <span className={`status-badge ${h.status === 'SUSPENDED' ? 'status-badge-dark-danger' : 'status-badge-dark-success'}`}>
+                          <span className="status-dot"></span>
+                          {h.status === 'SUSPENDED' ? '🔒 Suspended' : '⚡ Active'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => setSelectedHostingForAction(h)}
+                            style={{ background: 'rgba(255, 205, 0, 0.15)', border: '1px solid rgba(255, 205, 0, 0.35)', color: '#FFCD00', padding: '6px 12px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            Manage Service ⚙️
+                          </button>
+                          <button
+                            onClick={() => window.open(`https://${h.serverIp}:2083`, '_blank')}
+                            style={{ background: 'rgba(41, 180, 213, 0.15)', border: '1px solid rgba(41, 180, 213, 0.35)', color: '#29B4D5', padding: '6px 12px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          >
+                            cPanel :2083 ↗
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {renderPagination(hostingPage, totalHostingPages, hosting.length, 'hosting accounts', setHostingPage)}
+            </div>
           </div>
         )}
 
         {/* 4. DOMAINS TAB */}
         {activeTab === 'domains' && (
-          <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '850px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Domain</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Registrant</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Expires</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Transfer Lock</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Auto-Renew</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Privacy Shield</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>DNS Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedDomains.map((d: any) => (
-                  <tr key={d.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>{d.domainName}</td>
-                    <td style={{ padding: '14px 16px', color: '#94A3B8', whiteSpace: 'nowrap' }}>{d.user?.name || 'Customer'}</td>
-                    <td style={{ padding: '14px 16px', color: '#CBD5E1', whiteSpace: 'nowrap' }}>{new Date(d.expiryDate).toLocaleDateString()}</td>
-                    <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                      <span className={`status-badge ${d.theftProtection !== false ? 'status-badge-dark-success' : 'status-badge-dark-warning'}`}>
-                        <span className="status-dot"></span>
-                        {d.theftProtection !== false ? '🔒 Locked' : '🔓 Unlocked'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                      <span className={`status-badge ${d.autoRenew ? 'status-badge-dark-success' : 'status-badge-dark-neutral'}`}>
-                        <span className="status-dot"></span>
-                        {d.autoRenew ? '🔄 Auto-Renew' : '⏹️ Manual'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                      <span className={`status-badge ${d.privacyEnabled ? 'status-badge-dark-info' : 'status-badge-dark-neutral'}`}>
-                        <span className="status-dot"></span>
-                        {d.privacyEnabled ? '🛡️ Shielded' : '🌐 Public'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <span className="status-badge status-badge-dark-success">
-                        <span className="status-dot"></span>
-                        Zone Active
-                      </span>
-                    </td>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Quick Expiration Filter Pills */}
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600, marginRight: '4px' }}>Lifecycle Filter:</span>
+              {[
+                { id: 'all', label: `All Domains (${data?.domains?.length || 0})` },
+                { id: 'warning', label: `Expiring ≤30 Days (${data?.expirations?.domains?.warning || 0})`, icon: '⚠️' },
+                { id: 'critical', label: `Critical ≤7 Days (${data?.expirations?.domains?.critical || 0})`, icon: '🚨' },
+                { id: 'expired', label: `Expired (${data?.expirations?.domains?.expired || 0})`, icon: '🔴' },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => { setDomainFilter(f.id as any); setDomainPage(1); }}
+                  style={{
+                    background: domainFilter === f.id ? 'rgba(255, 205, 0, 0.2)' : 'rgba(30, 41, 59, 0.7)',
+                    border: `1px solid ${domainFilter === f.id ? '#FFCD00' : 'rgba(255, 255, 255, 0.1)'}`,
+                    color: domainFilter === f.id ? '#FFCD00' : '#CBD5E1',
+                    borderRadius: '8px',
+                    padding: '6px 12px',
+                    fontSize: '0.8rem',
+                    fontWeight: domainFilter === f.id ? 700 : 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {f.icon && <span>{f.icon}</span>}
+                  <span>{f.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '920px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Domain</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Registrant</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Expires / Days Remaining</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Transfer Lock</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Auto-Renew</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Privacy Shield</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>DNS Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {renderPagination(domainPage, totalDomainPages, domains.length, 'domains', setDomainPage)}
+                </thead>
+                <tbody>
+                  {paginatedDomains.map((d: any) => (
+                    <tr key={d.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                      <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>{d.domainName}</td>
+                      <td style={{ padding: '14px 16px', color: '#94A3B8', whiteSpace: 'nowrap' }}>{d.user?.name || 'Customer'}</td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.84rem', color: '#CBD5E1', marginBottom: '4px' }}>
+                          {new Date(d.expiryDate).toLocaleDateString()}
+                        </div>
+                        {d.daysUntilExpiry !== undefined && (
+                          d.daysUntilExpiry < 0 ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.2)', color: '#FCA5A5', border: '1px solid rgba(239, 68, 68, 0.4)', fontSize: '0.72rem', fontWeight: 700 }}>
+                              <span>🔴</span>
+                              <span>Expired ({Math.abs(d.daysUntilExpiry)}d ago)</span>
+                            </span>
+                          ) : d.daysUntilExpiry <= 7 ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.25)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.5)', fontSize: '0.72rem', fontWeight: 800 }}>
+                              <span>🚨</span>
+                              <span>Critical ({d.daysUntilExpiry}d left)</span>
+                            </span>
+                          ) : d.daysUntilExpiry <= 30 ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(255, 205, 0, 0.2)', color: '#FFCD00', border: '1px solid rgba(255, 205, 0, 0.45)', fontSize: '0.72rem', fontWeight: 700 }}>
+                              <span>⚠️</span>
+                              <span>Expiring ({d.daysUntilExpiry}d left)</span>
+                            </span>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(155, 203, 68, 0.15)', color: '#9BCB44', border: '1px solid rgba(155, 203, 68, 0.35)', fontSize: '0.72rem', fontWeight: 600 }}>
+                              <span>🟢</span>
+                              <span>Active ({d.daysUntilExpiry}d left)</span>
+                            </span>
+                          )
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        <span className={`status-badge ${d.theftProtection !== false ? 'status-badge-dark-success' : 'status-badge-dark-warning'}`}>
+                          <span className="status-dot"></span>
+                          {d.theftProtection !== false ? '🔒 Locked' : '🔓 Unlocked'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        <span className={`status-badge ${d.autoRenew ? 'status-badge-dark-success' : 'status-badge-dark-neutral'}`}>
+                          <span className="status-dot"></span>
+                          {d.autoRenew ? '🔄 Auto-Renew' : '⏹️ Manual'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        <span className={`status-badge ${d.privacyEnabled ? 'status-badge-dark-info' : 'status-badge-dark-neutral'}`}>
+                          <span className="status-dot"></span>
+                          {d.privacyEnabled ? '🛡️ Shielded' : '🌐 Public'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <span className="status-badge status-badge-dark-success">
+                          <span className="status-dot"></span>
+                          Zone Active
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {renderPagination(domainPage, totalDomainPages, domains.length, 'domains', setDomainPage)}
+            </div>
           </div>
         )}
 
-        {/* 5. ORDERS & BILLING */}
+        {/* 5. ORDERS & BILLING LEDGER */}
         {activeTab === 'orders' && (
-          <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '850px' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Order Number</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Customer</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Amount</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Payment Method</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
-                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Date</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Tax Invoice</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paginatedOrders.map((o: any) => (
-                  <tr key={o.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                    <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#FFCD00', whiteSpace: 'nowrap' }}>
-                      {o.orderNumber}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: '#FFFFFF', whiteSpace: 'nowrap' }}>
-                      <div>{o.user?.name}</div>
-                      {o.customerGstin && (
-                        <div style={{ fontSize: '0.72rem', color: '#9BCB44', fontFamily: 'monospace' }}>GSTIN: {o.customerGstin}</div>
-                      )}
-                    </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>
-                      {o.currency === 'INR' ? `₹${o.totalAmount.toLocaleString()}` : `$${o.totalAmount.toFixed(2)}`}
-                    </td>
-                    <td style={{ padding: '14px 16px', fontSize: '0.8rem', color: '#CBD5E1', whiteSpace: 'nowrap' }}>
-                      <div>{o.paymentMethod}</div>
-                      {o.gatewayName && (
-                        <div style={{
-                          fontSize: '0.68rem',
-                          color: o.gatewayName === 'RAZORPAY' ? '#29B4D5' : '#9BCB44',
-                          fontWeight: 700,
-                          marginTop: '2px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}>
-                          <span>●</span>
-                          <span>{o.gatewayName}</span>
-                          {o.gatewayPaymentId && <span style={{ color: '#94A3B8', fontWeight: 400 }}>({o.gatewayPaymentId.slice(-6)})</span>}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                      <span className="status-badge status-badge-dark-success">
-                        <span className="status-dot"></span>
-                        {o.paymentStatus}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', color: '#94A3B8', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                      {new Date(o.createdAt).toLocaleDateString()}
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button
-                        onClick={() => setSelectedAdminInvoice(o)}
-                        style={{
-                          background: 'rgba(155, 203, 68, 0.15)',
-                          border: '1px solid rgba(155, 203, 68, 0.35)',
-                          color: '#9BCB44',
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        <span>GST Invoice 🧾</span>
-                      </button>
-                    </td>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Orders Filter Toolbar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* Gateway Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '4px 10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Gateway:</span>
+                  <select
+                    value={orderGatewayFilter}
+                    onChange={(e) => { setOrderGatewayFilter(e.target.value as any); setOrderPage(1); }}
+                    style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value="ALL" style={{ background: '#0F172A' }}>All Gateways</option>
+                    <option value="RAZORPAY" style={{ background: '#0F172A' }}>Razorpay</option>
+                    <option value="INSTAMOJO" style={{ background: '#0F172A' }}>Instamojo</option>
+                    <option value="MANUAL" style={{ background: '#0F172A' }}>Manual / Admin</option>
+                  </select>
+                </div>
+
+                {/* Status Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '4px 10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Status:</span>
+                  <select
+                    value={orderStatusFilter}
+                    onChange={(e) => { setOrderStatusFilter(e.target.value as any); setOrderPage(1); }}
+                    style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value="ALL" style={{ background: '#0F172A' }}>All Statuses</option>
+                    <option value="PAID" style={{ background: '#0F172A' }}>Paid</option>
+                    <option value="COMPLETED" style={{ background: '#0F172A' }}>Completed</option>
+                    <option value="PENDING" style={{ background: '#0F172A' }}>Pending</option>
+                  </select>
+                </div>
+
+                {/* Currency Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '4px 10px' }}>
+                  <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Currency:</span>
+                  <select
+                    value={orderCurrencyFilter}
+                    onChange={(e) => { setOrderCurrencyFilter(e.target.value as any); setOrderPage(1); }}
+                    style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+                  >
+                    <option value="ALL" style={{ background: '#0F172A' }}>All Currencies</option>
+                    <option value="INR" style={{ background: '#0F172A' }}>INR (₹)</option>
+                    <option value="USD" style={{ background: '#0F172A' }}>USD ($)</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                onClick={exportFinancialsCsv}
+                style={{ background: 'rgba(155, 203, 68, 0.15)', border: '1px solid rgba(155, 203, 68, 0.35)', color: '#9BCB44', padding: '6px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+              >
+                <span>📥</span>
+                <span>Export Ledger CSV</span>
+              </button>
+            </div>
+
+            <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '960px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Order Number</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Customer</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Invoiced Price</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Wholesale COGS &amp; Margin</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Payment Method &amp; Gateway</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Date</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Audit &amp; Invoice</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {renderPagination(orderPage, totalOrderPages, orders.length, 'orders', setOrderPage)}
+                </thead>
+                <tbody>
+                  {paginatedOrders.map((o: any) => {
+                    const cogs = o.financials?.wholesaleCost || 0;
+                    const profit = o.financials?.grossProfit || 0;
+                    const marginPct = o.financials?.profitMargin || 0;
+                    const cSign = o.currency === 'USD' ? '$' : '₹';
+
+                    return (
+                      <tr key={o.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#FFCD00', whiteSpace: 'nowrap' }}>
+                          <button
+                            onClick={() => setSelectedTransaction(o)}
+                            style={{ background: 'none', border: 'none', color: '#FFCD00', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.88rem' }}
+                            title="Click to view full transaction ledger dossier"
+                          >
+                            {o.orderNumber}
+                          </button>
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#FFFFFF', whiteSpace: 'nowrap' }}>
+                          <div>{o.user?.name}</div>
+                          {o.customerGstin && (
+                            <div style={{ fontSize: '0.72rem', color: '#9BCB44', fontFamily: 'monospace' }}>GSTIN: {o.customerGstin}</div>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>
+                          <div>{o.currency === 'INR' ? `₹${o.totalAmount.toLocaleString()}` : `$${o.totalAmount.toFixed(2)}`}</div>
+                          {o.taxAmount > 0 && (
+                            <div style={{ fontSize: '0.7rem', color: '#94A3B8', fontWeight: 400 }}>
+                              Tax: {cSign}{o.taxAmount.toLocaleString()}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontSize: '0.8rem', color: '#F59E0B' }}>
+                            COGS: {cSign}{cogs.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ color: '#9BCB44', fontWeight: 700 }}>
+                              Profit: {cSign}{profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                            <span style={{ fontSize: '0.68rem', padding: '1px 5px', borderRadius: '4px', background: 'rgba(155, 203, 68, 0.15)', color: '#9BCB44', fontWeight: 700 }}>
+                              {marginPct.toFixed(1)}%
+                            </span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 16px', fontSize: '0.8rem', color: '#CBD5E1', whiteSpace: 'nowrap' }}>
+                          <div>{o.paymentMethod}</div>
+                          {o.gatewayName && (
+                            <div style={{
+                              fontSize: '0.68rem',
+                              color: o.gatewayName === 'RAZORPAY' ? '#29B4D5' : '#9BCB44',
+                              fontWeight: 700,
+                              marginTop: '2px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <span>●</span>
+                              <span>{o.gatewayName}</span>
+                              {o.gatewayPaymentId && <span style={{ color: '#94A3B8', fontWeight: 400 }}>({o.gatewayPaymentId.slice(-6)})</span>}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                          <span className="status-badge status-badge-dark-success">
+                            <span className="status-dot"></span>
+                            {o.paymentStatus}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#94A3B8', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                          {new Date(o.createdAt).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                            <button
+                              onClick={() => setSelectedTransaction(o)}
+                              title="Audit wholesale COGS, margin, and payment telemetry"
+                              style={{
+                                background: 'rgba(255, 205, 0, 0.15)',
+                                border: '1px solid rgba(255, 205, 0, 0.35)',
+                                color: '#FFCD00',
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <span>Inspect 🔍</span>
+                            </button>
+                            <button
+                              onClick={() => setSelectedAdminInvoice(o)}
+                              style={{
+                                background: 'rgba(155, 203, 68, 0.15)',
+                                border: '1px solid rgba(155, 203, 68, 0.35)',
+                                color: '#9BCB44',
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <span>Invoice 🧾</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {renderPagination(orderPage, totalOrderPages, orders.length, 'orders', setOrderPage)}
+            </div>
           </div>
         )}
 
@@ -1875,6 +2756,205 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* ADMIN DETAIL MODAL 4: TRANSACTION & WHOLESALE P&L DOSSIER                 */}
+      {/* ========================================================================= */}
+      {selectedTransaction && (() => {
+        const o = selectedTransaction;
+        const cSign = o.currency === 'USD' ? '$' : '₹';
+        const fin = o.financials || {};
+        const cogs = fin.wholesaleCost || 0;
+        const profit = fin.grossProfit || 0;
+        const margin = fin.profitMargin || 0;
+        const items = fin.items || o.items || [];
+
+        return (
+          <div className="modal-backdrop-responsive">
+            <div className="modal-card-responsive dark" style={{ maxWidth: '820px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 }}>
+              {/* Header */}
+              <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(30, 41, 59, 0.6)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.72rem', background: 'rgba(255, 205, 0, 0.2)', color: '#FFCD00', padding: '2px 8px', borderRadius: '999px', fontWeight: 800 }}>
+                      TRANSACTION AUDIT DOSSIER
+                    </span>
+                    <span className="status-badge status-badge-dark-success">
+                      <span className="status-dot"></span>
+                      {o.paymentStatus || 'PAID'}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>
+                      {new Date(o.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: '1.4rem', color: '#FFFFFF', margin: 0, fontFamily: 'var(--font-mono)' }}>
+                    {o.orderNumber}
+                  </h3>
+                  <div style={{ fontSize: '0.84rem', color: '#94A3B8', marginTop: '2px' }}>
+                    Customer: <strong style={{ color: '#FFFFFF' }}>{o.user?.name}</strong> ({o.user?.email})
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedTransaction(null)}
+                  style={{ background: 'rgba(255, 255, 255, 0.1)', border: 'none', borderRadius: '999px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, color: '#FFFFFF', flexShrink: 0 }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Scrollable Content */}
+              <div style={{ padding: '24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {/* 4-Column Financial Metric Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '12px' }}>
+                  <div style={{ background: 'rgba(15, 23, 42, 0.7)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>Retail Invoiced</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#FFFFFF', marginTop: '4px' }}>
+                      {cSign}{(o.totalAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '2px' }}>
+                      Tax: {cSign}{(o.taxAmount || 0).toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'rgba(15, 23, 42, 0.7)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>Wholesale Cost (COGS)</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#F59E0B', marginTop: '4px' }}>
+                      {cSign}{cogs.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '2px' }}>Upstream Registry / Infra</div>
+                  </div>
+
+                  <div style={{ background: 'rgba(15, 23, 42, 0.7)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>Net Gross Profit</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 800, color: '#9BCB44', marginTop: '4px' }}>
+                      {cSign}{profit.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#9BCB44', marginTop: '2px' }}>Margin: {margin.toFixed(1)}%</div>
+                  </div>
+
+                  <div style={{ background: 'rgba(15, 23, 42, 0.7)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#94A3B8', fontWeight: 600 }}>Payment Gateway</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#29B4D5', marginTop: '4px' }}>
+                      {o.gatewayName || o.paymentMethod || 'ONLINE'}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#94A3B8', marginTop: '2px' }}>{o.currency || 'INR'} Ledger</div>
+                  </div>
+                </div>
+
+                {/* Gateway Telemetry & Audit Meta */}
+                <div style={{ background: 'rgba(15, 23, 42, 0.5)', borderRadius: '14px', padding: '16px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>📡</span>
+                    <span>Payment Gateway &amp; Billing Telemetry</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', fontSize: '0.8rem' }}>
+                    <div>
+                      <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Gateway Payment ID:</span>
+                      <span style={{ color: '#FFCD00', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                        {o.gatewayPaymentId || 'N/A (Simulated / Staging)'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Gateway Order ID:</span>
+                      <span style={{ color: '#CBD5E1', fontFamily: 'var(--font-mono)' }}>
+                        {o.gatewayOrderId || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Customer GSTIN:</span>
+                      <span style={{ color: o.customerGstin ? '#9BCB44' : '#64748B', fontFamily: 'monospace', fontWeight: 600 }}>
+                        {o.customerGstin || 'Unregistered Retail Customer'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Statutory Tax Treatment:</span>
+                      <span style={{ color: '#CBD5E1' }}>
+                        {o.currency === 'INR' ? (o.taxType || 'IGST 18%') : 'Zero-Rated Export (LUT Under Sec 16(3))'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Itemized Line-Item COGS and Margins Table */}
+                <div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '10px' }}>
+                    Itemized Cost of Goods Sold (COGS) &amp; Margin Breakdown
+                  </div>
+                  <div className="table-responsive" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
+                      <thead>
+                        <tr style={{ background: 'rgba(15, 23, 42, 0.8)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#94A3B8' }}>
+                          <th style={{ padding: '10px 12px' }}>Line Item Description</th>
+                          <th style={{ padding: '10px 12px', width: '100px' }}>Type</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'right' }}>Retail Price</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'right' }}>Wholesale COGS</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'right' }}>Gross Profit</th>
+                          <th style={{ padding: '10px 12px', textAlign: 'right' }}>Margin %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.length > 0 ? (
+                          items.map((it: any, idx: number) => (
+                            <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                              <td style={{ padding: '10px 12px', color: '#FFFFFF', fontWeight: 600 }}>
+                                {it.description}
+                              </td>
+                              <td style={{ padding: '10px 12px' }}>
+                                <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: it.category === 'DOMAIN' ? 'rgba(155, 203, 68, 0.15)' : 'rgba(41, 180, 213, 0.15)', color: it.category === 'DOMAIN' ? '#9BCB44' : '#29B4D5', fontWeight: 600 }}>
+                                  {it.category || 'SERVICE'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 12px', textAlign: 'right', color: '#FFFFFF' }}>
+                                {cSign}{(it.retailPrice || it.price || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ padding: '10px 12px', textAlign: 'right', color: '#F59E0B' }}>
+                                {cSign}{(it.wholesaleCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ padding: '10px 12px', textAlign: 'right', color: '#9BCB44', fontWeight: 700 }}>
+                                {cSign}{(it.grossProfit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                              <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                                <span style={{ fontSize: '0.72rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(155, 203, 68, 0.15)', color: '#9BCB44', fontWeight: 700 }}>
+                                  {(it.marginPercent || 0).toFixed(1)}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} style={{ padding: '14px', textAlign: 'center', color: '#94A3B8' }}>
+                              Standard Hostmattic Cloud Service &bull; Invoiced at {cSign}{o.totalAmount}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Controls */}
+              <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(15, 23, 42, 0.8)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  onClick={() => setSelectedTransaction(null)}
+                  style={{ background: 'transparent', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#CBD5E1', padding: '8px 18px', borderRadius: '8px', fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  Close Dossier
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedAdminInvoice(o);
+                    setSelectedTransaction(null);
+                  }}
+                  style={{ background: '#9BCB44', color: '#090D12', border: 'none', padding: '8px 20px', borderRadius: '8px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <span>View Official GST Tax Invoice 🧾</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

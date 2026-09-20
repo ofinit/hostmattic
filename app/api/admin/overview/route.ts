@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { isLiveApiConfigured } from '@/lib/api/client';
+import {
+  computeFinancialReport,
+  computeExpirationAnalytics,
+  calculateOrderFinancials,
+} from '@/lib/analytics/pnl';
 
 export const dynamic = 'force-dynamic';
 
@@ -307,6 +312,48 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Compute Financial & P&L Analytics
+    const financials = {
+      allTime: computeFinancialReport(orders, 'all'),
+      last30d: computeFinancialReport(orders, '30d'),
+      last7d: computeFinancialReport(orders, '7d'),
+      mtd: computeFinancialReport(orders, 'mtd'),
+    };
+
+    // Compute Expiration Lifecycle Analytics
+    const expirations = computeExpirationAnalytics(domains, hosting);
+
+    // Enrich orders with itemized P&L calculations
+    const enrichedOrders = orders.map((o: any) => ({
+      ...o,
+      financials: calculateOrderFinancials(o),
+    }));
+
+    // Enrich domains with daysUntilExpiry
+    const enrichedDomains = domains.map((d: any) => {
+      const diffDays = Math.ceil((new Date(d.expiryDate).getTime() - Date.now()) / 86400000);
+      return {
+        ...d,
+        daysUntilExpiry: diffDays,
+        isExpired: diffDays < 0,
+        isExpiringSoon: diffDays >= 0 && diffDays <= 30,
+        isCritical: diffDays >= 0 && diffDays <= 7,
+      };
+    });
+
+    // Enrich hosting with daysUntilExpiry
+    const enrichedHosting = hosting.map((h: any) => {
+      const targetDate = h.nextDueDate || h.createdAt;
+      const diffDays = Math.ceil((new Date(targetDate).getTime() - Date.now()) / 86400000);
+      return {
+        ...h,
+        daysUntilExpiry: diffDays,
+        isExpired: diffDays < 0,
+        isExpiringSoon: diffDays >= 0 && diffDays <= 30,
+        isCritical: diffDays >= 0 && diffDays <= 7,
+      };
+    });
+
     return NextResponse.json({
       success: true,
       metrics: {
@@ -315,6 +362,9 @@ export async function GET(req: NextRequest) {
         activeHosting: hosting.length,
         totalOrders: orders.length,
         openTickets: tickets.filter((t: any) => t.status === 'OPEN').length,
+        expirationsRequiringAttention: expirations.totalRequiringAttention,
+        expirationsCritical: expirations.criticalCount,
+        financials: financials.allTime,
         gatewayStatus: {
           mode: liveConfig ? 'LIVE_PRODUCTION' : 'SANDBOX_SIMULATION',
           upstreamConnected: true,
@@ -322,10 +372,12 @@ export async function GET(req: NextRequest) {
           lastPing: new Date().toISOString(),
         },
       },
+      financials,
+      expirations,
       customers: users,
-      domains,
-      hosting,
-      orders,
+      domains: enrichedDomains,
+      hosting: enrichedHosting,
+      orders: enrichedOrders,
       tickets,
     });
   } catch (error: any) {
