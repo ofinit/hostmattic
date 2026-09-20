@@ -68,14 +68,19 @@ export default function DomainsPage() {
                     <span
                       style={{
                         background: isPromo
-                          ? 'linear-gradient(135deg, #FFEDD5 0%, #FEE2E2 100%)'
-                          : '#FFF9D6',
-                        color: isPromo ? '#B91C1C' : '#A2700C',
-                        border: isPromo ? '1px solid #FCA5A5' : 'none',
-                        padding: '3px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
+                          ? 'linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%)'
+                          : 'rgba(255, 205, 0, 0.15)',
+                        color: isPromo ? '#E11D48' : '#A2700C',
+                        border: isPromo ? '1px solid #FECDD3' : '1px solid rgba(255, 205, 0, 0.35)',
+                        padding: '4px 10px',
+                        borderRadius: '999px',
+                        fontSize: '0.72rem',
                         fontWeight: 800,
+                        whiteSpace: 'nowrap',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        boxShadow: isPromo ? '0 1px 3px rgba(225, 29, 72, 0.08)' : 'none',
                       }}
                     >
                       {isPromo ? `🔥 ${badge}` : badge}
@@ -86,7 +91,7 @@ export default function DomainsPage() {
                     {formatPrice(priceUsd)}
                     <span style={{ fontSize: '0.85rem', color: '#64748B', fontWeight: 500 }}>/year</span>
                     {isPromo && live?.promoEndsAt && (
-                      <div style={{ fontSize: '0.74rem', color: '#C2410C', fontWeight: 700, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ fontSize: '0.74rem', color: '#E11D48', fontWeight: 700, marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span>⏳</span>
                         <span>Promo ends: {new Date(live.promoEndsAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       </div>

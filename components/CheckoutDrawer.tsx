@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
 import { GST_STATES, DEFAULT_SELLER_STATE_CODE } from '@/lib/constants/gstStates';
+import { COUNTRIES, getCountryStates } from '@/lib/constants/countries';
 import { loadRazorpaySdk } from '@/lib/utils/loadRazorpay';
 
 export default function CheckoutDrawer() {
@@ -51,17 +52,29 @@ export default function CheckoutDrawer() {
     return () => clearTimeout(timer);
   }, [customerEmail, currency, setAccountLock]);
 
-  // Automatically enforce method according to currency
+  // Billing Profile States & Country-State Mapping
+  const [billingCountry, setBillingCountry] = useState(currency === 'INR' ? 'IN' : 'US');
+  const [billingStateCode, setBillingStateCode] = useState(currency === 'INR' ? '32' : 'CA');
+  const [customStateText, setCustomStateText] = useState('');
+
+  // Automatically enforce payment method and default country according to currency
   useEffect(() => {
     if (currency === 'USD') {
       setPaymentMethod('razorpay_card');
+      if (billingCountry === 'IN') {
+        setBillingCountry('US');
+        setBillingStateCode('CA');
+      }
     } else {
       if (paymentMethod === 'razorpay_card') {
         setPaymentMethod('upi');
       }
+      if (billingCountry !== 'IN') {
+        setBillingCountry('IN');
+        setBillingStateCode('32');
+      }
     }
   }, [currency]);
-
 
   // GST & Billing Profile States
   const [taxSettings, setTaxSettings] = useState<any>(null);
@@ -70,7 +83,6 @@ export default function CheckoutDrawer() {
   const [customerGstin, setCustomerGstin] = useState('');
   const [billingAddress, setBillingAddress] = useState('');
   const [billingCity, setBillingCity] = useState('');
-  const [billingStateCode, setBillingStateCode] = useState('32'); // Default Kerala (32)
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -82,18 +94,31 @@ export default function CheckoutDrawer() {
       .then((d) => {
         if (d?.success && d.settings) {
           setTaxSettings(d.settings);
-          if (d.settings.stateCode) {
+          if (d.settings.stateCode && billingCountry === 'IN') {
             setBillingStateCode(d.settings.stateCode);
           }
         }
       })
       .catch(() => {});
-  }, []);
+  }, [billingCountry]);
 
-  // Compute dynamic tax variables
-  const selectedState = GST_STATES.find((s) => s.code === billingStateCode) || { code: '32', name: 'Kerala' };
+  // Compute dynamic country & state variables
+  const isIndianBuyer = billingCountry === 'IN';
+  const countryStates = getCountryStates(billingCountry);
+  const selectedCountry = COUNTRIES.find((c) => c.code === billingCountry) || { code: billingCountry, name: billingCountry };
+
+  let selectedState = { code: billingStateCode, name: billingStateCode };
+  if (isIndianBuyer) {
+    selectedState = GST_STATES.find((s) => s.code === billingStateCode) || { code: '32', name: 'Kerala' };
+  } else if (countryStates.length > 0) {
+    const matched = countryStates.find((s) => s.code === billingStateCode);
+    selectedState = matched || { code: billingStateCode, name: billingStateCode };
+  } else {
+    selectedState = { code: 'OTHER', name: customStateText.trim() || 'International' };
+  }
+
   const sellerStateCode = taxSettings?.stateCode || DEFAULT_SELLER_STATE_CODE;
-  const isSameState = billingStateCode === sellerStateCode;
+  const isSameState = isIndianBuyer && selectedState.code === sellerStateCode;
   const gstRate = typeof taxSettings?.gstRate === 'number' ? taxSettings.gstRate : 18;
 
   let subtotalAmount = 0;
@@ -107,28 +132,42 @@ export default function CheckoutDrawer() {
   if (currency === 'INR') {
     const rate = 83.5;
     subtotalAmount = Math.round(totalUsd * rate * 100) / 100;
-    if (isSameState) {
-      taxType = 'CGST_SGST';
-      const halfRate = gstRate / 2;
-      cgstAmount = Math.round(((subtotalAmount * halfRate) / 100) * 100) / 100;
-      sgstAmount = Math.round(((subtotalAmount * halfRate) / 100) * 100) / 100;
-      taxAmount = Math.round((cgstAmount + sgstAmount) * 100) / 100;
+    if (isIndianBuyer) {
+      if (isSameState) {
+        taxType = 'CGST_SGST';
+        const halfRate = gstRate / 2;
+        cgstAmount = Math.round(((subtotalAmount * halfRate) / 100) * 100) / 100;
+        sgstAmount = Math.round(((subtotalAmount * halfRate) / 100) * 100) / 100;
+        taxAmount = Math.round((cgstAmount + sgstAmount) * 100) / 100;
+      } else {
+        taxType = 'IGST';
+        igstAmount = Math.round(((subtotalAmount * gstRate) / 100) * 100) / 100;
+        taxAmount = igstAmount;
+      }
     } else {
-      taxType = 'IGST';
-      igstAmount = Math.round(((subtotalAmount * gstRate) / 100) * 100) / 100;
-      taxAmount = igstAmount;
+      // Non-Indian buyer in INR (LUT Export)
+      taxType = 'LUT_EXPORT';
+      taxAmount = 0;
     }
     totalAmount = Math.round((subtotalAmount + taxAmount) * 100) / 100;
   } else {
     // USD
     subtotalAmount = totalUsd;
-    if (taxSettings?.usdGstPolicy === 'APPLY_GST') {
-      taxType = 'IGST';
-      igstAmount = Math.round(((subtotalAmount * gstRate) / 100) * 100) / 100;
-      taxAmount = igstAmount;
+    if (isIndianBuyer) {
+      if (isSameState) {
+        taxType = 'CGST_SGST';
+        const halfRate = gstRate / 2;
+        cgstAmount = Math.round(((subtotalAmount * halfRate) / 100) * 100) / 100;
+        sgstAmount = Math.round(((subtotalAmount * halfRate) / 100) * 100) / 100;
+        taxAmount = Math.round((cgstAmount + sgstAmount) * 100) / 100;
+      } else {
+        taxType = 'IGST';
+        igstAmount = Math.round(((subtotalAmount * gstRate) / 100) * 100) / 100;
+        taxAmount = igstAmount;
+      }
       totalAmount = Math.round((subtotalAmount + taxAmount) * 100) / 100;
     } else {
-      // Standard: 0% Zero-Rated Export under LUT
+      // International buyer in USD: 0% Zero-Rated Export under LUT
       taxType = 'LUT_EXPORT';
       taxAmount = 0;
       totalAmount = subtotalAmount;
@@ -193,8 +232,8 @@ export default function CheckoutDrawer() {
         billingAddress: billingAddress.trim() || undefined,
         billingCity: billingCity.trim() || undefined,
         billingState: selectedState.name,
-        billingCountry: currency === 'INR' ? 'IN' : 'US',
-        placeOfSupply: `${selectedState.code}-${selectedState.name}`,
+        billingCountry: billingCountry,
+        placeOfSupply: isIndianBuyer ? `${selectedState.code}-${selectedState.name}` : `${billingCountry}-${selectedState.name}`,
         taxType,
         cgstAmount,
         sgstAmount,
@@ -767,19 +806,73 @@ export default function CheckoutDrawer() {
                 </div>
 
                 <div className="form-group" style={{ marginBottom: '10px' }}>
-                  <label className="form-label" style={{ fontSize: '0.8rem' }}>State / Place of Supply *</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>Country *</label>
                   <select
                     className="form-select"
-                    value={billingStateCode}
-                    onChange={(e) => setBillingStateCode(e.target.value)}
+                    value={billingCountry}
+                    onChange={(e) => {
+                      const newCountry = e.target.value;
+                      setBillingCountry(newCountry);
+                      const states = getCountryStates(newCountry);
+                      if (newCountry === 'IN') {
+                        setBillingStateCode('32');
+                      } else if (states.length > 0) {
+                        setBillingStateCode(states[0].code);
+                      } else {
+                        setBillingStateCode('OTHER');
+                        setCustomStateText('');
+                      }
+                    }}
                     style={{ fontSize: '0.82rem', padding: '6px 10px' }}
                   >
-                    {GST_STATES.map((st) => (
-                      <option key={st.code} value={st.code}>
-                        {st.code} - {st.name} {st.code === sellerStateCode ? '(Home State)' : ''}
+                    {COUNTRIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.name}
                       </option>
                     ))}
                   </select>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '10px' }}>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>
+                    {isIndianBuyer ? 'State / Place of Supply *' : 'State / Province / Region *'}
+                  </label>
+                  {countryStates.length > 0 ? (
+                    <select
+                      className="form-select"
+                      value={billingStateCode}
+                      onChange={(e) => setBillingStateCode(e.target.value)}
+                      style={{ fontSize: '0.82rem', padding: '6px 10px' }}
+                    >
+                      {countryStates.map((st) => (
+                        <option key={st.code} value={st.code}>
+                          {st.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Enter State / Province / Region"
+                      value={customStateText}
+                      onChange={(e) => setCustomStateText(e.target.value)}
+                      style={{ fontSize: '0.82rem', padding: '6px 10px' }}
+                      required
+                    />
+                  )}
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '10px' }}>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>City / Town</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Kochi / London / New York"
+                    value={billingCity}
+                    onChange={(e) => setBillingCity(e.target.value)}
+                    style={{ fontSize: '0.82rem', padding: '6px 10px' }}
+                  />
                 </div>
 
                 <div className="form-group" style={{ marginBottom: '12px' }}>
@@ -926,7 +1019,7 @@ export default function CheckoutDrawer() {
                   </span>
                 </div>
 
-                {currency === 'INR' ? (
+                {isIndianBuyer ? (
                   isSameState ? (
                     <>
                       <div className="checkout-summary-row">
@@ -938,17 +1031,19 @@ export default function CheckoutDrawer() {
                         <span style={{ color: '#0F172A', fontWeight: 600 }}>+₹{sgstAmount.toLocaleString()}</span>
                       </div>
                       <div style={{ fontSize: '0.7rem', color: '#4F7C12', background: '#F0FDF4', padding: '3px 6px', borderRadius: '4px', marginBottom: '6px' }}>
-                        📍 Supply: {selectedState.name} ({billingStateCode}) &bull; Intra-State
+                        📍 Supply: {selectedState.name} &bull; Intra-State
                       </div>
                     </>
                   ) : (
                     <>
                       <div className="checkout-summary-row">
                         <span>Integrated GST (IGST {gstRate}%):</span>
-                        <span style={{ color: '#0F172A', fontWeight: 600 }}>+₹{igstAmount.toLocaleString()}</span>
+                        <span style={{ color: '#0F172A', fontWeight: 600 }}>
+                          {currency === 'INR' ? `+₹${igstAmount.toLocaleString()}` : `+$${taxAmount.toFixed(2)}`}
+                        </span>
                       </div>
                       <div style={{ fontSize: '0.7rem', color: '#1E40AF', background: '#EFF6FF', padding: '3px 6px', borderRadius: '4px', marginBottom: '6px' }}>
-                        📍 Supply: {selectedState.name} ({billingStateCode}) &bull; Inter-State IGST
+                        📍 Supply: {selectedState.name} &bull; Inter-State IGST
                       </div>
                     </>
                   )
@@ -956,11 +1051,11 @@ export default function CheckoutDrawer() {
                   taxType === 'LUT_EXPORT' ? (
                     <div style={{ margin: '6px 0', padding: '6px 8px', background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '6px', fontSize: '0.72rem', color: '#64748B' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: '#0F172A' }}>
-                        <span>Integrated Tax (0% Export):</span>
-                        <span>$0.00</span>
+                        <span>Tax (0% Export of Services):</span>
+                        <span>{currency === 'INR' ? '₹0.00' : '$0.00'}</span>
                       </div>
                       <div style={{ fontSize: '0.68rem', marginTop: '2px' }}>
-                        📜 Supply for export under LUT ({taxSettings?.lutNumber || 'AD320324001928K'}).
+                        🌍 Billing: {selectedCountry.name} &bull; Zero-Rated Export under LUT ({taxSettings?.lutNumber || 'LUT/2026-27/001'}).
                       </div>
                     </div>
                   ) : (

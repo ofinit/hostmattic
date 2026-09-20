@@ -296,9 +296,9 @@ export default function DomainSearchBox({
                     {primaryResult.isPromo && primaryResult.badge && (
                       <span
                         style={{
-                          background: 'linear-gradient(135deg, #FFEDD5 0%, #FEE2E2 100%)',
-                          border: '1px solid #FCA5A5',
-                          color: '#B91C1C',
+                          background: 'linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%)',
+                          border: '1px solid #FECDD3',
+                          color: '#E11D48',
                           fontSize: '0.72rem',
                           fontWeight: 800,
                           padding: '3px 10px',
@@ -306,7 +306,9 @@ export default function DomainSearchBox({
                           textTransform: 'uppercase',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '4px',
+                          gap: '5px',
+                          whiteSpace: 'nowrap',
+                          boxShadow: '0 1px 3px rgba(225, 29, 72, 0.08)',
                         }}
                       >
                         <span>🔥 {primaryResult.badge}</span>
@@ -519,38 +521,16 @@ export default function DomainSearchBox({
                             </span>
                           )}
 
-                          {res.isPromo && res.badge && res.available ? (
-                            <span
-                              style={{
-                                background: 'linear-gradient(135deg, #FFEDD5 0%, #FEE2E2 100%)',
-                                border: '1px solid #FCA5A5',
-                                color: '#B91C1C',
-                                fontWeight: 800,
-                                padding: '2px 7px',
-                                borderRadius: '4px',
-                                fontSize: '0.68rem',
-                                letterSpacing: '0.02em',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                              }}
-                            >
-                              <span>🔥 {res.badge}</span>
-                              {res.promoEndsAt && (
-                                <span style={{ fontWeight: 600, opacity: 0.85, fontSize: '0.65rem' }}>
-                                  (Ends {new Date(res.promoEndsAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })})
-                                </span>
-                              )}
-                            </span>
-                          ) : res.popular && res.available ? (
+                          {res.popular && res.available && !res.isPromo ? (
                             <span
                               style={{
                                 background: '#FFF9D6',
                                 color: '#A2700C',
                                 fontWeight: 800,
-                                padding: '2px 6px',
-                                borderRadius: '4px',
+                                padding: '2px 7px',
+                                borderRadius: '999px',
                                 fontSize: '0.68rem',
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               Popular
@@ -558,15 +538,42 @@ export default function DomainSearchBox({
                           ) : null}
                         </div>
 
-                        <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '3px' }}>
-                          {res.available ? 'Free DNS & Mail Forwarding included' : 'Registered by another entity'}
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span>{res.available ? 'Free DNS & Mail Forwarding included' : 'Registered by another entity'}</span>
+                          {res.isPromo && res.promoEndsAt && (
+                            <span style={{ color: '#E11D48', fontWeight: 600, fontSize: '0.72rem' }}>
+                              • Ends {new Date(res.promoEndsAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      <div style={{ textAlign: 'right' }}>
+                      <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                         {res.available ? (
                           <>
-                            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#4F7C12', marginBottom: '4px' }}>
+                            {res.isPromo && res.badge && (
+                              <span
+                                style={{
+                                  background: 'linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%)',
+                                  border: '1px solid #FECDD3',
+                                  color: '#E11D48',
+                                  fontWeight: 800,
+                                  padding: '2px 8px',
+                                  borderRadius: '999px',
+                                  fontSize: '0.68rem',
+                                  letterSpacing: '0.02em',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  whiteSpace: 'nowrap',
+                                  marginBottom: '3px',
+                                  boxShadow: '0 1px 2px rgba(225, 29, 72, 0.08)',
+                                }}
+                              >
+                                🔥 {res.badge}
+                              </span>
+                            )}
+                            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#4F7C12', marginBottom: '4px', whiteSpace: 'nowrap' }}>
                               {formatPrice(res.priceUsd)}
                               <span style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 500 }}>/yr</span>
                             </div>
@@ -574,7 +581,7 @@ export default function DomainSearchBox({
                               type="button"
                               onClick={() => handleRegister(res)}
                               className={`btn btn-sm ${isAdded ? 'btn-secondary' : 'btn-primary'}`}
-                              style={{ padding: '5px 12px', fontSize: '0.8rem', fontWeight: 700 }}
+                              style={{ padding: '5px 14px', fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap' }}
                             >
                               {isAdded ? '✓ Added!' : 'Select →'}
                             </button>

@@ -1221,7 +1221,7 @@ export default function AdminDashboardPage() {
                     >
                       {GST_STATES.map((s) => (
                         <option key={s.code} value={s.code} style={{ background: '#0F172A', color: '#FFFFFF' }}>
-                          {s.code} - {s.name}
+                          {s.name}
                         </option>
                       ))}
                     </select>

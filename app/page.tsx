@@ -94,17 +94,23 @@ export default function HomePage() {
                     {isPromo && live?.badge && (
                       <span
                         style={{
-                          marginLeft: '5px',
+                          marginLeft: '6px',
                           fontSize: '0.65rem',
                           fontWeight: 800,
-                          background: '#FFEDD5',
-                          color: '#C2410C',
-                          padding: '1px 5px',
-                          borderRadius: '4px',
+                          background: 'linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%)',
+                          border: '1px solid #FECDD3',
+                          color: '#E11D48',
+                          padding: '2px 7px',
+                          borderRadius: '999px',
                           textTransform: 'uppercase',
+                          whiteSpace: 'nowrap',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '2px',
+                          boxShadow: '0 1px 2px rgba(225, 29, 72, 0.08)',
                         }}
                       >
-                        {live.badge}
+                        🔥 {live.badge}
                       </span>
                     )}
                   </Link>

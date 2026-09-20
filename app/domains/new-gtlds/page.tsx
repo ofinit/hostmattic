@@ -98,8 +98,20 @@ export default function NewGtldsPage() {
                           </span>
                         )}
                         {live?.isPromo && live?.badge && (
-                          <span style={{ background: '#B91C1C', color: '#FFFFFF', fontSize: '0.62rem', padding: '1px 4px', borderRadius: '3px', fontWeight: 800 }}>
-                            {live.badge}
+                          <span
+                            style={{
+                              background: 'linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%)',
+                              border: '1px solid #FECDD3',
+                              color: '#E11D48',
+                              fontSize: '0.65rem',
+                              padding: '2px 7px',
+                              borderRadius: '999px',
+                              fontWeight: 800,
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 1px 2px rgba(225, 29, 72, 0.08)',
+                            }}
+                          >
+                            🔥 {live.badge}
                           </span>
                         )}
                       </button>
