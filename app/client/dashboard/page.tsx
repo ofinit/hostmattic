@@ -1887,47 +1887,146 @@ export default function ClientDashboard() {
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#64748B', marginBottom: '4px' }}>Full Name / Organization</label>
-                <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} className="form-input" />
+                <label className="form-label" style={{ marginBottom: '6px' }}>Full Name / Organization</label>
+                <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} className="form-input" placeholder="e.g. John Doe / Acme Corp" />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#64748B', marginBottom: '4px' }}>Email Address (Primary Login)</label>
-                <input type="email" value={profileEmail} disabled className="form-input" style={{ background: '#F1F5F9', color: '#64748B' }} />
+                <label className="form-label" style={{ marginBottom: '6px' }}>Email Address (Primary Login)</label>
+                <input type="email" value={profileEmail} disabled className="form-input" style={{ background: '#F1F5F9', color: '#64748B', cursor: 'not-allowed' }} />
+                <span style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '4px', display: 'block' }}>Email address is locked for account security verification.</span>
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#64748B', marginBottom: '4px' }}>Contact Phone</label>
-                <input type="text" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} className="form-input" />
+                <label className="form-label" style={{ marginBottom: '6px' }}>Contact Phone</label>
+                <input type="text" value={profilePhone} onChange={(e) => setProfilePhone(e.target.value)} className="form-input" placeholder="+1 (555) 000-0000" />
               </div>
 
-              <div style={{ padding: '16px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                    <span style={{ fontSize: '1.1rem' }}>{twoFactorEnabled ? '🔒' : '🔓'}</span>
-                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#0F172A' }}>Two-Factor Authentication (2FA)</div>
-                    <span className={`status-badge ${twoFactorEnabled ? 'status-success' : 'status-warning'}`} style={{ fontSize: '0.72rem', padding: '2px 8px' }}>
-                      <span className="status-dot"></span>
-                      {twoFactorEnabled ? '🔒 2FA PROTECTED' : '🔓 2FA INACTIVE'}
+              {/* Two-Factor Authentication Card */}
+              <div
+                style={{
+                  padding: '18px 20px',
+                  background: twoFactorEnabled ? 'rgba(79, 124, 18, 0.04)' : '#F8FAFC',
+                  borderRadius: '14px',
+                  border: twoFactorEnabled ? '1.5px solid #C4E58C' : '1px solid #E2E8F0',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: '1 1 280px', minWidth: '240px' }}>
+                    <div
+                      style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '12px',
+                        background: twoFactorEnabled ? 'rgba(79, 124, 18, 0.12)' : '#EDF2F7',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.25rem',
+                        flexShrink: 0,
+                        border: twoFactorEnabled ? '1px solid rgba(79, 124, 18, 0.25)' : '1px solid #CBD5E1',
+                      }}
+                    >
+                      {twoFactorEnabled ? '🛡️' : '🔐'}
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.92rem', color: '#0F172A' }}>
+                          Two-Factor Authentication (2FA)
+                        </span>
+                        <span
+                          className={`status-badge ${twoFactorEnabled ? 'status-success' : 'status-warning'}`}
+                          style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '999px', letterSpacing: '0.02em' }}
+                        >
+                          <span className="status-dot"></span>
+                          {twoFactorEnabled ? '2FA ACTIVE' : '2FA INACTIVE'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748B', lineHeight: 1.45 }}>
+                        Protect your account with Google Authenticator or any TOTP mobile app.
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
+                    className="btn"
+                    style={{
+                      background: twoFactorEnabled ? '#FFFFFF' : 'var(--brand-action-green, #4F7C12)',
+                      border: twoFactorEnabled ? '1px solid #CBD5E1' : 'none',
+                      color: twoFactorEnabled ? '#DC2626' : '#FFFFFF',
+                      padding: '10px 20px',
+                      borderRadius: '8px',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: twoFactorEnabled ? '0 1px 2px rgba(0,0,0,0.05)' : '0 2px 8px rgba(79, 124, 18, 0.28)',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (twoFactorEnabled) {
+                        e.currentTarget.style.background = '#FEF2F2';
+                        e.currentTarget.style.borderColor = '#FCA5A5';
+                      } else {
+                        e.currentTarget.style.background = '#436B0F';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (twoFactorEnabled) {
+                        e.currentTarget.style.background = '#FFFFFF';
+                        e.currentTarget.style.borderColor = '#CBD5E1';
+                      } else {
+                        e.currentTarget.style.background = 'var(--brand-action-green, #4F7C12)';
+                        e.currentTarget.style.transform = 'none';
+                      }
+                    }}
+                  >
+                    {twoFactorEnabled ? (
+                      <>
+                        <span style={{ fontSize: '0.9rem' }}>🔓</span>
+                        <span>Disable 2FA</span>
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ fontSize: '0.9rem' }}>🛡️</span>
+                        <span>Enable 2FA</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {twoFactorEnabled && (
+                  <div
+                    style={{
+                      marginTop: '14px',
+                      padding: '12px 14px',
+                      background: '#FFFFFF',
+                      borderRadius: '10px',
+                      border: '1px solid #C4E58C',
+                      fontSize: '0.82rem',
+                      color: '#2E5606',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                    }}
+                  >
+                    <span style={{ fontSize: '1.2rem', color: '#4F7C12' }}>✓</span>
+                    <span>
+                      <strong>Two-Factor Authentication is currently active.</strong> Your account requires a 6-digit TOTP security code upon sign-in.
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#64748B' }}>Protect your account with Google Authenticator or TOTP</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setTwoFactorEnabled(!twoFactorEnabled)}
-                  style={{
-                    background: twoFactorEnabled ? '#FFFFFF' : '#EBF7D4',
-                    border: twoFactorEnabled ? '1px solid #CBD5E1' : '1px solid #C4E58C',
-                    color: twoFactorEnabled ? '#64748B' : '#4F7C12',
-                    padding: '6px 14px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer',
-                    display: 'inline-flex', alignItems: 'center', gap: '4px'
-                  }}
-                >
-                  {twoFactorEnabled ? 'Turn Off 🔓' : 'Enable 2FA 🛡️'}
-                </button>
+                )}
               </div>
             </div>
 
