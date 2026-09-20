@@ -14,6 +14,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/logout',
+  '/api/auth/forgot-password',
   '/api/health',
   '/api/domains',           // Public domain search/availability
   '/api/tax',               // Public tax rate lookup

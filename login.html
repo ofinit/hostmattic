@@ -191,7 +191,7 @@
             <div class="form-group">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                 <label class="form-label" for="clientPassword" style="margin-bottom:0;">Password</label>
-                <a href="#forgot" class="form-link" style="font-size:0.82rem;" onclick="alert('Password reset link will be sent to your registered email address.'); return false;">Forgot Password?</a>
+                <a href="#forgot" class="form-link" style="font-size:0.82rem;" onclick="prompt('Enter your email to receive a password reset link:'); return false;">Forgot Password?</a>
               </div>
               <input type="password" id="clientPassword" name="password" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
             </div>

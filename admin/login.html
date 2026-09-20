@@ -113,20 +113,20 @@
         <form id="adminLoginForm" action="https://admin.hostmattic.com/login" method="POST">
           <div class="form-group" style="margin-bottom:20px;">
             <label class="form-label" for="adminUser" style="color:#CBD5E1; font-size:0.88rem; display:block; margin-bottom:8px; font-weight:600;">Staff Username / ID</label>
-            <input type="text" id="adminUser" name="username" class="admin-input" placeholder="admin@hostmattic.com" required autocomplete="username">
+            <input type="text" id="adminUser" name="username" class="admin-input" placeholder="Enter staff username or email" required autocomplete="username">
           </div>
 
           <div class="form-group" style="margin-bottom:20px;">
             <label class="form-label" for="adminPass" style="color:#CBD5E1; font-size:0.88rem; display:block; margin-bottom:8px; font-weight:600;">Master Password</label>
-            <input type="password" id="adminPass" name="password" class="admin-input" placeholder="••••••••••••••••" required autocomplete="current-password">
+            <input type="password" id="adminPass" name="password" class="admin-input" placeholder="Enter master password" required autocomplete="current-password">
           </div>
 
           <div class="form-group" style="margin-bottom:24px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
               <label class="form-label" for="adminOtp" style="color:#CBD5E1; font-size:0.88rem; margin-bottom:0; font-weight:600;">2FA Authenticator Code</label>
-              <span style="font-size:0.75rem; color:var(--brand-gold);">Time-Based TOTP</span>
+              <span style="font-size:0.75rem; color:#94A3B8;">TOTP / Security Key</span>
             </div>
-            <input type="text" id="adminOtp" name="totp" class="admin-input mono" placeholder="000 000" maxlength="7" style="letter-spacing:0.2em; font-size:1.1rem; text-align:center;" required autocomplete="one-time-code">
+            <input type="text" id="adminOtp" name="totp" class="admin-input mono" placeholder="000000" maxlength="7" style="letter-spacing:0.2em; font-size:1.1rem; text-align:center;" required autocomplete="one-time-code">
           </div>
 
           <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:13px 24px; background:var(--brand-action-green); font-size:0.95rem;">
