@@ -397,6 +397,10 @@ export default function CheckoutDrawer() {
     closeCart();
   };
 
+  if (!isCartOpen) {
+    return null;
+  }
+
   return (
     <div className="checkout-drawer-overlay" onClick={handleResetAndClose}>
       <div
