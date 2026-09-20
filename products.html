@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hostmattic Products &amp; Services Directory — Complete Hosting, Domains &amp; Cloud Suite</title>
+  <meta name="description" content="Explore all products and services available on Hostmattic: Domains, Linux &amp; Windows Hosting, WordPress, Cloud, VPS, Dedicated Servers, Business Email, and Security.">
+  <meta name="theme-color" content="#1B2228">
+  <link rel="icon" type="image/svg+xml" href="assets/img/logo-icon.svg">
+  <link rel="stylesheet" href="assets/css/main.css">
+  <style>
+    .catalog-filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 36px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+    }
+    .filter-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .filter-tab {
+      background: none;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-full);
+      padding: 6px 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-body);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .filter-tab.active, .filter-tab:hover {
+      background: var(--brand-action-green);
+      color: #FFFFFF;
+      border-color: var(--brand-action-green);
+    }
+    .search-filter-input {
+      padding: 8px 14px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      font-size: 0.9rem;
+      min-width: 240px;
+      outline: none;
+    }
+    .search-filter-input:focus {
+      border-color: var(--brand-cyan);
+    }
+    .catalog-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s;
+    }
+    .catalog-card:hover {
+      border-color: var(--brand-cyan);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+    }
+    .api-endpoint-badge {
+      display: inline-block;
+      background: #F1F5F9;
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+      margin-top: 12px;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Topbar -->
+  <aside class="topbar">
+    <div class="container">
+      <div class="topbar-left">
+        <span class="topbar-badge"><span class="pulse-dot"></span> Complete Cloud &amp; Hosting Portfolio</span>
+        <span class="topbar-text" style="color:#CBD5E1;">Complete Infrastructure &amp; Business Services Suite</span>
+      </div>
+      <div class="topbar-right">
+        <div class="currency-selector" title="Switch Pricing Currency">
+          <button class="curr-btn active" data-curr="USD">USD ($)</button>
+          <button class="curr-btn" data-curr="INR">INR (₹)</button>
+        </div>
+        <a href="login.html" class="topbar-link">Client Login</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Header -->
+    <!-- Sticky Main Site Header -->
+  <header class="site-header">
+    <div class="container">
+      <div class="nav-wrap">
+        <a href="index.html" class="site-logo" aria-label="Hostmattic Home">
+          <img src="assets/img/logo.svg" alt="Hostmattic Logo" width="220" height="42" onerror="this.src='assets/img/logo.png'">
+        </a>
+
+        <!-- Desktop Navigation Mega Menu -->
+        <nav class="desktop-nav" aria-label="Primary Navigation">
+          <!-- Domains Dropdown -->
+          <div class="nav-item">
+            <a href="domains/index.html" class="nav-link">
+              Domains
+              <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </a>
+            <div class="mega-menu">
+              <a href="domains/index.html" class="mega-item">
+                <div class="mega-icon icon-lime"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+                <div class="mega-text">
+                  <h4>Register a Domain</h4>
+                  <p>Search &amp; register names across 800+ extensions with free DNS.</p>
+                </div>
+              </a>
+              <a href="domains/transfer.html" class="mega-item">
+                <div class="mega-icon icon-cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/></svg></div>
+                <div class="mega-text">
+                  <h4>Transfer Domain</h4>
+                  <p>Move your existing domains to Hostmattic with zero downtime.</p>
+                </div>
+              </a>
+              <a href="domains/new-gtlds.html" class="mega-item">
+                <div class="mega-icon icon-gold"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+                <div class="mega-text">
+                  <h4>New Domain Extensions</h4>
+                  <p>Stand out with .tech, .store, .online, .app, .io and hundreds more.</p>
+                </div>
+              </a>
+              <a href="domains/index.html#bulk" class="mega-item">
+                <div class="mega-icon icon-lime"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>
+                <div class="mega-text">
+                  <h4>Bulk Registration</h4>
+                  <p>Check and register up to 50 domains in one seamless order.</p>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <!-- Web Hosting Dropdown -->
+          <div class="nav-item">
+            <a href="hosting/shared-linux.html" class="nav-link">
+              Hosting
+              <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </a>
+            <div class="mega-menu mega-wide">
+              <a href="hosting/shared-linux.html" class="mega-item">
+                <div class="mega-icon icon-lime"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+                <div class="mega-text">
+                  <h4>Linux Shared Hosting</h4>
+                  <p>cPanel, NVMe SSD, Softaculous 1-click install &amp; free SSL.</p>
+                </div>
+              </a>
+              <a href="hosting/shared-windows.html" class="mega-item">
+                <div class="mega-icon icon-cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/></svg></div>
+                <div class="mega-text">
+                  <h4>Windows Plesk Hosting</h4>
+                  <p>ASP.NET, MSSQL 2019, PHP &amp; IIS on robust Windows server.</p>
+                </div>
+              </a>
+              <a href="hosting/wordpress.html" class="mega-item">
+                <div class="mega-icon icon-gold"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 17.93V15h-2v4.93a8 8 0 0 1-5.93-3.66l3.32-9.11h2.12l3.32 9.11A8 8 0 0 1 13 19.93z"/></svg></div>
+                <div class="mega-text">
+                  <h4>WordPress Hosting</h4>
+                  <p>Engineered for WordPress with WP-CLI &amp; auto-updates.</p>
+                </div>
+              </a>
+              <a href="hosting/cloud.html" class="mega-item">
+                <div class="mega-icon icon-cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></div>
+                <div class="mega-text">
+                  <h4>Cloud Hosting</h4>
+                  <p>Dedicated CPU &amp; RAM with instant 4x burst scalability.</p>
+                </div>
+              </a>
+              <a href="hosting/reseller.html" class="mega-item">
+                <div class="mega-icon icon-lime"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                <div class="mega-text">
+                  <h4>Reseller Web Hosting</h4>
+                  <p>Start your own web host with WHM/cPanel &amp; custom nameservers.</p>
+                </div>
+              </a>
+              <a href="bundles/combo-plans.html" class="mega-item">
+                <div class="mega-icon icon-gold"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+                <div class="mega-text">
+                  <h4>Combo Value Packs</h4>
+                  <p>Domain + Hosting + Email + SSL bundled at massive savings.</p>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <!-- Servers & Infrastructure -->
+          <div class="nav-item">
+            <a href="servers/vps.html" class="nav-link">
+              Servers
+              <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </a>
+            <div class="mega-menu">
+              <a href="servers/vps.html" class="mega-item">
+                <div class="mega-icon icon-cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></div>
+                <div class="mega-text">
+                  <h4>Linux KVM VPS</h4>
+                  <p>Dedicated SSD storage, root access &amp; choice of Linux OS.</p>
+                </div>
+              </a>
+              <a href="servers/dedicated.html" class="mega-item">
+                <div class="mega-icon icon-lime"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/><line x1="6" y1="5.5" x2="6.01" y2="5.5"/><line x1="6" y1="12" x2="6.01" y2="12"/><line x1="6" y1="18.5" x2="6.01" y2="18.5"/></svg></div>
+                <div class="mega-text">
+                  <h4>Dedicated Bare Metal</h4>
+                  <p>Intel Xeon &amp; AMD EPYC enterprise processors with RAID-1/10.</p>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <!-- Email Dropdown -->
+          <div class="nav-item">
+            <a href="email/business.html" class="nav-link">
+              Email
+              <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </a>
+            <div class="mega-menu">
+              <a href="email/business.html" class="mega-item">
+                <div class="mega-icon icon-lime"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+                <div class="mega-text">
+                  <h4>Business Email</h4>
+                  <p>Custom domain email, webmail, calendar sync &amp; anti-virus.</p>
+                </div>
+              </a>
+              <a href="email/google-workspace.html" class="mega-item">
+                <div class="mega-icon icon-gold"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg></div>
+                <div class="mega-text">
+                  <h4>Google Workspace</h4>
+                  <p>Official Gmail, Drive, Docs &amp; Meet with DNS auto-setup.</p>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <!-- Security Dropdown -->
+          <div class="nav-item">
+            <a href="security/ssl.html" class="nav-link">
+              Security
+              <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+            </a>
+            <div class="mega-menu">
+              <a href="security/ssl.html" class="mega-item">
+                <div class="mega-icon icon-gold"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+                <div class="mega-text">
+                  <h4>SSL Certificates</h4>
+                  <p>Sectigo &amp; Thawte DV, Wildcard &amp; EV SSL certificates.</p>
+                </div>
+              </a>
+              <a href="security/sitelock.html" class="mega-item">
+                <div class="mega-icon icon-lime"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                <div class="mega-text">
+                  <h4>SiteLock Protection</h4>
+                  <p>Malware scanning, automatic cleaning &amp; Web Application Firewall.</p>
+                </div>
+              </a>
+              <a href="security/codeguard.html" class="mega-item">
+                <div class="mega-icon icon-cyan"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
+                <div class="mega-text">
+                  <h4>CodeGuard Backup</h4>
+                  <p>Automated daily cloud backups with 1-click restore.</p>
+                </div>
+              </a>
+              <a href="security/acronis.html" class="mega-item">
+                <div class="mega-icon icon-gold"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 4.81 17 6 19 6a1 1 0 0 1 1 1z"/></svg></div>
+                <div class="mega-text">
+                  <h4>Acronis Cyber Backup</h4>
+                  <p>Military-grade data protection against ransomware &amp; disaster.</p>
+                </div>
+              </a>
+            </div>
+          </div>
+
+          <!-- All Products Catalog Link -->
+          <div class="nav-item">
+            <a href="products.html" class="nav-link" style="color:var(--brand-action-cyan); font-weight:700;">
+              All Products
+            </a>
+          </div>
+        </nav>
+
+        <!-- Actions -->
+        <div class="nav-actions">
+          <a href="products.html" class="btn btn-sm btn-primary">Explore Products</a>
+          <button class="hamburger-btn" aria-label="Open Mobile Menu">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Drawer -->
+    <!-- Mobile Drawer -->
+  <div class="mobile-drawer" role="dialog" aria-modal="true">
+    <div class="drawer-content">
+      <div class="drawer-header">
+        <img src="assets/img/logo.svg" alt="Hostmattic" width="160" height="32" onerror="this.src='assets/img/logo.png'">
+        <button class="drawer-close" aria-label="Close Menu">&times;</button>
+      </div>
+      <div class="drawer-group-title">Domains &amp; Web</div>
+      <ul class="drawer-menu">
+        <li><a href="domains/index.html">Register a Domain</a></li>
+        <li><a href="domains/transfer.html">Transfer Domain</a></li>
+        <li><a href="domains/new-gtlds.html">New Domain Extensions</a></li>
+        <li><a href="tools/website-builder.html">Website Builder</a></li>
+      </ul>
+      <div class="drawer-group-title">Hosting &amp; Servers</div>
+      <ul class="drawer-menu">
+        <li><a href="hosting/shared-linux.html">Linux Shared (cPanel)</a></li>
+        <li><a href="hosting/shared-windows.html">Windows Shared (Plesk)</a></li>
+        <li><a href="hosting/wordpress.html">WordPress Hosting</a></li>
+        <li><a href="hosting/cloud.html">Cloud Hosting</a></li>
+        <li><a href="hosting/reseller.html">Reseller Hosting</a></li>
+        <li><a href="servers/vps.html">Linux KVM VPS</a></li>
+        <li><a href="servers/dedicated.html">Dedicated Servers</a></li>
+      </ul>
+      <div class="drawer-group-title">Email &amp; Security</div>
+      <ul class="drawer-menu">
+        <li><a href="email/business.html">Business Email</a></li>
+        <li><a href="email/google-workspace.html">Google Workspace</a></li>
+        <li><a href="security/ssl.html">SSL Certificates</a></li>
+        <li><a href="security/sitelock.html">SiteLock Malware Guard</a></li>
+        <li><a href="security/codeguard.html">CodeGuard Backups</a></li>
+        <li><a href="security/acronis.html">Acronis Cyber Backup</a></li>
+        <li><a href="bundles/combo-plans.html">Combo Offers</a></li>
+        <li><a href="products.html">All Products &amp; Solutions Directory</a></li>
+      </ul>
+      <div style="margin-top:24px; padding-top:16px; border-top:1px solid var(--border-subtle);">
+        <a href="login.html" class="btn btn-primary" style="width:100%; justify-content:center;">Client Portal Login</a>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <!-- Product Header -->
+    <section class="hero-product">
+      <div class="container">
+        <span class="section-tag tag-cyan">Full Product Suite</span>
+        <h1>Hostmattic Product &amp; Service Catalog</h1>
+        <p class="lead">Explore Hostmattic's complete ecosystem of high-performance web hosting, domain registration, dedicated servers, enterprise email, and cybersecurity solutions designed for businesses of all sizes.</p>
+      </div>
+    </section>
+
+    <!-- Catalog Section -->
+    <section class="section">
+      <div class="container">
+        <!-- Filter Bar -->
+        <div class="catalog-filter-bar">
+          <div class="filter-tabs" id="category-tabs">
+            <button class="filter-tab active" data-cat="all">All Products (18)</button>
+            <button class="filter-tab" data-cat="domains">Domains</button>
+            <button class="filter-tab" data-cat="hosting">Web Hosting</button>
+            <button class="filter-tab" data-cat="servers">Servers</button>
+            <button class="filter-tab" data-cat="email">Email</button>
+            <button class="filter-tab" data-cat="security">Security</button>
+            <button class="filter-tab" data-cat="bundles">Bundles &amp; Tools</button>
+          </div>
+          <input type="text" class="search-filter-input" id="catalog-search" placeholder="Search products, hosting plans, and services...">
+        </div>
+
+        <!-- 18 Products Grid -->
+        <div class="grid-3" id="catalog-grid">
+
+          <!-- 1. Domain Registration -->
+          <div class="catalog-card" data-cat="domains" data-title="Domain Registration">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-lime" style="margin-bottom:8px;">Domains</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $7.99/yr</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="domains/index.html">Domain Registration</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Instant registration across 800+ gTLDs and ccTLDs (.com, .in, .net, .org, .io) with free DNS management and mail forwarding.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Free DNS Management &amp; Mail Forwarding</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="domains/index.html" class="btn btn-sm btn-outline" style="width:100%;">View Domain Plans &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 2. Domain Transfer -->
+          <div class="catalog-card" data-cat="domains" data-title="Domain Transfer">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-lime" style="margin-bottom:8px;">Domains</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">Free 1-Yr Extension</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="domains/transfer.html">Domain Transfer</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Consolidate your domains to Hostmattic with automated transfer authentication, zero downtime, and a free 1-year renewal extension.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Zero Downtime Transfer &amp; Free 1-Yr Extension</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="domains/transfer.html" class="btn btn-sm btn-outline" style="width:100%;">Transfer Guide &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 3. New gTLDs & Niche Extensions -->
+          <div class="catalog-card" data-cat="domains" data-title="New Domain Extensions">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-lime" style="margin-bottom:8px;">Domains</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $3.99/yr</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="domains/new-gtlds.html">New Domain Extensions</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Stand out in your industry with niche extensions like .tech, .online, .store, .agency, .app, and .dev with instant availability checks.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">800+ Modern Niche Extensions Available</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="domains/new-gtlds.html" class="btn btn-sm btn-outline" style="width:100%;">Explore Extensions &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 4. Linux Shared Hosting (cPanel) -->
+          <div class="catalog-card" data-cat="hosting" data-title="Linux Shared Hosting cPanel">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-cyan" style="margin-bottom:8px;">Hosting</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $2.49/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="hosting/shared-linux.html">Linux Shared (cPanel)</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">NVMe SSD arrays, official cPanel interface, Softaculous 1-click app installer, PHP 8.x, and free Let's Encrypt SSL certificates.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">cPanel Included &bull; Softaculous 1-Click Installs</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="hosting/shared-linux.html" class="btn btn-sm btn-outline" style="width:100%;">View Linux Plans &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 5. Windows Shared Hosting (Plesk) -->
+          <div class="catalog-card" data-cat="hosting" data-title="Windows Shared Hosting Plesk">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-cyan" style="margin-bottom:8px;">Hosting</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $3.49/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="hosting/shared-windows.html">Windows Shared (Plesk)</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Optimized Windows Server hosting with Plesk Obsidian, ASP.NET Core, MSSQL Server 2019, PHP, and IIS web server stack.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Plesk Panel &bull; ASP.NET &amp; MSSQL Support</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="hosting/shared-windows.html" class="btn btn-sm btn-outline" style="width:100%;">View Windows Plans &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 6. WordPress Hosting -->
+          <div class="catalog-card" data-cat="hosting" data-title="WordPress Hosting">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-cyan" style="margin-bottom:8px;">Hosting</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $3.99/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="hosting/wordpress.html">WordPress Hosting</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Dedicated WordPress infrastructure with pre-installed WP, automated core/plugin updates, WP-CLI tools, and Varnish caching.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Optimized WP-CLI &bull; Automated Core Updates</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="hosting/wordpress.html" class="btn btn-sm btn-outline" style="width:100%;">View WP Plans &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 7. Cloud Hosting -->
+          <div class="catalog-card" data-cat="hosting" data-title="Cloud Hosting">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-cyan" style="margin-bottom:8px;">Hosting</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $6.99/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="hosting/cloud.html">Cloud Web Hosting</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Dedicated vCPU &amp; RAM on fault-tolerant Ceph storage with cPanel, automatic hardware failover, and instantaneous 4x burst compute.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Dedicated RAM/CPU &bull; Instant 4x Scalability</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="hosting/cloud.html" class="btn btn-sm btn-outline" style="width:100%;">View Cloud Plans &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 8. Reseller Web Hosting -->
+          <div class="catalog-card" data-cat="hosting" data-title="Reseller Hosting WHM Plesk">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-cyan" style="margin-bottom:8px;">Hosting</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $16.99/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="hosting/reseller.html">Reseller Web Hosting</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">White-label Linux cPanel/WHM and Windows Plesk reseller packages with automated license generation and private nameservers.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">WHM &amp; cPanel Access &bull; 100% White-Label</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="hosting/reseller.html" class="btn btn-sm btn-outline" style="width:100%;">View Reseller Plans &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 9. Linux KVM VPS -->
+          <div class="catalog-card" data-cat="servers" data-title="Linux KVM VPS Hosting">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-gold" style="margin-bottom:8px;">Servers</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $8.99/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="servers/vps.html">Linux KVM VPS</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Kernel-based Virtual Machine with guaranteed vCPU, dedicated RAM, NVMe storage, root access, and choice of Ubuntu, AlmaLinux, or Debian.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Full Root Access &bull; Dedicated KVM Virtualization</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="servers/vps.html" class="btn btn-sm btn-outline" style="width:100%;">View VPS Specs &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 10. Dedicated Bare Metal Servers -->
+          <div class="catalog-card" data-cat="servers" data-title="Dedicated Bare Metal Servers">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-gold" style="margin-bottom:8px;">Servers</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $89.00/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="servers/dedicated.html">Dedicated Bare Metal</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Raw single-tenant hardware powered by Intel Xeon &amp; AMD EPYC with RAID-1/10 storage, IPMI remote access, and unmetered bandwidth.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Enterprise Bare Metal &bull; Hardware RAID Storage</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="servers/dedicated.html" class="btn btn-sm btn-outline" style="width:100%;">View Bare Metal &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 11. Business Email -->
+          <div class="catalog-card" data-cat="email" data-title="Business Email">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-lime" style="margin-bottom:8px;">Email</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $0.99/mo/box</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="email/business.html">Business Email</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Professional custom domain email (you@yourcompany.com) with 5 GB storage, intuitive webmail, calendar sync, and anti-virus filtering.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Custom Domain Email &bull; Anti-Spam &amp; Webmail</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="email/business.html" class="btn btn-sm btn-outline" style="width:100%;">View Email Plans &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 12. Google Workspace -->
+          <div class="catalog-card" data-cat="email" data-title="Google Workspace">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-lime" style="margin-bottom:8px;">Email</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $3.25/mo/user</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="email/google-workspace.html">Google Workspace</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Official Google Workspace integration with Gmail, Google Drive, Meet, Docs, and automated DNS setup from your Hostmattic panel.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Official Gmail, Drive, Docs &amp; Meet Suite</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="email/google-workspace.html" class="btn btn-sm btn-outline" style="width:100%;">View Workspace &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 13. SSL Certificates -->
+          <div class="catalog-card" data-cat="security" data-title="SSL Certificates">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-cyan" style="margin-bottom:8px;">Security</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $12.99/yr</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="security/ssl.html">SSL Certificates</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Sectigo &amp; Thawte PositiveSSL, Wildcard SSL, and Extended Validation (EV) with 256-bit encryption and browser padlock trust.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">256-Bit Encryption &bull; Sectigo &amp; Thawte Verified</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="security/ssl.html" class="btn btn-sm btn-outline" style="width:100%;">View SSL Plans &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 14. SiteLock Website Security -->
+          <div class="catalog-card" data-cat="security" data-title="SiteLock Website Security">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-cyan" style="margin-bottom:8px;">Security</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $2.49/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="security/sitelock.html">SiteLock Malware Guard</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Daily website vulnerability scanning, automatic malware removal, Web Application Firewall (WAF), and global CDN acceleration.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Daily Malware Scanning &bull; Web Application Firewall</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="security/sitelock.html" class="btn btn-sm btn-outline" style="width:100%;">View SiteLock &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 15. CodeGuard Cloud Backup -->
+          <div class="catalog-card" data-cat="security" data-title="CodeGuard Website Backup">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-cyan" style="margin-bottom:8px;">Security</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $1.99/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="security/codeguard.html">CodeGuard Website Backup</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Automatic daily website and database backups to the cloud, change tracking with alert notifications, and 1-click disaster recovery.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Automatic Cloud Backups &bull; 1-Click File Restore</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="security/codeguard.html" class="btn btn-sm btn-outline" style="width:100%;">View CodeGuard &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 16. Acronis Cyber Cloud Backup -->
+          <div class="catalog-card" data-cat="security" data-title="Acronis Cyber Backup">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-cyan" style="margin-bottom:8px;">Security</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $4.99/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="security/acronis.html">Acronis Cyber Backup</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Enterprise-grade data protection, AI-based active ransomware protection, and full-image server and mailbox backups.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Military-Grade Ransomware Defense &amp; Full Backup</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="security/acronis.html" class="btn btn-sm btn-outline" style="width:100%;">View Acronis &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 17. Combo Value Packs -->
+          <div class="catalog-card" data-cat="bundles" data-title="Combo Plans Value Packs">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-gold" style="margin-bottom:8px;">Bundles</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">Save up to 60%</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="bundles/combo-plans.html">Combo Value Packs</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">All-in-one bundle containing a Domain, Linux NVMe Hosting, Business Email, and Free SSL Certificate in a single convenient subscription.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">All-in-One: Domain + Hosting + Email + SSL</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="bundles/combo-plans.html" class="btn btn-sm btn-outline" style="width:100%;">View Combo Packs &rarr;</a>
+            </div>
+          </div>
+
+          <!-- 18. DIY Website Builder -->
+          <div class="catalog-card" data-cat="bundles" data-title="DIY Website Builder">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <span class="section-tag tag-gold" style="margin-bottom:8px;">Bundles</span>
+                <span style="font-size:0.8rem; font-weight:700; color:var(--brand-action-green);">From $2.99/mo</span>
+              </div>
+              <h3 style="margin-bottom:6px;"><a href="tools/website-builder.html">DIY Website Builder</a></h3>
+              <p style="font-size:0.88rem; color:var(--text-muted);">Visual drag-and-drop website editor with 200+ responsive industry templates, e-commerce store integration, and mobile optimization.</p>
+              <div class="feature-pill" style="display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; font-weight:600; color:var(--brand-action-cyan); background:var(--brand-cyan-light); padding:4px 10px; border-radius:6px; margin-top:12px;">Drag-and-Drop Builder &bull; Responsive Mobile Themes</div>
+            </div>
+            <div style="margin-top:20px;">
+              <a href="tools/website-builder.html" class="btn btn-sm btn-outline" style="width:100%;">View Site Builder &rarr;</a>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-bottom">
+        <div>&copy; 2026 Hostmattic - Enterprise Cloud Hosting &amp; Infrastructure. A business unit of OfinIT Solutions Pvt. Ltd. All rights reserved.</div>
+        <div><a href="index.html" style="color:#9BCB44;">Return to Storefront</a></div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/js/main.js"></script>
+  <script>
+    // Live filter and search for catalog cards
+    const tabs = document.querySelectorAll('.filter-tab');
+    const cards = document.querySelectorAll('.catalog-card');
+    const searchInput = document.getElementById('catalog-search');
+
+    function applyFilter() {
+      const activeTab = document.querySelector('.filter-tab.active');
+      const cat = activeTab ? activeTab.dataset.cat : 'all';
+      const q = searchInput.value.toLowerCase().trim();
+
+      cards.forEach(card => {
+        const matchesCat = (cat === 'all' || card.dataset.cat === cat);
+        const matchesSearch = (!q || card.dataset.title.toLowerCase().includes(q) || card.textContent.toLowerCase().includes(q));
+        card.style.display = (matchesCat && matchesSearch) ? 'flex' : 'none';
+      });
+    }
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        applyFilter();
+      });
+    });
+
+    searchInput.addEventListener('input', applyFilter);
+  </script>
+</body>
+</html>

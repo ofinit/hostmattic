@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client Portal Login — Hostmattic</title>
+  <meta name="description" content="Log in to your Hostmattic client portal to manage domain names, web hosting, cloud servers, invoices, and support tickets.">
+  <meta name="theme-color" content="#1B2228">
+  <link rel="icon" type="image/svg+xml" href="assets/img/logo-icon.svg">
+  <link rel="stylesheet" href="assets/css/main.css">
+  <style>
+    .auth-page-wrap {
+      min-height: calc(100vh - 180px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      background: radial-gradient(circle at 50% 20%, rgba(41, 180, 213, 0.08) 0%, rgba(155, 203, 68, 0.04) 40%, var(--bg-canvas) 80%);
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      transition: box-shadow 0.2s ease;
+    }
+    .auth-card-header {
+      padding: 32px 32px 20px;
+      text-align: center;
+      border-bottom: 1px solid var(--border-subtle);
+      background: #FFFFFF;
+    }
+    .auth-tabs {
+      display: flex;
+      background: var(--bg-surface-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+      padding: 6px;
+      gap: 6px;
+    }
+    .auth-tab {
+      flex: 1;
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s ease;
+    }
+    .auth-tab.active {
+      background: #FFFFFF;
+      color: var(--brand-action-green);
+      box-shadow: var(--shadow-xs);
+    }
+    .auth-card-body {
+      padding: 32px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-label {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius-md);
+      font-size: 0.95rem;
+      color: var(--text-main);
+      background: #FFFFFF;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--brand-cyan);
+      box-shadow: 0 0 0 3px rgba(41, 180, 213, 0.2);
+    }
+    .form-row-split {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.85rem;
+      margin-bottom: 24px;
+    }
+    .form-checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-body);
+      cursor: pointer;
+      user-select: none;
+    }
+    .form-link {
+      color: var(--brand-action-cyan);
+      font-weight: 600;
+    }
+    .form-link:hover {
+      text-decoration: underline;
+    }
+    .tab-pane {
+      display: none;
+    }
+    .tab-pane.active {
+      display: block;
+      animation: fadeIn 0.2s ease;
+    }
+    .auth-footer {
+      padding: 16px 32px;
+      background: var(--bg-surface-subtle);
+      border-top: 1px solid var(--border-subtle);
+      text-align: center;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+    .auth-security-badges {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      margin-top: 24px;
+      color: var(--text-light);
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Announcement & Utility Bar -->
+  <aside class="topbar">
+    <div class="container">
+      <div class="topbar-left">
+        <span class="topbar-badge"><span class="pulse-dot"></span> 256-Bit SSL Encrypted Session</span>
+        <span class="topbar-text" style="color:#CBD5E1;">Secure Customer Account Gateway</span>
+      </div>
+      <div class="topbar-right">
+        <a href="index.html" class="topbar-link">&larr; Return to Storefront</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Sticky Main Site Header -->
+  <header class="site-header">
+    <div class="container">
+      <div class="nav-wrap">
+        <a href="index.html" class="site-logo" aria-label="Hostmattic Home">
+          <img src="assets/img/logo.svg" alt="Hostmattic Logo" width="220" height="42" onerror="this.src='assets/img/logo.png'">
+        </a>
+        <div class="nav-actions">
+          <a href="products.html" class="btn btn-sm btn-outline">Explore Products</a>
+          <a href="admin/login.html" class="btn btn-sm btn-secondary" style="font-size:0.8rem;">Admin Portal &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Login Area -->
+  <main class="auth-page-wrap">
+    <div class="auth-card">
+      <div class="auth-card-header">
+        <h2 style="font-size:1.6rem; margin-bottom:6px;">Sign In to Hostmattic</h2>
+        <p style="font-size:0.9rem; color:var(--text-muted);">Manage your domains, web hosting, and billing.</p>
+      </div>
+
+      <!-- Access Type Tabs -->
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" data-tab="client" role="tab" aria-selected="true">Client Portal</button>
+        <button class="auth-tab" data-tab="webmail" role="tab" aria-selected="false">Webmail Login</button>
+        <button class="auth-tab" data-tab="cpanel" role="tab" aria-selected="false">cPanel / Server</button>
+      </div>
+
+      <!-- 1. Client Portal Form -->
+      <div class="auth-card-body">
+        <div class="tab-pane active" id="pane-client">
+          <form id="clientLoginForm" action="https://client.hostmattic.com/login" method="POST">
+            <div class="form-group">
+              <label class="form-label" for="clientEmail">Email Address</label>
+              <input type="email" id="clientEmail" name="username" class="form-input" placeholder="name@yourcompany.com" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <label class="form-label" for="clientPassword" style="margin-bottom:0;">Password</label>
+                <a href="#forgot" class="form-link" style="font-size:0.82rem;" onclick="alert('Password reset link will be sent to your registered email address.'); return false;">Forgot Password?</a>
+              </div>
+              <input type="password" id="clientPassword" name="password" class="form-input" placeholder="Enter your password" required autocomplete="current-password">
+            </div>
+
+            <div class="form-row-split">
+              <label class="form-checkbox-label">
+                <input type="checkbox" name="remember" style="accent-color:var(--brand-action-green);"> Remember my session
+              </label>
+              <span style="font-size:0.8rem; color:#64748B;">2FA Enabled</span>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:13px 24px;">
+              Sign In to Client Portal &rarr;
+            </button>
+          </form>
+
+          <div class="auth-security-badges">
+            <span>🔒 TLS 1.3 Encryption</span>
+            <span>&bull;</span>
+            <span>🛡️ Brute-Force Shield</span>
+            <span>&bull;</span>
+            <span>⚡ Instant Auth</span>
+          </div>
+        </div>
+
+        <!-- 2. Webmail Quick Access -->
+        <div class="tab-pane" id="pane-webmail">
+          <form id="webmailLoginForm" action="https://webmail.hostmattic.com" method="POST" target="_blank">
+            <div class="form-group">
+              <label class="form-label" for="webmailUser">Business Email Address</label>
+              <input type="email" id="webmailUser" class="form-input" placeholder="you@yourdomain.com" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="webmailPass">Mailbox Password</label>
+              <input type="password" id="webmailPass" class="form-input" placeholder="Your email password" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="webmailClient">Webmail Interface</label>
+              <select id="webmailClient" class="form-input" style="cursor:pointer;">
+                <option value="roundcube">Roundcube (Modern Webmail)</option>
+                <option value="horde">Horde Enterprise</option>
+                <option value="mobile">Mobile Webmail Lite</option>
+              </select>
+            </div>
+
+            <button type="submit" class="btn btn-secondary" style="width:100%; justify-content:center; padding:13px 24px;">
+              Launch Webmail Session &rarr;
+            </button>
+          </form>
+        </div>
+
+        <!-- 3. cPanel Direct Access -->
+        <div class="tab-pane" id="pane-cpanel">
+          <form id="cpanelLoginForm" action="#" method="GET" onsubmit="handleCpanelRedirect(event)">
+            <div class="form-group">
+              <label class="form-label" for="cpanelDomain">Server Hostname or Your Domain</label>
+              <input type="text" id="cpanelDomain" class="form-input" placeholder="cpanel.yourdomain.com or server IP" required>
+            </div>
+
+            <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:20px; line-height:1.5;">
+              You will be redirected to your dedicated cPanel instance on secure port <strong>2083</strong>.
+            </p>
+
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:13px 24px; background:var(--brand-action-cyan);">
+              Connect to cPanel :2083 &rarr;
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="auth-footer">
+        Don't have an account yet? <a href="products.html" class="form-link">Explore Products &amp; Register</a>
+      </div>
+    </div>
+  </main>
+
+  <!-- Minimal Footer -->
+  <footer class="site-footer" style="padding:24px 0;">
+    <div class="container">
+      <div class="footer-bottom" style="border-top:none; padding-top:0;">
+        <div>&copy; 2026 Hostmattic - Enterprise Cloud Hosting &amp; Infrastructure. A business unit of OfinIT Solutions Pvt. Ltd. All rights reserved.</div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Tab switcher logic
+    const tabs = document.querySelectorAll('.auth-tab');
+    const panes = document.querySelectorAll('.tab-pane');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
+        panes.forEach(p => p.classList.remove('active'));
+
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
+        const target = document.getElementById('pane-' + tab.dataset.tab);
+        if (target) target.classList.add('active');
+      });
+    });
+
+    // cPanel redirect helper
+    function handleCpanelRedirect(e) {
+      e.preventDefault();
+      let val = document.getElementById('cpanelDomain').value.trim();
+      if (!val) return;
+      if (!val.startsWith('http://') && !val.startsWith('https://')) {
+        val = 'https://' + val;
+      }
+      if (!val.includes(':2083') && !val.includes(':2082')) {
+        val = val.replace(/\/$/, '') + ':2083';
+      }
+      window.open(val, '_blank', 'noopener,noreferrer');
+    }
+
+    // Interactive submit simulation demo
+    document.getElementById('clientLoginForm').addEventListener('submit', function(e) {
+      // In production, this submits to client.hostmattic.com or executes the SSO token API
+      const email = document.getElementById('clientEmail').value;
+      if (this.action.includes('client.hostmattic.com')) {
+        e.preventDefault();
+        alert('Connecting to Hostmattic Secure Client Gateway for ' + email + '...\n\n(In production, this routes via API SSO token or branded portal handler)');
+      }
+    });
+  </script>
+</body>
+</html>

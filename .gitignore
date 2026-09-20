@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Next.js build
+.next/
+out/
+
+# Secrets & credentials
+_docs/secrets*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE / Editor
+.claude/
+.codex/
+.cursor/
+.wolf/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Agent config
+AGENTS.md
+GEMINI.md
+CLAUDE.md
+
+# TypeScript build info
+tsconfig.tsbuildinfo
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+.dockerignore

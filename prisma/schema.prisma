@@ -1,0 +1,174 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id                 String             @id @default(cuid())
+  email              String             @unique
+  passwordHash       String
+  name               String
+  company            String?
+  phone              String?
+  address            String?
+  city               String?
+  state              String?
+  country            String?
+  zip                String?
+  role               String             @default("CUSTOMER") // "CUSTOMER" | "ADMIN"
+  upstreamCustomerId String?
+  lockedCurrency     String?            // "USD" | "INR" - locked on first successful payment
+  currencyLockedAt   DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  domains            Domain[]
+  hostingAccounts    HostingAccount[]
+  orders             Order[]
+  tickets            SupportTicket[]
+
+  @@index([email])
+  @@index([email, lockedCurrency])
+}
+
+model Domain {
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domainName         String    @unique
+  tld                String
+  status             String    @default("ACTIVE") // ACTIVE, PENDING, EXPIRED
+  registrationDate   DateTime  @default(now())
+  expiryDate         DateTime
+  autoRenew          Boolean   @default(true)
+  privacyEnabled     Boolean   @default(true)
+  nameservers        String?   @default("ns1.hostmattic.com,ns2.hostmattic.com")
+  upstreamOrderId    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([domainName])
+}
+
+model HostingAccount {
+  id                 String    @id @default(cuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productType        String    // "SHARED_LINUX", "SHARED_WINDOWS", "WORDPRESS", "CLOUD", "RESELLER", "VPS", "DEDICATED"
+  planName           String
+  domainName         String
+  serverIp           String?   @default("198.51.100.24")
+  cpanelUsername     String?
+  serverLocation     String    @default("US")
+  status             String    @default("ACTIVE") // ACTIVE, SUSPENDED, TERMINATED, PENDING
+  billingCycle       String    @default("ANNUAL") // MONTHLY, ANNUAL
+  nextDueDate        DateTime
+  upstreamOrderId    String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([domainName])
+}
+
+model TaxSetting {
+  id                   String   @id @default("default_tax_settings")
+  gstRate              Float    @default(18.0)
+  legalBusinessName    String   @default("Hostmattic Technologies / OfinIT Solutions")
+  sellerGstin          String   @default("")
+  registeredAddress    String   @default("")
+  city                 String   @default("")
+  state                String   @default("Kerala")
+  stateCode            String   @default("32")
+  panNumber            String   @default("")
+  defaultSacCode       String   @default("998315")
+  lutNumber            String   @default("LUT/2026-27/001")
+  usdGstPolicy         String   @default("LUT_EXPORT") // "LUT_EXPORT" (0% with LUT) or "APPLY_GST"
+  updatedAt            DateTime @updatedAt
+}
+
+model Order {
+  id                 String      @id @default(cuid())
+  orderNumber        String      @unique
+  userId             String
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtotalAmount     Float       @default(0.0)
+  taxRate            Float       @default(0.0)
+  taxAmount          Float       @default(0.0)
+  totalAmount        Float
+  currency           String      @default("USD")
+  paymentStatus      String      @default("PAID") // PAID, PENDING, FAILED
+  paymentMethod      String      @default("CREDIT_CARD")
+  status             String      @default("COMPLETED")
+
+  // Statutory GST Compliance Fields
+  customerType       String      @default("B2C") // "B2C" | "B2B"
+  customerGstin      String?
+  companyName        String?
+  billingAddress     String?
+  billingCity        String?
+  billingState       String?     @default("Kerala")
+  billingCountry     String?     @default("IN")
+  placeOfSupply      String?     @default("32-Kerala")
+  taxType            String?     @default("CGST_SGST") // "CGST_SGST", "IGST", "LUT_EXPORT", "NONE"
+  cgstAmount         Float       @default(0.0)
+  sgstAmount         Float       @default(0.0)
+  igstAmount         Float       @default(0.0)
+
+  // Payment Gateway Telemetry
+  gatewayName        String?     // "RAZORPAY" | "INSTAMOJO"
+  gatewayOrderId     String?
+  gatewayPaymentId   String?
+  gatewaySignature   String?
+
+  createdAt          DateTime    @default(now())
+  items              OrderItem[]
+
+  @@index([userId])
+}
+
+model OrderItem {
+  id                 String    @id @default(cuid())
+  orderId            String
+  order              Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productType        String
+  description        String
+  sacCode            String?   @default("998315")
+  price              Float
+  billingPeriod      String
+
+  @@index([orderId])
+}
+
+model SupportTicket {
+  id                 String        @id @default(cuid())
+  ticketNumber       String        @unique
+  userId             String
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject            String
+  department         String        @default("Technical Support")
+  priority           String        @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status             String        @default("OPEN") // OPEN, ANSWERED, CLOSED
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  replies            TicketReply[]
+
+  @@index([userId])
+}
+
+model TicketReply {
+  id                 String        @id @default(cuid())
+  ticketId           String
+  ticket             SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderType         String        // CUSTOMER, STAFF
+  senderName         String
+  message            String
+  createdAt          DateTime      @default(now())
+
+  @@index([ticketId])
+}

@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hostmattic — Recommended &amp; Safest Pricing Matrix (WebPro Panel Guide)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0B0F17;
+      --card-bg: #151D28;
+      --card-border: rgba(255, 255, 255, 0.08);
+      --table-header: #1C2736;
+      --table-row-even: #131A24;
+      --table-row-odd: #101620;
+      --table-row-hover: #1E293B;
+      --text-main: #F1F5F9;
+      --text-muted: #94A3B8;
+      --brand-green: #9BCB44;
+      --action-green: #4F7C12;
+      --brand-cyan: #29B4D5;
+      --brand-gold: #FFCD00;
+      --brand-red: #EF4444;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font);
+      line-height: 1.5;
+      padding: 40px 24px 80px;
+    }
+
+    .container {
+      max-width: 1360px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      margin-bottom: 36px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: rgba(155, 203, 68, 0.12);
+      border: 1px solid rgba(155, 203, 68, 0.3);
+      color: var(--brand-green);
+      font-size: 0.78rem;
+      font-weight: 700;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      max-width: 800px;
+    }
+
+    /* Quick Metrics Cards */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .metric-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .metric-value {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #FFFFFF;
+    }
+    .metric-sub {
+      font-size: 0.82rem;
+      color: #64748B;
+    }
+
+    /* Filter Toolbar */
+    .filter-bar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+    .filter-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      background: var(--brand-green);
+      color: #0B0F17;
+      border-color: var(--brand-green);
+    }
+
+    /* Section Styles */
+    .section-title-wrap {
+      margin: 36px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: #FFFFFF;
+    }
+    .section-badge {
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(41, 180, 213, 0.15);
+      border: 1px solid rgba(41, 180, 213, 0.35);
+      color: var(--brand-cyan);
+      font-weight: 600;
+    }
+
+    /* Table Container */
+    .table-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-bottom: 32px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+    th {
+      background: var(--table-header);
+      color: #E2E8F0;
+      padding: 14px 18px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--card-border);
+      white-space: nowrap;
+    }
+    td {
+      padding: 13px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      white-space: nowrap;
+    }
+    tbody tr:nth-child(even) {
+      background: var(--table-row-even);
+    }
+    tbody tr:nth-child(odd) {
+      background: var(--table-row-odd);
+    }
+    tbody tr:hover {
+      background: var(--table-row-hover);
+    }
+
+    /* Column Typography */
+    .col-product {
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .col-cost {
+      color: #94A3B8;
+      font-family: monospace;
+      font-size: 0.88rem;
+    }
+    .col-markup {
+      font-weight: 700;
+    }
+    .markup-rec {
+      color: var(--brand-cyan);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .markup-safe {
+      color: var(--brand-gold);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .col-price {
+      font-weight: 600;
+      color: #F8FAFC;
+    }
+    .col-invoice {
+      color: #CBD5E1;
+    }
+    .col-fee {
+      color: #F87171;
+      font-family: monospace;
+    }
+    .col-gross {
+      color: #94A3B8;
+      font-weight: 600;
+    }
+    .col-net {
+      font-weight: 800;
+      color: var(--brand-green);
+      background: rgba(155, 203, 68, 0.07);
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(155, 203, 68, 0.18);
+      display: inline-block;
+    }
+    .tier-badge {
+      display: inline-block;
+      font-size: 0.68rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-left: 6px;
+    }
+    .tier-rec {
+      background: rgba(41, 180, 213, 0.18);
+      color: #38BDF8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .tier-safe {
+      background: rgba(255, 205, 0, 0.18);
+      color: #FDE047;
+      border: 1px solid rgba(253, 224, 71, 0.3);
+    }
+
+    /* Print & Controls */
+    .btn-print {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: #FFF;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-print:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .callout {
+      background: rgba(41, 180, 213, 0.06);
+      border-left: 4px solid var(--brand-cyan);
+      padding: 16px 20px;
+      border-radius: 0 10px 10px 0;
+      margin-bottom: 28px;
+      font-size: 0.88rem;
+      color: #CBD5E1;
+      line-height: 1.6;
+    }
+    .callout strong { color: #FFF; }
+
+    @media print {
+      body { background: #FFF; color: #000; padding: 10px; }
+      .header, .filter-bar, .btn-print { display: none; }
+      .table-card { border: 1px solid #CCC; box-shadow: none; }
+      th { background: #E2E8F0; color: #000; }
+      tbody tr { background: #FFF !important; }
+      td { border-bottom: 1px solid #EEE; color: #000; }
+      .col-net { color: #000; background: none; border: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <span class="badge-pill">Hostmattic WebPro Architecture</span>
+      <h1>Recommended &amp; Safest Pricing Matrix</h1>
+      <p class="subtitle">
+        Statutory GST (18%) &amp; Payment Gateway (2.36% PG Fee) Margin Calculator across all Hostmattic products and services. Configured for your upstream Reseller Control Panel.
+      </p>
+    </div>
+    <button class="btn-print" onclick="window.print()">🖨️ Print / Save PDF</button>
+  </div>
+
+  <!-- Key Telemetry Cards -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <span class="metric-title">Statutory GST Rate</span>
+      <span class="metric-value">18.00%</span>
+      <span class="metric-sub">Added to ex-tax base price for INR (SAC 998315). Zero-Rated (0%) for USD Export.</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-title">Payment Gateway Fee</span>
+      <span class="metric-value">2.36%</span>
+      <span class="metric-sub">Standard 2.0% + 18% GST on card fees. Charged on Total Gross Invoice.</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-title">⚡ UPI Instant Advantage</span>
+      <span class="metric-value" style="color: var(--brand-green);">0.00% Fee</span>
+      <span class="metric-sub">Hostmattic defaults to UPI for INR. You keep 100% of your Gross Profit on UPI payments!</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-title">WebPro Panel Target</span>
+      <span class="metric-value" style="color: var(--brand-gold);">15% – 100%</span>
+      <span class="metric-sub">12%–18% on Domains, 30% on Servers, 80%–100% on Hosting &amp; Security.</span>
+    </div>
+  </div>
+
+  <!-- Core Explanation Callout -->
+  <div class="callout">
+    💡 <strong>How to read this table:</strong><br>
+    • <strong>Recommended Tier:</strong> Designed for maximum market competitiveness against GoDaddy, Namecheap, and Whois.com while ensuring healthy profits.<br>
+    • <strong>Safest Buffer Tier:</strong> Provides a wider margin buffer so that even if 100% of customers pay via high-fee credit cards and international cards, your net profit stays high.<br>
+    • <strong>Net Profit In-Hand</strong> reflects the exact cash retained after deducting wholesale costs and the 2.36% payment gateway fee from the total customer payment.
+  </div>
+
+  <!-- Filter Buttons -->
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterCategory('all')">All Products (18 Suites)</button>
+    <button class="filter-btn" onclick="filterCategory('annual')">🔥 Annual Billing &amp; Profit Logic (Save 40%)</button>
+    <button class="filter-btn" onclick="filterCategory('domains')">Domains (TLDs)</button>
+    <button class="filter-btn" onclick="filterCategory('hosting')">Web Hosting</button>
+    <button class="filter-btn" onclick="filterCategory('servers')">Servers (VPS &amp; Dedicated)</button>
+    <button class="filter-btn" onclick="filterCategory('email')">Email &amp; Workspace</button>
+    <button class="filter-btn" onclick="filterCategory('security')">Security &amp; Backups</button>
+    <button class="filter-btn" onclick="filterCategory('bundles')">Bundles &amp; Builder</button>
+  </div>
+
+  <!-- ==================== 1. DOMAINS ==================== -->
+  <div class="product-category" data-cat="domains">
+    <div class="section-title-wrap">
+      <h2 class="section-title">1. Domain Registrations &amp; Extensions (1-Year Registration)</h2>
+      <span class="section-badge">11 TLDs Cataloged</span>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Product / TLD</th>
+              <th>Wholesale Cost (ex-tax)</th>
+              <th>WebPro Markup Set</th>
+              <th>Selling Price (ex-tax)</th>
+              <th>Total Invoice (inc 18% GST)</th>
+              <th>2.36% PG Fee Deducted</th>
+              <th>Your Gross Profit</th>
+              <th>Your NET Profit In-Hand</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- .COM -->
+            <tr>
+              <td class="col-product" rowspan="2">.com Domain Registration</td>
+              <td class="col-cost" rowspan="2">₹1,079.00</td>
+              <td><span class="markup-rec">+15%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹1,240.00 <span style="font-size:0.75rem; color:#64748B;">($14.85)</span></td>
+              <td class="col-invoice">₹1,463.20</td>
+              <td class="col-fee">-₹34.53</td>
+              <td class="col-gross">+₹161.00</td>
+              <td><span class="col-net">+₹126.47</span> <span style="font-size:0.75rem; color:#94A3B8;">(10.2% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+18%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹1,273.00 <span style="font-size:0.75rem; color:#64748B;">($15.25)</span></td>
+              <td class="col-invoice">₹1,502.14</td>
+              <td class="col-fee">-₹35.45</td>
+              <td class="col-gross">+₹194.00</td>
+              <td><span class="col-net">+₹158.55</span> <span style="font-size:0.75rem; color:#94A3B8;">(12.5% net)</span></td>
+            </tr>
+
+            <!-- .IN -->
+            <tr>
+              <td class="col-product" rowspan="2">.in Domain (India)</td>
+              <td class="col-cost" rowspan="2">₹699.00</td>
+              <td><span class="markup-rec">+12%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹783.00 <span style="font-size:0.75rem; color:#64748B;">($9.38)</span></td>
+              <td class="col-invoice">₹923.94</td>
+              <td class="col-fee">-₹21.80</td>
+              <td class="col-gross">+₹84.00</td>
+              <td><span class="col-net">+₹62.20</span> <span style="font-size:0.75rem; color:#94A3B8;">(7.9% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+18%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹825.00 <span style="font-size:0.75rem; color:#64748B;">($9.88)</span></td>
+              <td class="col-invoice">₹973.50</td>
+              <td class="col-fee">-₹22.97</td>
+              <td class="col-gross">+₹126.00</td>
+              <td><span class="col-net">+₹103.03</span> <span style="font-size:0.75rem; color:#94A3B8;">(12.5% net)</span></td>
+            </tr>
+
+            <!-- .NET -->
+            <tr>
+              <td class="col-product" rowspan="2">.net Domain Registration</td>
+              <td class="col-cost" rowspan="2">₹1,144.00</td>
+              <td><span class="markup-rec">+12%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹1,281.00 <span style="font-size:0.75rem; color:#64748B;">($15.34)</span></td>
+              <td class="col-invoice">₹1,511.58</td>
+              <td class="col-fee">-₹35.67</td>
+              <td class="col-gross">+₹137.00</td>
+              <td><span class="col-net">+₹101.33</span> <span style="font-size:0.75rem; color:#94A3B8;">(7.9% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+18%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹1,350.00 <span style="font-size:0.75rem; color:#64748B;">($16.17)</span></td>
+              <td class="col-invoice">₹1,593.00</td>
+              <td class="col-fee">-₹37.59</td>
+              <td class="col-gross">+₹206.00</td>
+              <td><span class="col-net">+₹168.41</span> <span style="font-size:0.75rem; color:#94A3B8;">(12.5% net)</span></td>
+            </tr>
+
+            <!-- .ORG -->
+            <tr>
+              <td class="col-product" rowspan="2">.org Domain Registration</td>
+              <td class="col-cost" rowspan="2">₹959.00</td>
+              <td><span class="markup-rec">+15%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹1,103.00 <span style="font-size:0.75rem; color:#64748B;">($13.21)</span></td>
+              <td class="col-invoice">₹1,301.54</td>
+              <td class="col-fee">-₹30.72</td>
+              <td class="col-gross">+₹144.00</td>
+              <td><span class="col-net">+₹113.28</span> <span style="font-size:0.75rem; color:#94A3B8;">(10.3% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+20%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹1,151.00 <span style="font-size:0.75rem; color:#64748B;">($13.78)</span></td>
+              <td class="col-invoice">₹1,358.18</td>
+              <td class="col-fee">-₹32.05</td>
+              <td class="col-gross">+₹192.00</td>
+              <td><span class="col-net">+₹159.95</span> <span style="font-size:0.75rem; color:#94A3B8;">(13.9% net)</span></td>
+            </tr>
+
+            <!-- .TECH -->
+            <tr>
+              <td class="col-product" rowspan="2">.tech Domain (Tech Brands)</td>
+              <td class="col-cost" rowspan="2">₹879.00</td>
+              <td><span class="markup-rec">+20%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹1,055.00 <span style="font-size:0.75rem; color:#64748B;">($12.63)</span></td>
+              <td class="col-invoice">₹1,244.90</td>
+              <td class="col-fee">-₹29.38</td>
+              <td class="col-gross">+₹176.00</td>
+              <td><span class="col-net">+₹146.62</span> <span style="font-size:0.75rem; color:#94A3B8;">(13.9% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+25%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹1,099.00 <span style="font-size:0.75rem; color:#64748B;">($13.16)</span></td>
+              <td class="col-invoice">₹1,296.82</td>
+              <td class="col-fee">-₹30.60</td>
+              <td class="col-gross">+₹220.00</td>
+              <td><span class="col-net">+₹189.40</span> <span style="font-size:0.75rem; color:#94A3B8;">(17.2% net)</span></td>
+            </tr>
+
+            <!-- .ONLINE -->
+            <tr>
+              <td class="col-product" rowspan="2">.online Domain</td>
+              <td class="col-cost" rowspan="2">₹619.00</td>
+              <td><span class="markup-rec">+20%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹743.00 <span style="font-size:0.75rem; color:#64748B;">($8.90)</span></td>
+              <td class="col-invoice">₹876.74</td>
+              <td class="col-fee">-₹20.69</td>
+              <td class="col-gross">+₹124.00</td>
+              <td><span class="col-net">+₹103.31</span> <span style="font-size:0.75rem; color:#94A3B8;">(13.9% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+25%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹774.00 <span style="font-size:0.75rem; color:#64748B;">($9.27)</span></td>
+              <td class="col-invoice">₹913.32</td>
+              <td class="col-fee">-₹21.55</td>
+              <td class="col-gross">+₹155.00</td>
+              <td><span class="col-net">+₹133.45</span> <span style="font-size:0.75rem; color:#94A3B8;">(17.2% net)</span></td>
+            </tr>
+
+            <!-- .STORE -->
+            <tr>
+              <td class="col-product" rowspan="2">.store Domain (E-Commerce)</td>
+              <td class="col-cost" rowspan="2">₹749.00</td>
+              <td><span class="markup-rec">+20%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹899.00 <span style="font-size:0.75rem; color:#64748B;">($10.77)</span></td>
+              <td class="col-invoice">₹1,060.82</td>
+              <td class="col-fee">-₹25.04</td>
+              <td class="col-gross">+₹150.00</td>
+              <td><span class="col-net">+₹124.96</span> <span style="font-size:0.75rem; color:#94A3B8;">(13.9% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+25%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹936.00 <span style="font-size:0.75rem; color:#64748B;">($11.21)</span></td>
+              <td class="col-invoice">₹1,104.48</td>
+              <td class="col-fee">-₹26.07</td>
+              <td class="col-gross">+₹187.00</td>
+              <td><span class="col-net">+₹160.93</span> <span style="font-size:0.75rem; color:#94A3B8;">(17.2% net)</span></td>
+            </tr>
+
+            <!-- .SHOP -->
+            <tr>
+              <td class="col-product" rowspan="2">.shop Domain (Flash Promo)</td>
+              <td class="col-cost" rowspan="2">₹99.00</td>
+              <td><span class="markup-rec">+45%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹144.00 <span style="font-size:0.75rem; color:#64748B;">($1.72)</span></td>
+              <td class="col-invoice">₹169.92</td>
+              <td class="col-fee">-₹4.01</td>
+              <td class="col-gross">+₹45.00</td>
+              <td><span class="col-net">+₹40.99</span> <span style="font-size:0.75rem; color:#94A3B8;">(28.5% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+60%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹158.00 <span style="font-size:0.75rem; color:#64748B;">($1.89)</span></td>
+              <td class="col-invoice">₹186.44</td>
+              <td class="col-fee">-₹4.40</td>
+              <td class="col-gross">+₹59.00</td>
+              <td><span class="col-net">+₹54.60</span> <span style="font-size:0.75rem; color:#94A3B8;">(34.6% net)</span></td>
+            </tr>
+
+            <!-- .IO -->
+            <tr>
+              <td class="col-product" rowspan="2">.io Domain (Developers)</td>
+              <td class="col-cost" rowspan="2">₹3,009.00</td>
+              <td><span class="markup-rec">+12%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹3,370.00 <span style="font-size:0.75rem; color:#64748B;">($40.36)</span></td>
+              <td class="col-invoice">₹3,976.60</td>
+              <td class="col-fee">-₹93.85</td>
+              <td class="col-gross">+₹361.00</td>
+              <td><span class="col-net">+₹267.15</span> <span style="font-size:0.75rem; color:#94A3B8;">(7.9% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+18%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹3,551.00 <span style="font-size:0.75rem; color:#64748B;">($42.53)</span></td>
+              <td class="col-invoice">₹4,190.18</td>
+              <td class="col-fee">-₹98.89</td>
+              <td class="col-gross">+₹542.00</td>
+              <td><span class="col-net">+₹443.11</span> <span style="font-size:0.75rem; color:#94A3B8;">(12.5% net)</span></td>
+            </tr>
+
+            <!-- .CO -->
+            <tr>
+              <td class="col-product" rowspan="2">.co Domain (Startups)</td>
+              <td class="col-cost" rowspan="2">₹1,749.00</td>
+              <td><span class="markup-rec">+15%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹2,011.00 <span style="font-size:0.75rem; color:#64748B;">($24.08)</span></td>
+              <td class="col-invoice">₹2,372.98</td>
+              <td class="col-fee">-₹56.00</td>
+              <td class="col-gross">+₹262.00</td>
+              <td><span class="col-net">+₹206.00</span> <span style="font-size:0.75rem; color:#94A3B8;">(10.2% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+20%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹2,099.00 <span style="font-size:0.75rem; color:#64748B;">($25.14)</span></td>
+              <td class="col-invoice">₹2,476.82</td>
+              <td class="col-fee">-₹58.45</td>
+              <td class="col-gross">+₹350.00</td>
+              <td><span class="col-net">+₹291.55</span> <span style="font-size:0.75rem; color:#94A3B8;">(13.9% net)</span></td>
+            </tr>
+
+            <!-- .AI -->
+            <tr>
+              <td class="col-product" rowspan="2">.ai Domain (Artificial Intel)</td>
+              <td class="col-cost" rowspan="2">₹5,999.00</td>
+              <td><span class="markup-rec">+12%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹6,719.00 <span style="font-size:0.75rem; color:#64748B;">($80.47)</span></td>
+              <td class="col-invoice">₹7,928.42</td>
+              <td class="col-fee">-₹187.11</td>
+              <td class="col-gross">+₹720.00</td>
+              <td><span class="col-net">+₹532.89</span> <span style="font-size:0.75rem; color:#94A3B8;">(7.9% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+18%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹7,079.00 <span style="font-size:0.75rem; color:#64748B;">($84.78)</span></td>
+              <td class="col-invoice">₹8,353.22</td>
+              <td class="col-fee">-₹197.14</td>
+              <td class="col-gross">+₹1,080.00</td>
+              <td><span class="col-net">+₹882.86</span> <span style="font-size:0.75rem; color:#94A3B8;">(12.5% net)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 2. WEB HOSTING ==================== -->
+  <div class="product-category" data-cat="hosting">
+    <div class="section-title-wrap">
+      <h2 class="section-title">2. Web Hosting Plans (Linux, Windows, WordPress, Cloud, Reseller)</h2>
+      <span class="section-badge">Monthly Billed Basis</span>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Hosting Product &amp; Tier</th>
+              <th>Wholesale Cost (ex-tax)</th>
+              <th>WebPro Markup Set</th>
+              <th>Selling Price (ex-tax)</th>
+              <th>Total Invoice (inc 18% GST)</th>
+              <th>2.36% PG Fee Deducted</th>
+              <th>Your Gross Profit</th>
+              <th>Your NET Profit In-Hand</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- LINUX SHARED -->
+            <tr>
+              <td class="col-product" rowspan="2">Linux cPanel Starter (1 Site, 10GB)</td>
+              <td class="col-cost" rowspan="2">₹104.00 / mo</td>
+              <td><span class="markup-rec">+80%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹187.00 / mo <span style="font-size:0.75rem; color:#64748B;">($2.24)</span></td>
+              <td class="col-invoice">₹220.66</td>
+              <td class="col-fee">-₹5.21</td>
+              <td class="col-gross">+₹83.00</td>
+              <td><span class="col-net">+₹77.79</span> <span style="font-size:0.75rem; color:#94A3B8;">(41.6% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+100%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹208.00 / mo <span style="font-size:0.75rem; color:#64748B;">($2.49)</span></td>
+              <td class="col-invoice">₹245.44</td>
+              <td class="col-fee">-₹5.79</td>
+              <td class="col-gross">+₹104.00</td>
+              <td><span class="col-net">+₹98.21</span> <span style="font-size:0.75rem; color:#94A3B8;">(47.2% net)</span></td>
+            </tr>
+
+            <tr>
+              <td class="col-product" rowspan="2">Linux cPanel Performance (Unl Sites, 50GB)</td>
+              <td class="col-cost" rowspan="2">₹208.00 / mo</td>
+              <td><span class="markup-rec">+80%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹374.00 / mo <span style="font-size:0.75rem; color:#64748B;">($4.48)</span></td>
+              <td class="col-invoice">₹441.32</td>
+              <td class="col-fee">-₹10.42</td>
+              <td class="col-gross">+₹166.00</td>
+              <td><span class="col-net">+₹155.58</span> <span style="font-size:0.75rem; color:#94A3B8;">(41.6% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+100%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹417.00 / mo <span style="font-size:0.75rem; color:#64748B;">($4.99)</span></td>
+              <td class="col-invoice">₹492.06</td>
+              <td class="col-fee">-₹11.61</td>
+              <td class="col-gross">+₹209.00</td>
+              <td><span class="col-net">+₹197.39</span> <span style="font-size:0.75rem; color:#94A3B8;">(47.3% net)</span></td>
+            </tr>
+
+            <!-- WINDOWS SHARED -->
+            <tr>
+              <td class="col-product" rowspan="2">Windows Plesk Standard (1 Site, MSSQL)</td>
+              <td class="col-cost" rowspan="2">₹167.00 / mo</td>
+              <td><span class="markup-rec">+60%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹267.00 / mo <span style="font-size:0.75rem; color:#64748B;">($3.20)</span></td>
+              <td class="col-invoice">₹315.06</td>
+              <td class="col-fee">-₹7.44</td>
+              <td class="col-gross">+₹100.00</td>
+              <td><span class="col-net">+₹92.56</span> <span style="font-size:0.75rem; color:#94A3B8;">(34.7% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+75%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹292.00 / mo <span style="font-size:0.75rem; color:#64748B;">($3.49)</span></td>
+              <td class="col-invoice">₹344.56</td>
+              <td class="col-fee">-₹8.13</td>
+              <td class="col-gross">+₹125.00</td>
+              <td><span class="col-net">+₹116.87</span> <span style="font-size:0.75rem; color:#94A3B8;">(40.0% net)</span></td>
+            </tr>
+
+            <!-- MANAGED WORDPRESS -->
+            <tr>
+              <td class="col-product" rowspan="2">Managed WordPress Starter (1 Site, 20GB)</td>
+              <td class="col-cost" rowspan="2">₹167.00 / mo</td>
+              <td><span class="markup-rec">+80%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹301.00 / mo <span style="font-size:0.75rem; color:#64748B;">($3.60)</span></td>
+              <td class="col-invoice">₹355.18</td>
+              <td class="col-fee">-₹8.38</td>
+              <td class="col-gross">+₹134.00</td>
+              <td><span class="col-net">+₹125.62</span> <span style="font-size:0.75rem; color:#94A3B8;">(41.7% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+100%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹334.00 / mo <span style="font-size:0.75rem; color:#64748B;">($3.99)</span></td>
+              <td class="col-invoice">₹394.12</td>
+              <td class="col-fee">-₹9.30</td>
+              <td class="col-gross">+₹167.00</td>
+              <td><span class="col-net">+₹157.70</span> <span style="font-size:0.75rem; color:#94A3B8;">(47.2% net)</span></td>
+            </tr>
+
+            <!-- CLOUD HOSTING -->
+            <tr>
+              <td class="col-product" rowspan="2">Cloud 2 Core (2 vCPU, 2GB RAM, Ceph)</td>
+              <td class="col-cost" rowspan="2">₹376.00 / mo</td>
+              <td><span class="markup-rec">+50%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹564.00 / mo <span style="font-size:0.75rem; color:#64748B;">($6.75)</span></td>
+              <td class="col-invoice">₹665.52</td>
+              <td class="col-fee">-₹15.71</td>
+              <td class="col-gross">+₹188.00</td>
+              <td><span class="col-net">+₹172.29</span> <span style="font-size:0.75rem; color:#94A3B8;">(30.5% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+60%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹602.00 / mo <span style="font-size:0.75rem; color:#64748B;">($7.21)</span></td>
+              <td class="col-invoice">₹710.36</td>
+              <td class="col-fee">-₹16.76</td>
+              <td class="col-gross">+₹226.00</td>
+              <td><span class="col-net">+₹209.24</span> <span style="font-size:0.75rem; color:#94A3B8;">(34.8% net)</span></td>
+            </tr>
+
+            <!-- RESELLER HOSTING -->
+            <tr>
+              <td class="col-product" rowspan="2">Reseller Essential (25 cPanels, WHM)</td>
+              <td class="col-cost" rowspan="2">₹919.00 / mo</td>
+              <td><span class="markup-rec">+40%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹1,287.00 / mo <span style="font-size:0.75rem; color:#64748B;">($15.41)</span></td>
+              <td class="col-invoice">₹1,518.66</td>
+              <td class="col-fee">-₹35.84</td>
+              <td class="col-gross">+₹368.00</td>
+              <td><span class="col-net">+₹332.16</span> <span style="font-size:0.75rem; color:#94A3B8;">(25.8% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+55%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹1,424.00 / mo <span style="font-size:0.75rem; color:#64748B;">($17.05)</span></td>
+              <td class="col-invoice">₹1,680.32</td>
+              <td class="col-fee">-₹39.66</td>
+              <td class="col-gross">+₹505.00</td>
+              <td><span class="col-net">+₹465.34</span> <span style="font-size:0.75rem; color:#94A3B8;">(32.7% net)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 3. SERVERS ==================== -->
+  <div class="product-category" data-cat="servers">
+    <div class="section-title-wrap">
+      <h2 class="section-title">3. Servers &amp; Dedicated Infrastructure (VPS &amp; Bare Metal)</h2>
+      <span class="section-badge">Enterprise Hardware</span>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Server Model / Tier</th>
+              <th>Wholesale Cost (ex-tax)</th>
+              <th>WebPro Markup Set</th>
+              <th>Selling Price (ex-tax)</th>
+              <th>Total Invoice (inc 18% GST)</th>
+              <th>2.36% PG Fee Deducted</th>
+              <th>Your Gross Profit</th>
+              <th>Your NET Profit In-Hand</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- STANDARD VPS -->
+            <tr>
+              <td class="col-product" rowspan="2">Standard Linux VPS (1 vCPU, 2GB, Root)</td>
+              <td class="col-cost" rowspan="2">₹543.00 / mo</td>
+              <td><span class="markup-rec">+30%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹706.00 / mo <span style="font-size:0.75rem; color:#64748B;">($8.46)</span></td>
+              <td class="col-invoice">₹833.08</td>
+              <td class="col-fee">-₹19.66</td>
+              <td class="col-gross">+₹163.00</td>
+              <td><span class="col-net">+₹143.34</span> <span style="font-size:0.75rem; color:#94A3B8;">(20.3% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+40%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹760.00 / mo <span style="font-size:0.75rem; color:#64748B;">($9.10)</span></td>
+              <td class="col-invoice">₹896.80</td>
+              <td class="col-fee">-₹21.16</td>
+              <td class="col-gross">+₹217.00</td>
+              <td><span class="col-net">+₹195.84</span> <span style="font-size:0.75rem; color:#94A3B8;">(25.8% net)</span></td>
+            </tr>
+
+            <!-- BUSINESS VPS -->
+            <tr>
+              <td class="col-product" rowspan="2">Business Linux VPS (2 vCPU, 4GB, 60GB)</td>
+              <td class="col-cost" rowspan="2">₹1,044.00 / mo</td>
+              <td><span class="markup-rec">+30%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹1,357.00 / mo <span style="font-size:0.75rem; color:#64748B;">($16.25)</span></td>
+              <td class="col-invoice">₹1,601.26</td>
+              <td class="col-fee">-₹37.79</td>
+              <td class="col-gross">+₹313.00</td>
+              <td><span class="col-net">+₹275.21</span> <span style="font-size:0.75rem; color:#94A3B8;">(20.3% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+40%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹1,462.00 / mo <span style="font-size:0.75rem; color:#64748B;">($17.51)</span></td>
+              <td class="col-invoice">₹1,725.16</td>
+              <td class="col-fee">-₹40.71</td>
+              <td class="col-gross">+₹418.00</td>
+              <td><span class="col-net">+₹377.29</span> <span style="font-size:0.75rem; color:#94A3B8;">(25.8% net)</span></td>
+            </tr>
+
+            <!-- XEON DEDICATED -->
+            <tr>
+              <td class="col-product" rowspan="2">Xeon E-2276G Dedicated (6C/12T, 32GB)</td>
+              <td class="col-cost" rowspan="2">₹5,845.00 / mo</td>
+              <td><span class="markup-rec">+20%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹7,014.00 / mo <span style="font-size:0.75rem; color:#64748B;">($84.00)</span></td>
+              <td class="col-invoice">₹8,276.52</td>
+              <td class="col-fee">-₹195.33</td>
+              <td class="col-gross">+₹1,169.00</td>
+              <td><span class="col-net">+₹973.67</span> <span style="font-size:0.75rem; color:#94A3B8;">(13.9% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+28%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹7,482.00 / mo <span style="font-size:0.75rem; color:#64748B;">($89.60)</span></td>
+              <td class="col-invoice">₹8,828.76</td>
+              <td class="col-fee">-₹208.36</td>
+              <td class="col-gross">+₹1,637.00</td>
+              <td><span class="col-net">+₹1,428.64</span> <span style="font-size:0.75rem; color:#94A3B8;">(19.1% net)</span></td>
+            </tr>
+
+            <!-- DUAL XEON DEDICATED -->
+            <tr>
+              <td class="col-product" rowspan="2">Dual Xeon Silver (16C/32T, 64GB ECC)</td>
+              <td class="col-cost" rowspan="2">₹10,020.00 / mo</td>
+              <td><span class="markup-rec">+20%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹12,024.00 / mo <span style="font-size:0.75rem; color:#64748B;">($144.00)</span></td>
+              <td class="col-invoice">₹14,188.32</td>
+              <td class="col-fee">-₹334.84</td>
+              <td class="col-gross">+₹2,004.00</td>
+              <td><span class="col-net">+₹1,669.16</span> <span style="font-size:0.75rem; color:#94A3B8;">(13.9% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+28%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹12,826.00 / mo <span style="font-size:0.75rem; color:#64748B;">($153.60)</span></td>
+              <td class="col-invoice">₹15,134.68</td>
+              <td class="col-fee">-₹357.18</td>
+              <td class="col-gross">+₹2,806.00</td>
+              <td><span class="col-net">+₹2,448.82</span> <span style="font-size:0.75rem; color:#94A3B8;">(19.1% net)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 4. EMAIL & GOOGLE WORKSPACE ==================== -->
+  <div class="product-category" data-cat="email">
+    <div class="section-title-wrap">
+      <h2 class="section-title">4. Business Email &amp; Google Workspace (Monthly per mailbox/user)</h2>
+      <span class="section-badge">Productivity Suites</span>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Email Product &amp; Tier</th>
+              <th>Wholesale Cost (ex-tax)</th>
+              <th>WebPro Markup Set</th>
+              <th>Selling Price (ex-tax)</th>
+              <th>Total Invoice (inc 18% GST)</th>
+              <th>2.36% PG Fee Deducted</th>
+              <th>Your Gross Profit</th>
+              <th>Your NET Profit In-Hand</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- BUSINESS EMAIL 5GB -->
+            <tr>
+              <td class="col-product" rowspan="2">Business Email Starter (5GB Mailbox)</td>
+              <td class="col-cost" rowspan="2">₹46.00 / mo</td>
+              <td><span class="markup-rec">+60%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹74.00 / mo <span style="font-size:0.75rem; color:#64748B;">($0.89)</span></td>
+              <td class="col-invoice">₹87.32</td>
+              <td class="col-fee">-₹2.06</td>
+              <td class="col-gross">+₹28.00</td>
+              <td><span class="col-net">+₹25.94</span> <span style="font-size:0.75rem; color:#94A3B8;">(35.1% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+80%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹83.00 / mo <span style="font-size:0.75rem; color:#64748B;">($0.99)</span></td>
+              <td class="col-invoice">₹97.94</td>
+              <td class="col-fee">-₹2.31</td>
+              <td class="col-gross">+₹37.00</td>
+              <td><span class="col-net">+₹34.69</span> <span style="font-size:0.75rem; color:#94A3B8;">(41.8% net)</span></td>
+            </tr>
+
+            <!-- GOOGLE WORKSPACE STARTER -->
+            <tr>
+              <td class="col-product" rowspan="2">Google Workspace Business Starter</td>
+              <td class="col-cost" rowspan="2">₹434.00 / mo</td>
+              <td><span class="markup-rec">+15%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹499.00 / mo <span style="font-size:0.75rem; color:#64748B;">($5.98)</span></td>
+              <td class="col-invoice">₹588.82</td>
+              <td class="col-fee">-₹13.90</td>
+              <td class="col-gross">+₹65.00</td>
+              <td><span class="col-net">+₹51.10</span> <span style="font-size:0.75rem; color:#94A3B8;">(10.2% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+20%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹521.00 / mo <span style="font-size:0.75rem; color:#64748B;">($6.24)</span></td>
+              <td class="col-invoice">₹614.78</td>
+              <td class="col-fee">-₹14.51</td>
+              <td class="col-gross">+₹87.00</td>
+              <td><span class="col-net">+₹72.49</span> <span style="font-size:0.75rem; color:#94A3B8;">(13.9% net)</span></td>
+            </tr>
+
+            <!-- GOOGLE WORKSPACE STANDARD -->
+            <tr>
+              <td class="col-product" rowspan="2">Google Workspace Business Standard</td>
+              <td class="col-cost" rowspan="2">₹868.00 / mo</td>
+              <td><span class="markup-rec">+15%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹998.00 / mo <span style="font-size:0.75rem; color:#64748B;">($11.95)</span></td>
+              <td class="col-invoice">₹1,177.64</td>
+              <td class="col-fee">-₹27.79</td>
+              <td class="col-gross">+₹130.00</td>
+              <td><span class="col-net">+₹102.21</span> <span style="font-size:0.75rem; color:#94A3B8;">(10.2% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+20%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹1,042.00 / mo <span style="font-size:0.75rem; color:#64748B;">($12.48)</span></td>
+              <td class="col-invoice">₹1,229.56</td>
+              <td class="col-fee">-₹29.02</td>
+              <td class="col-gross">+₹174.00</td>
+              <td><span class="col-net">+₹144.98</span> <span style="font-size:0.75rem; color:#94A3B8;">(13.9% net)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 5. SECURITY & CONTINUITY ==================== -->
+  <div class="product-category" data-cat="security">
+    <div class="section-title-wrap">
+      <h2 class="section-title">5. Security, Backups &amp; Continuity (SSL, SiteLock, CodeGuard, Acronis)</h2>
+      <span class="section-badge">High-Margin Add-ons</span>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Security Product &amp; Tier</th>
+              <th>Wholesale Cost (ex-tax)</th>
+              <th>WebPro Markup Set</th>
+              <th>Selling Price (ex-tax)</th>
+              <th>Total Invoice (inc 18% GST)</th>
+              <th>2.36% PG Fee Deducted</th>
+              <th>Your Gross Profit</th>
+              <th>Your NET Profit In-Hand</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- POSITIVESSL -->
+            <tr>
+              <td class="col-product" rowspan="2">Sectigo PositiveSSL (1-Year DV)</td>
+              <td class="col-cost" rowspan="2">₹459.00 / yr</td>
+              <td><span class="markup-rec">+85%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹849.00 / yr <span style="font-size:0.75rem; color:#64748B;">($10.17)</span></td>
+              <td class="col-invoice">₹1,001.82</td>
+              <td class="col-fee">-₹23.64</td>
+              <td class="col-gross">+₹390.00</td>
+              <td><span class="col-net">+₹366.36</span> <span style="font-size:0.75rem; color:#94A3B8;">(43.2% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+115%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹987.00 / yr <span style="font-size:0.75rem; color:#64748B;">($11.82)</span></td>
+              <td class="col-invoice">₹1,164.66</td>
+              <td class="col-fee">-₹27.49</td>
+              <td class="col-gross">+₹528.00</td>
+              <td><span class="col-net">+₹500.51</span> <span style="font-size:0.75rem; color:#94A3B8;">(50.7% net)</span></td>
+            </tr>
+
+            <!-- POSITIVESSL WILDCARD -->
+            <tr>
+              <td class="col-product" rowspan="2">PositiveSSL Wildcard (*.domain)</td>
+              <td class="col-cost" rowspan="2">₹3,758.00 / yr</td>
+              <td><span class="markup-rec">+45%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹5,449.00 / yr <span style="font-size:0.75rem; color:#64748B;">($65.26)</span></td>
+              <td class="col-invoice">₹6,429.82</td>
+              <td class="col-fee">-₹151.74</td>
+              <td class="col-gross">+₹1,691.00</td>
+              <td><span class="col-net">+₹1,539.26</span> <span style="font-size:0.75rem; color:#94A3B8;">(28.2% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+55%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹5,825.00 / yr <span style="font-size:0.75rem; color:#64748B;">($69.76)</span></td>
+              <td class="col-invoice">₹6,873.50</td>
+              <td class="col-fee">-₹162.21</td>
+              <td class="col-gross">+₹2,067.00</td>
+              <td><span class="col-net">+₹1,904.79</span> <span style="font-size:0.75rem; color:#94A3B8;">(32.7% net)</span></td>
+            </tr>
+
+            <!-- SITELOCK FIND -->
+            <tr>
+              <td class="col-product" rowspan="2">SiteLock Find (Daily Malware Scan)</td>
+              <td class="col-cost" rowspan="2">₹117.00 / mo</td>
+              <td><span class="markup-rec">+70%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹199.00 / mo <span style="font-size:0.75rem; color:#64748B;">($2.38)</span></td>
+              <td class="col-invoice">₹234.82</td>
+              <td class="col-fee">-₹5.54</td>
+              <td class="col-gross">+₹82.00</td>
+              <td><span class="col-net">+₹76.46</span> <span style="font-size:0.75rem; color:#94A3B8;">(38.4% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+85%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹216.00 / mo <span style="font-size:0.75rem; color:#64748B;">($2.59)</span></td>
+              <td class="col-invoice">₹254.88</td>
+              <td class="col-fee">-₹6.02</td>
+              <td class="col-gross">+₹99.00</td>
+              <td><span class="col-net">+₹92.98</span> <span style="font-size:0.75rem; color:#94A3B8;">(43.0% net)</span></td>
+            </tr>
+
+            <!-- CODEGUARD STARTER -->
+            <tr>
+              <td class="col-product" rowspan="2">CodeGuard Cloud Backup 1GB</td>
+              <td class="col-cost" rowspan="2">₹92.00 / mo</td>
+              <td><span class="markup-rec">+70%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹156.00 / mo <span style="font-size:0.75rem; color:#64748B;">($1.87)</span></td>
+              <td class="col-invoice">₹184.08</td>
+              <td class="col-fee">-₹4.34</td>
+              <td class="col-gross">+₹64.00</td>
+              <td><span class="col-net">+₹59.66</span> <span style="font-size:0.75rem; color:#94A3B8;">(38.2% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+85%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹170.00 / mo <span style="font-size:0.75rem; color:#64748B;">($2.04)</span></td>
+              <td class="col-invoice">₹200.60</td>
+              <td class="col-fee">-₹4.73</td>
+              <td class="col-gross">+₹78.00</td>
+              <td><span class="col-net">+₹73.27</span> <span style="font-size:0.75rem; color:#94A3B8;">(43.1% net)</span></td>
+            </tr>
+
+            <!-- ACRONIS 50GB -->
+            <tr>
+              <td class="col-product" rowspan="2">Acronis Cyber Backup 50GB</td>
+              <td class="col-cost" rowspan="2">₹267.00 / mo</td>
+              <td><span class="markup-rec">+50%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹401.00 / mo <span style="font-size:0.75rem; color:#64748B;">($4.80)</span></td>
+              <td class="col-invoice">₹473.18</td>
+              <td class="col-fee">-₹11.17</td>
+              <td class="col-gross">+₹134.00</td>
+              <td><span class="col-net">+₹122.83</span> <span style="font-size:0.75rem; color:#94A3B8;">(30.6% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+65%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹441.00 / mo <span style="font-size:0.75rem; color:#64748B;">($5.28)</span></td>
+              <td class="col-invoice">₹520.38</td>
+              <td class="col-fee">-₹12.28</td>
+              <td class="col-gross">+₹174.00</td>
+              <td><span class="col-net">+₹161.72</span> <span style="font-size:0.75rem; color:#94A3B8;">(36.7% net)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 6. BUNDLES & TOOLS ==================== -->
+  <div class="product-category" data-cat="bundles">
+    <div class="section-title-wrap">
+      <h2 class="section-title">6. Growth Bundles &amp; Website Builder (Combos &amp; DIY Storefronts)</h2>
+      <span class="section-badge">All-in-One Packages</span>
+    </div>
+
+    <div class="table-card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Bundle / Tool Tier</th>
+              <th>Wholesale Cost (ex-tax)</th>
+              <th>WebPro Markup Set</th>
+              <th>Selling Price (ex-tax)</th>
+              <th>Total Invoice (inc 18% GST)</th>
+              <th>2.36% PG Fee Deducted</th>
+              <th>Your Gross Profit</th>
+              <th>Your NET Profit In-Hand</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- STARTUP COMBO -->
+            <tr>
+              <td class="col-product" rowspan="2">Startup Combo (Domain + Hosting + Mail)</td>
+              <td class="col-cost" rowspan="2">₹209.00 / mo</td>
+              <td><span class="markup-rec">+70%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹355.00 / mo <span style="font-size:0.75rem; color:#64748B;">($4.25)</span></td>
+              <td class="col-invoice">₹418.90</td>
+              <td class="col-fee">-₹9.89</td>
+              <td class="col-gross">+₹146.00</td>
+              <td><span class="col-net">+₹136.11</span> <span style="font-size:0.75rem; color:#94A3B8;">(38.3% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+85%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹387.00 / mo <span style="font-size:0.75rem; color:#64748B;">($4.63)</span></td>
+              <td class="col-invoice">₹456.66</td>
+              <td class="col-fee">-₹10.78</td>
+              <td class="col-gross">+₹178.00</td>
+              <td><span class="col-net">+₹167.22</span> <span style="font-size:0.75rem; color:#94A3B8;">(43.2% net)</span></td>
+            </tr>
+
+            <!-- WEBSITE BUILDER -->
+            <tr>
+              <td class="col-product" rowspan="2">DIY Website Builder Personal (10 Pages)</td>
+              <td class="col-cost" rowspan="2">₹125.00 / mo</td>
+              <td><span class="markup-rec">+70%</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹213.00 / mo <span style="font-size:0.75rem; color:#64748B;">($2.55)</span></td>
+              <td class="col-invoice">₹251.34</td>
+              <td class="col-fee">-₹5.93</td>
+              <td class="col-gross">+₹88.00</td>
+              <td><span class="col-net">+₹82.07</span> <span style="font-size:0.75rem; color:#94A3B8;">(38.5% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">+90%</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹238.00 / mo <span style="font-size:0.75rem; color:#64748B;">($2.85)</span></td>
+              <td class="col-invoice">₹280.84</td>
+              <td class="col-fee">-₹6.63</td>
+              <td class="col-gross">+₹113.00</td>
+              <td><span class="col-net">+₹106.37</span> <span style="font-size:0.75rem; color:#94A3B8;">(44.7% net)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 7. ANNUAL DISCOUNT & PROFIT LOGIC ==================== -->
+  <div class="product-category" data-cat="annual">
+    <div class="section-title-wrap">
+      <h2 class="section-title">7. Annual Billing Discount (~40% OFF) &amp; Lifetime Value (LTV) Profit Engine</h2>
+      <span class="section-badge" style="background: rgba(255, 205, 0, 0.15); border-color: rgba(255, 205, 0, 0.35); color: var(--brand-gold);">12-Month Upfront Bulk Cash Flow</span>
+    </div>
+
+    <!-- The 4 Pillars of Annual Discount Profit Logic -->
+    <div style="background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 24px 28px; margin-bottom: 24px;">
+      <h3 style="font-size: 1.15rem; color: #FFFFFF; font-weight: 800; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        🧠 Why Offering a ~40% Annual Discount Produces Higher Net Profit &amp; Lower Risk
+      </h3>
+      <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 20px; line-height: 1.6;">
+        In web hosting and SaaS infrastructure, offering a <strong>35% to 40% discount</strong> on annual commitments (e.g. <strong>$2.49/mo</strong> billed as <strong>$29.88/yr</strong> upfront instead of $3.99/mo month-to-month) is the industry gold standard. Here is the financial and operational logic why:
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+        <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px;">
+          <div style="font-size: 0.82rem; font-weight: 700; color: var(--brand-green); text-transform: uppercase; margin-bottom: 6px;">
+            1. Tenure Wholesale Discount
+          </div>
+          <p style="font-size: 0.82rem; color: #CBD5E1; line-height: 1.5;">
+            Upstream providers (OrderBox / ResellerClub) discount multi-month and 1-year bulk hosting commitments by <strong>20% to 35%</strong> compared to month-to-month pricing. Your wholesale cost per month is lower when provisioned annually.
+          </p>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px;">
+          <div style="font-size: 0.82rem; font-weight: 700; color: var(--brand-cyan); text-transform: uppercase; margin-bottom: 6px;">
+            2. Zero Churn &amp; 100% 12-Mo LTV
+          </div>
+          <p style="font-size: 0.82rem; color: #CBD5E1; line-height: 1.5;">
+            Month-to-month hosting averages a <strong>6%–10% monthly cancellation churn</strong>. Out of 100 monthly users, only ~40 survive a full year. An annual plan <strong>locks in 100% of 12 months' profit on Day 1</strong> with zero mid-year attrition.
+          </p>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px;">
+          <div style="font-size: 0.82rem; font-weight: 700; color: var(--brand-gold); text-transform: uppercase; margin-bottom: 6px;">
+            3. Instant Working Capital Velocity
+          </div>
+          <p style="font-size: 0.82rem; color: #CBD5E1; line-height: 1.5;">
+            Instead of collecting small ₹200–₹300 drips, you collect <strong>₹2,500 to ₹17,000 cash in advance</strong>. This cash flow immediately funds your upstream reseller wallet balances and business operations without credit interest.
+          </p>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 16px;">
+          <div style="font-size: 0.82rem; font-weight: 700; color: #F87171; text-transform: uppercase; margin-bottom: 6px;">
+            4. Single-Transaction PG Efficiency
+          </div>
+          <p style="font-size: 0.82rem; color: #CBD5E1; line-height: 1.5;">
+            Monthly plans trigger 12 separate payment attempts with risks of OTP failure, card expiry, and bank declines. Annual billing incurs the <strong>2.36% PG fee only ONCE</strong>, slashing transaction friction and failure rates to near zero.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Annual Pricing Table -->
+    <div class="table-card">
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Product / Annual Plan (12 Months)</th>
+              <th>1-Year Wholesale Cost (ex-tax)</th>
+              <th>WebPro Markup Set</th>
+              <th>Selling Price (ex-tax)</th>
+              <th>Total Invoice (inc 18% GST)</th>
+              <th>2.36% PG Fee Deducted</th>
+              <th>Your Gross Profit</th>
+              <th>Your NET Profit In-Hand</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- LINUX SHARED STARTER ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Linux cPanel Starter (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Standard Monthly: $3.99/mo (₹333/mo)</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹1,248.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹104/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 38% ($2.49/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹2,496.00 / yr <span style="font-size:0.75rem; color:#64748B;">($29.88/yr)</span></td>
+              <td class="col-invoice">₹2,945.28</td>
+              <td class="col-fee">-₹69.51</td>
+              <td class="col-gross">+₹1,248.00</td>
+              <td><span class="col-net">+₹1,178.49</span> <span style="font-size:0.75rem; color:#94A3B8;">(47.2% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 30% ($2.79/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹2,796.00 / yr <span style="font-size:0.75rem; color:#64748B;">($33.48/yr)</span></td>
+              <td class="col-invoice">₹3,299.28</td>
+              <td class="col-fee">-₹77.86</td>
+              <td class="col-gross">+₹1,548.00</td>
+              <td><span class="col-net">+₹1,470.14</span> <span style="font-size:0.75rem; color:#94A3B8;">(52.6% net)</span></td>
+            </tr>
+
+            <!-- LINUX SHARED PERFORMANCE ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Linux cPanel Performance (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Standard Monthly: $7.99/mo (₹667/mo)</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹2,496.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹208/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 38% ($4.99/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹5,004.00 / yr <span style="font-size:0.75rem; color:#64748B;">($59.88/yr)</span></td>
+              <td class="col-invoice">₹5,904.72</td>
+              <td class="col-fee">-₹139.35</td>
+              <td class="col-gross">+₹2,508.00</td>
+              <td><span class="col-net">+₹2,368.65</span> <span style="font-size:0.75rem; color:#94A3B8;">(47.3% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 30% ($5.59/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹5,604.00 / yr <span style="font-size:0.75rem; color:#64748B;">($67.08/yr)</span></td>
+              <td class="col-invoice">₹6,612.72</td>
+              <td class="col-fee">-₹156.06</td>
+              <td class="col-gross">+₹3,108.00</td>
+              <td><span class="col-net">+₹2,951.94</span> <span style="font-size:0.75rem; color:#94A3B8;">(52.7% net)</span></td>
+            </tr>
+
+            <!-- LINUX SHARED BUSINESS PRO ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Linux cPanel Business Pro (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Standard Monthly: $12.99/mo (₹1,085/mo)</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹4,260.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹355/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 35% ($8.49/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹8,508.00 / yr <span style="font-size:0.75rem; color:#64748B;">($101.88/yr)</span></td>
+              <td class="col-invoice">₹10,039.44</td>
+              <td class="col-fee">-₹236.93</td>
+              <td class="col-gross">+₹4,248.00</td>
+              <td><span class="col-net">+₹4,011.07</span> <span style="font-size:0.75rem; color:#94A3B8;">(47.1% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 25% ($9.74/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹9,756.00 / yr <span style="font-size:0.75rem; color:#64748B;">($116.88/yr)</span></td>
+              <td class="col-invoice">₹11,512.08</td>
+              <td class="col-fee">-₹271.69</td>
+              <td class="col-gross">+₹5,496.00</td>
+              <td><span class="col-net">+₹5,224.31</span> <span style="font-size:0.75rem; color:#94A3B8;">(53.5% net)</span></td>
+            </tr>
+
+            <!-- WINDOWS PLESK STANDARD ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Windows Plesk Standard (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Standard Monthly: $4.99/mo (₹417/mo)</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹2,004.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹167/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 30% ($3.49/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹3,492.00 / yr <span style="font-size:0.75rem; color:#64748B;">($41.88/yr)</span></td>
+              <td class="col-invoice">₹4,120.56</td>
+              <td class="col-fee">-₹97.25</td>
+              <td class="col-gross">+₹1,488.00</td>
+              <td><span class="col-net">+₹1,390.75</span> <span style="font-size:0.75rem; color:#94A3B8;">(39.8% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 22% ($3.89/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹3,894.00 / yr <span style="font-size:0.75rem; color:#64748B;">($46.68/yr)</span></td>
+              <td class="col-invoice">₹4,594.92</td>
+              <td class="col-fee">-₹108.44</td>
+              <td class="col-gross">+₹1,890.00</td>
+              <td><span class="col-net">+₹1,781.56</span> <span style="font-size:0.75rem; color:#94A3B8;">(45.8% net)</span></td>
+            </tr>
+
+            <!-- MANAGED WORDPRESS STARTER ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Managed WordPress Starter (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Standard Monthly: $5.99/mo (₹500/mo)</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹2,004.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹167/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 33% ($3.99/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹3,996.00 / yr <span style="font-size:0.75rem; color:#64748B;">($47.88/yr)</span></td>
+              <td class="col-invoice">₹4,715.28</td>
+              <td class="col-fee">-₹111.28</td>
+              <td class="col-gross">+₹1,992.00</td>
+              <td><span class="col-net">+₹1,880.72</span> <span style="font-size:0.75rem; color:#94A3B8;">(47.1% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 25% ($4.49/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹4,500.00 / yr <span style="font-size:0.75rem; color:#64748B;">($53.88/yr)</span></td>
+              <td class="col-invoice">₹5,310.00</td>
+              <td class="col-fee">-₹125.32</td>
+              <td class="col-gross">+₹2,496.00</td>
+              <td><span class="col-net">+₹2,370.68</span> <span style="font-size:0.75rem; color:#94A3B8;">(52.7% net)</span></td>
+            </tr>
+
+            <!-- CLOUD 2 CORE ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Cloud 2 Core Dedicated vCPU (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Standard Monthly: $9.99/mo (₹834/mo)</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹4,512.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹376/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 30% ($6.99/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹7,008.00 / yr <span style="font-size:0.75rem; color:#64748B;">($83.88/yr)</span></td>
+              <td class="col-invoice">₹8,269.44</td>
+              <td class="col-fee">-₹195.16</td>
+              <td class="col-gross">+₹2,496.00</td>
+              <td><span class="col-net">+₹2,300.84</span> <span style="font-size:0.75rem; color:#94A3B8;">(32.8% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 22% ($7.79/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹7,800.00 / yr <span style="font-size:0.75rem; color:#64748B;">($93.48/yr)</span></td>
+              <td class="col-invoice">₹9,204.00</td>
+              <td class="col-fee">-₹217.21</td>
+              <td class="col-gross">+₹3,288.00</td>
+              <td><span class="col-net">+₹3,070.79</span> <span style="font-size:0.75rem; color:#94A3B8;">(39.4% net)</span></td>
+            </tr>
+
+            <!-- RESELLER ESSENTIAL ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Reseller Essential 25 cPanels (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Standard Monthly: $24.99/mo (₹2,087/mo)</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹11,028.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹919/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 32% ($16.99/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹17,028.00 / yr <span style="font-size:0.75rem; color:#64748B;">($203.88/yr)</span></td>
+              <td class="col-invoice">₹20,093.04</td>
+              <td class="col-fee">-₹474.20</td>
+              <td class="col-gross">+₹6,000.00</td>
+              <td><span class="col-net">+₹5,525.80</span> <span style="font-size:0.75rem; color:#94A3B8;">(32.5% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 24% ($18.99/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹19,032.00 / yr <span style="font-size:0.75rem; color:#64748B;">($227.88/yr)</span></td>
+              <td class="col-invoice">₹22,457.76</td>
+              <td class="col-fee">-₹530.00</td>
+              <td class="col-gross">+₹8,004.00</td>
+              <td><span class="col-net">+₹7,474.00</span> <span style="font-size:0.75rem; color:#94A3B8;">(39.3% net)</span></td>
+            </tr>
+
+            <!-- LINUX VPS STANDARD ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Linux KVM VPS Standard (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Standard Monthly: $11.99/mo (₹1,001/mo)</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹6,516.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹543/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 25% ($8.99/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹9,012.00 / yr <span style="font-size:0.75rem; color:#64748B;">($107.88/yr)</span></td>
+              <td class="col-invoice">₹10,634.16</td>
+              <td class="col-fee">-₹250.97</td>
+              <td class="col-gross">+₹2,496.00</td>
+              <td><span class="col-net">+₹2,245.03</span> <span style="font-size:0.75rem; color:#94A3B8;">(24.9% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 18% ($9.83/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹9,852.00 / yr <span style="font-size:0.75rem; color:#64748B;">($117.96/yr)</span></td>
+              <td class="col-invoice">₹11,625.36</td>
+              <td class="col-fee">-₹274.36</td>
+              <td class="col-gross">+₹3,336.00</td>
+              <td><span class="col-net">+₹3,061.64</span> <span style="font-size:0.75rem; color:#94A3B8;">(31.1% net)</span></td>
+            </tr>
+
+            <!-- DEDICATED XEON E-2276G ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Xeon E-2276G Dedicated Server (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Standard Monthly: $119.00/mo (₹9,937/mo)</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹70,140.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹5,845/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 25% ($89.00/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹89,184.00 / yr <span style="font-size:0.75rem; color:#64748B;">($1,068.00/yr)</span></td>
+              <td class="col-invoice">₹105,237.12</td>
+              <td class="col-fee">-₹2,483.60</td>
+              <td class="col-gross">+₹19,044.00</td>
+              <td><span class="col-net">+₹16,560.40</span> <span style="font-size:0.75rem; color:#94A3B8;">(18.6% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 18% ($97.58/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹97,800.00 / yr <span style="font-size:0.75rem; color:#64748B;">($1,171.20/yr)</span></td>
+              <td class="col-invoice">₹115,404.00</td>
+              <td class="col-fee">-₹2,723.53</td>
+              <td class="col-gross">+₹27,660.00</td>
+              <td><span class="col-net">+₹24,936.47</span> <span style="font-size:0.75rem; color:#94A3B8;">(25.5% net)</span></td>
+            </tr>
+
+            <!-- BUSINESS EMAIL STARTER ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Business Email Starter 5GB (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Standard Monthly: $1.49/mo (₹124/mo)</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹552.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹46/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 34% ($0.99/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹996.00 / yr <span style="font-size:0.75rem; color:#64748B;">($11.88/yr)</span></td>
+              <td class="col-invoice">₹1,175.28</td>
+              <td class="col-fee">-₹27.74</td>
+              <td class="col-gross">+₹444.00</td>
+              <td><span class="col-net">+₹416.26</span> <span style="font-size:0.75rem; color:#94A3B8;">(41.8% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 22% ($1.16/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹1,164.00 / yr <span style="font-size:0.75rem; color:#64748B;">($13.92/yr)</span></td>
+              <td class="col-invoice">₹1,373.52</td>
+              <td class="col-fee">-₹32.42</td>
+              <td class="col-gross">+₹612.00</td>
+              <td><span class="col-net">+₹579.58</span> <span style="font-size:0.75rem; color:#94A3B8;">(49.8% net)</span></td>
+            </tr>
+
+            <!-- STARTUP COMBO ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                Startup Combo All-in-One (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Domain + NVMe Hosting + SSL + Email</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹2,508.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹209/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 36% ($4.49/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹4,500.00 / yr <span style="font-size:0.75rem; color:#64748B;">($53.88/yr)</span></td>
+              <td class="col-invoice">₹5,310.00</td>
+              <td class="col-fee">-₹125.32</td>
+              <td class="col-gross">+₹1,992.00</td>
+              <td><span class="col-net">+₹1,866.68</span> <span style="font-size:0.75rem; color:#94A3B8;">(41.5% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 26% ($5.19/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹5,208.00 / yr <span style="font-size:0.75rem; color:#64748B;">($62.28/yr)</span></td>
+              <td class="col-invoice">₹6,145.44</td>
+              <td class="col-fee">-₹145.03</td>
+              <td class="col-gross">+₹2,700.00</td>
+              <td><span class="col-net">+₹2,554.97</span> <span style="font-size:0.75rem; color:#94A3B8;">(49.1% net)</span></td>
+            </tr>
+
+            <!-- WEBSITE BUILDER BUSINESS ANNUAL -->
+            <tr>
+              <td class="col-product" rowspan="2">
+                DIY Website Builder Business (1-Year Bulk)<br>
+                <span style="font-size:0.75rem; color:#64748B;">Unlimited Pages + SEO + Custom Domain</span>
+              </td>
+              <td class="col-cost" rowspan="2">₹2,496.00 / yr<br><span style="font-size:0.75rem; color:#64748B;">(₹208/mo bulk rate)</span></td>
+              <td><span class="markup-rec">Save 38% ($4.99/mo)</span> <span class="tier-badge tier-rec">Recommended</span></td>
+              <td class="col-price">₹5,004.00 / yr <span style="font-size:0.75rem; color:#64748B;">($59.88/yr)</span></td>
+              <td class="col-invoice">₹5,904.72</td>
+              <td class="col-fee">-₹139.35</td>
+              <td class="col-gross">+₹2,508.00</td>
+              <td><span class="col-net">+₹2,368.65</span> <span style="font-size:0.75rem; color:#94A3B8;">(47.3% net)</span></td>
+            </tr>
+            <tr>
+              <td><span class="markup-safe">Save 30% ($5.59/mo)</span> <span class="tier-badge tier-safe">Safest Buffer</span></td>
+              <td class="col-price">₹5,604.00 / yr <span style="font-size:0.75rem; color:#64748B;">($67.08/yr)</span></td>
+              <td class="col-invoice">₹6,612.72</td>
+              <td class="col-fee">-₹156.06</td>
+              <td class="col-gross">+₹3,108.00</td>
+              <td><span class="col-net">+₹2,951.94</span> <span style="font-size:0.75rem; color:#94A3B8;">(52.7% net)</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer Notice -->
+  <div style="text-align:center; padding-top: 40px; border-top: 1px solid var(--card-border); color: #64748B; font-size: 0.82rem;">
+    Hostmattic Platform Architecture &bull; 100% White-Labeled Operations &bull; Generated for WebPro Control Panel Configuration
+  </div>
+
+</div>
+
+<script>
+  function filterCategory(cat) {
+    const buttons = document.querySelectorAll('.filter-btn');
+    buttons.forEach(b => b.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const sections = document.querySelectorAll('.product-category');
+    sections.forEach(sec => {
+      if (cat === 'all' || sec.getAttribute('data-cat') === cat) {
+        sec.style.display = 'block';
+      } else {
+        sec.style.display = 'none';
+      }
+    });
+  }
+</script>
+
+</body>
+</html>

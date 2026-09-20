@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Next.js Application Service
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - '3000:3000'
+    environment:
+      - DATABASE_URL=postgresql://hostmattic_user:hostmattic_secure_pass@postgres:5432/hostmattic_db?schema=public
+      - RESELLER_AUTH_USERID=${RESELLER_AUTH_USERID:-}
+      - RESELLER_API_KEY=${RESELLER_API_KEY:-}
+      - RESELLER_API_BASE_URL=${RESELLER_API_BASE_URL:-https://httpapi.com/api}
+      - JWT_SECRET=${JWT_SECRET:-hostmattic_super_secure_jwt_secret_key_change_in_production_2026}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      - NODE_ENV=production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # PostgreSQL Database Service
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: hostmattic_user
+      POSTGRES_PASSWORD: hostmattic_secure_pass
+      POSTGRES_DB: hostmattic_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U hostmattic_user -d hostmattic_db']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
