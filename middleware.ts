@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 
 /**
  * Next.js Middleware — Route-Level Authentication Guard
  *
- * This provides defense-in-depth alongside per-route requireAuth/requireAdmin checks.
- * Routes not in the public whitelist require a valid JWT session cookie.
- * Admin routes additionally require the ADMIN role.
+ * Runs on Next.js Edge runtime.
+ * Uses Web Crypto API (crypto.subtle) instead of Node.js jsonwebtoken
+ * to ensure 100% Edge compatibility without crashing or returning false 401s.
  */
 
 // Routes that do NOT require authentication
@@ -25,7 +24,60 @@ const PUBLIC_ROUTES = [
 // Routes that require ADMIN role
 const ADMIN_ROUTES_PREFIX = '/api/admin';
 
-export function middleware(req: NextRequest) {
+function getJwtSecret(): string {
+  return process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || 'hostmattic_secure_jwt_prod_fallback_token_2026';
+}
+
+interface EdgeSession {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  exp?: number;
+}
+
+/**
+ * Verifies JWT signature using native Web Crypto API (HMAC SHA-256).
+ * Fully compatible with Next.js Edge runtime without Node.js crypto module dependencies.
+ */
+async function verifyJwtEdge(token: string): Promise<EdgeSession | null> {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [headerB64, payloadB64, sigB64] = parts;
+
+    const secret = getJwtSecret();
+    const enc = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      enc.encode(secret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    // Base64Url decode signature
+    const sigStr = sigB64.replace(/-/g, '+').replace(/_/g, '/');
+    const rawSig = Uint8Array.from(atob(sigStr), (c) => c.charCodeAt(0));
+    const data = enc.encode(`${headerB64}.${payloadB64}`);
+    const isValid = await crypto.subtle.verify('HMAC', key, rawSig, data);
+    if (!isValid) return null;
+
+    const payloadJson = atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(payloadJson) as EdgeSession;
+
+    // Check expiration if present
+    if (payload.exp && Date.now() >= payload.exp * 1000) {
+      return null;
+    }
+
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Only protect API routes
@@ -47,7 +99,7 @@ export function middleware(req: NextRequest) {
     );
   }
 
-  const session = verifyToken(token);
+  const session = await verifyJwtEdge(token);
   if (!session) {
     return NextResponse.json(
       { success: false, error: 'Invalid or expired session. Please log in again.' },
