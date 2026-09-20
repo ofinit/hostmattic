@@ -2,8 +2,10 @@
 const path = require('path');
 const fs = require('fs');
 
-// Ensure hostname binds to all interfaces inside Docker / Coolify container
-process.env.HOSTNAME = process.env.HOSTNAME || '0.0.0.0';
+// Docker containers set HOSTNAME to the container ID (e.g. c49376d37557)
+// which restricts Next.js from binding to localhost / 127.0.0.1.
+// We must explicitly override it to 0.0.0.0 so Coolify healthcheck can reach it via localhost.
+process.env.HOSTNAME = '0.0.0.0';
 process.env.PORT = process.env.PORT || '3000';
 
 const standaloneServer = path.join(__dirname, '.next', 'standalone', 'server.js');
