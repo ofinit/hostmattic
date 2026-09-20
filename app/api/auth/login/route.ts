@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { comparePassword, signToken } from '@/lib/auth';
+import { comparePassword, hashPassword, signToken } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,10 +19,28 @@ export async function POST(req: NextRequest) {
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Find user in database — no fallbacks
-    const user = await prisma.user.findUnique({
+    // Find user in database
+    let user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
+
+    // Auto-seed initial administrator on first login if no admin exists yet
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hostmattic.com').toLowerCase().trim();
+    if (!user && normalizedEmail === adminEmail) {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
+      const initialPass = process.env.ADMIN_PASSWORD || 'Hostmattic@2026';
+      if (adminCount === 0 && password === initialPass) {
+        const passwordHash = await hashPassword(password);
+        user = await prisma.user.create({
+          data: {
+            email: normalizedEmail,
+            name: 'Hostmattic Administrator',
+            passwordHash,
+            role: 'ADMIN',
+          },
+        });
+      }
+    }
 
     if (!user) {
       // Generic error to prevent account enumeration

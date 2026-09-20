@@ -20,4 +20,12 @@ if (fs.existsSync(standalone)) {
     fs.cpSync(staticSrc, staticDest, { recursive: true, force: true });
     console.log('[Hostmattic] Copied .next/static to .next/standalone/.next/static');
   }
+
+  // Copy scripts/ -> .next/standalone/scripts
+  const scriptsSrc = path.join(root, 'scripts');
+  const scriptsDest = path.join(standalone, 'scripts');
+  if (fs.existsSync(scriptsSrc)) {
+    fs.cpSync(scriptsSrc, scriptsDest, { recursive: true, force: true });
+    console.log('[Hostmattic] Copied scripts/ to .next/standalone/scripts');
+  }
 }

@@ -113,7 +113,7 @@ export default function AdminLoginPage() {
             <div style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <label style={{ color: '#CBD5E1', fontSize: '0.88rem', fontWeight: 600, margin: 0 }}>2FA Authenticator Code</label>
-                <span style={{ fontSize: '0.75rem', color: 'var(--brand-gold)' }}>TOTP</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--brand-gold)' }}>TOTP (Use 000000 if not set)</span>
               </div>
               <input
                 type="text"
