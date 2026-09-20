@@ -584,6 +584,37 @@ export default function ClientDashboard() {
   const expirations = data?.expirations || null;
   const userName = data?.user?.name || profileName || 'Valued Customer';
 
+  // Compute all services requiring immediate renewal or attention (expired or due within 30 days)
+  const actionNeededServices = [
+    ...domains
+      .filter((d: any) => d.daysUntilExpiry !== undefined && d.daysUntilExpiry <= 30)
+      .map((d: any) => ({
+        ...d,
+        itemType: 'DOMAIN' as const,
+        displayName: d.domainName,
+        subText: 'Registered Domain Delegation & DNS',
+        expiryDate: d.expiryDate,
+      })),
+    ...hosting
+      .filter((h: any) => h.daysUntilExpiry !== undefined && h.daysUntilExpiry <= 30)
+      .map((h: any) => ({
+        ...h,
+        itemType: 'HOSTING' as const,
+        displayName: `${h.planName || 'Cloud Hosting'} (${h.domainName})`,
+        subText: `Web Hosting Server (${h.serverIp || 'NVMe Node'})`,
+        expiryDate: h.nextDueDate || h.createdAt,
+      })),
+    ...addons
+      .filter((a: any) => a.daysUntilExpiry !== undefined && a.daysUntilExpiry <= 30)
+      .map((a: any) => ({
+        ...a,
+        itemType: 'ADDON' as const,
+        displayName: a.name,
+        subText: `${a.productType || 'Security'} • ${a.domainName || 'Linked Service'}`,
+        expiryDate: a.expiryDate,
+      })),
+  ].sort((a: any, b: any) => (a.daysUntilExpiry ?? 999) - (b.daysUntilExpiry ?? 999));
+
   const filteredDomains = domains.filter((d: any) => {
     if (domainFilter === 'warning') return d.daysUntilExpiry <= 30 && d.daysUntilExpiry > 7;
     if (domainFilter === 'critical') return d.daysUntilExpiry <= 7 && d.daysUntilExpiry >= 0;
@@ -823,125 +854,200 @@ export default function ClientDashboard() {
           </div>
         </div>
 
-        {/* 30-Day Expiration & Lifecycle Monitor Alert Banner */}
-        {expirations && expirations.totalRequiringAttention > 0 && (
+        {/* 30-Day Expiration & Lifecycle Monitor Alert Banner WITH EXPLICIT SERVICE LIST */}
+        {(actionNeededServices.length > 0 || (expirations && expirations.totalRequiringAttention > 0)) && (
           <div
             style={{
               background: 'linear-gradient(135deg, #FEF2F2 0%, #FFFBEB 100%)',
-              border: '1px solid #FCA5A5',
+              border: '1.5px solid #FCA5A5',
               borderRadius: '16px',
-              padding: '20px 24px',
+              padding: '22px 24px',
               marginBottom: '28px',
               boxShadow: '0 4px 16px rgba(220, 38, 38, 0.08)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', maxWidth: '780px' }}>
-              <div
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '12px',
-                  background: '#FEE2E2',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.4rem',
-                  flexShrink: 0,
-                  border: '1px solid #FCA5A5',
-                }}
-              >
-                ⚠️
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', maxWidth: '780px' }}>
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    background: '#FEE2E2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.4rem',
+                    flexShrink: 0,
+                    border: '1px solid #FCA5A5',
+                  }}
+                >
+                  ⚠️
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <strong style={{ color: '#991B1B', fontSize: '1.1rem', fontWeight: 800 }}>
+                      30-Day Expiration &amp; Lifecycle Alert
+                    </strong>
+                    <span
+                      style={{
+                        background: '#DC2626',
+                        color: '#FFFFFF',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        padding: '2px 9px',
+                        borderRadius: '999px',
+                      }}
+                    >
+                      {actionNeededServices.length} Service{actionNeededServices.length > 1 ? 's' : ''} Need Action
+                    </span>
+                  </div>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.88rem', color: '#7F1D1D', lineHeight: 1.5 }}>
+                    The following service subscriptions are due for renewal within 30 days. Renew promptly to safeguard server uptime, prevent DNS downtime, and retain domain delegation.
+                  </p>
+                </div>
               </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <strong style={{ color: '#991B1B', fontSize: '1.05rem', fontWeight: 800 }}>
-                    30-Day Expiration &amp; Lifecycle Alert
-                  </strong>
-                  <span
+
+              {/* Shortcut filter buttons */}
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {domains.some((d: any) => d.daysUntilExpiry <= 30) && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('domains');
+                      setDomainFilter('warning');
+                      setClientDomainPage(1);
+                    }}
+                    className="btn btn-sm"
                     style={{
-                      background: '#DC2626',
-                      color: '#FFFFFF',
-                      fontSize: '0.75rem',
+                      background: '#FFFFFF',
+                      border: '1px solid #F87171',
+                      color: '#B91C1C',
                       fontWeight: 700,
-                      padding: '2px 9px',
-                      borderRadius: '999px',
+                      fontSize: '0.8rem',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
                     }}
                   >
-                    {expirations.totalRequiringAttention} Service{expirations.totalRequiringAttention > 1 ? 's' : ''} Need Action
-                  </span>
-                </div>
-                <p style={{ margin: '4px 0 0', fontSize: '0.88rem', color: '#7F1D1D', lineHeight: 1.5 }}>
-                  You have services due for renewal in 30 days or less. Renew promptly to safeguard server uptime, prevent DNS downtime, and retain domain delegation.
-                </p>
-                <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexWrap: 'wrap', fontSize: '0.82rem' }}>
-                  {(expirations.expiredDomainsCount + expirations.expiredHostingCount) > 0 && (
-                    <span style={{ color: '#DC2626', fontWeight: 700, background: '#FEE2E2', padding: '2px 8px', borderRadius: '6px' }}>
-                      🔴 {expirations.expiredDomainsCount + expirations.expiredHostingCount} Past Due / Expired
-                    </span>
-                  )}
-                  {(expirations.criticalDomainsCount + expirations.criticalHostingCount) > 0 && (
-                    <span style={{ color: '#B91C1C', fontWeight: 700, background: '#FEF2F2', padding: '2px 8px', borderRadius: '6px' }}>
-                      🚨 {expirations.criticalDomainsCount + expirations.criticalHostingCount} Critical (≤7 Days)
-                    </span>
-                  )}
-                  {(expirations.expiringDomainsCount + expirations.expiringHostingCount) > 0 && (
-                    <span style={{ color: '#B45309', fontWeight: 700, background: '#FEF3C7', padding: '2px 8px', borderRadius: '6px' }}>
-                      ⚠️ {expirations.expiringDomainsCount + expirations.expiringHostingCount} Expiring Soon (8–30 Days)
-                    </span>
-                  )}
-                </div>
+                    All Expiring Domains →
+                  </button>
+                )}
+                {hosting.some((h: any) => h.daysUntilExpiry <= 30) && (
+                  <button
+                    onClick={() => {
+                      setActiveTab('hosting');
+                      setHostingFilter('warning');
+                      setClientHostingPage(1);
+                    }}
+                    className="btn btn-sm"
+                    style={{
+                      background: '#FFFFFF',
+                      border: '1px solid #F87171',
+                      color: '#B91C1C',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    All Expiring Hosting →
+                  </button>
+                )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-              {expirations.expiringDomainsCount + expirations.criticalDomainsCount + expirations.expiredDomainsCount > 0 && (
-                <button
-                  onClick={() => {
-                    setActiveTab('domains');
-                    setDomainFilter('warning');
-                    setClientDomainPage(1);
-                  }}
-                  className="btn btn-sm"
-                  style={{
-                    background: '#FFFFFF',
-                    border: '1px solid #F87171',
-                    color: '#B91C1C',
-                    fontWeight: 700,
-                    fontSize: '0.84rem',
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Expiring Domains ({expirations.expiringDomainsCount + expirations.criticalDomainsCount + expirations.expiredDomainsCount}) →
-                </button>
-              )}
-              {expirations.expiringHostingCount + expirations.criticalHostingCount + expirations.expiredHostingCount > 0 && (
-                <button
-                  onClick={() => {
-                    setActiveTab('hosting');
-                    setHostingFilter('warning');
-                    setClientHostingPage(1);
-                  }}
-                  className="btn btn-sm"
-                  style={{
-                    background: '#FFFFFF',
-                    border: '1px solid #F87171',
-                    color: '#B91C1C',
-                    fontWeight: 700,
-                    fontSize: '0.84rem',
-                    padding: '8px 14px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Expiring Hosting ({expirations.expiringHostingCount + expirations.criticalHostingCount + expirations.expiredHostingCount}) →
-                </button>
-              )}
+
+            {/* SERVICES NEEDING ACTION LIST */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '14px' }}>
+              {actionNeededServices.map((srv: any) => {
+                const isCritical = srv.daysUntilExpiry <= 7;
+                const isExpired = srv.daysUntilExpiry < 0;
+                return (
+                  <div
+                    key={`${srv.itemType}_${srv.id}`}
+                    style={{
+                      background: '#FFFFFF',
+                      border: isExpired ? '1.5px solid #DC2626' : isCritical ? '1.5px solid #F87171' : '1px solid #FED7AA',
+                      borderRadius: '12px',
+                      padding: '12px 18px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '12px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                    }}
+                  >
+                    {/* Left: Icon & Service Details */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '260px' }}>
+                      <span style={{ fontSize: '1.4rem' }}>
+                        {srv.itemType === 'DOMAIN' ? '🌐' : srv.itemType === 'HOSTING' ? '⚡' : '🔒'}
+                      </span>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0F172A', whiteSpace: 'nowrap' }}>
+                            {srv.displayName}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              fontWeight: 800,
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              background: srv.itemType === 'DOMAIN' ? '#E0F2FE' : srv.itemType === 'HOSTING' ? '#DCFCE7' : '#FEF3C7',
+                              color: srv.itemType === 'DOMAIN' ? '#0369A1' : srv.itemType === 'HOSTING' ? '#15803D' : '#B45309',
+                            }}
+                          >
+                            {srv.itemType}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '2px' }}>
+                          {srv.subText}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Center: Expiration info & badge */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 600 }}>Expiry / Due Date</div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>
+                          {srv.expiryDate ? new Date(srv.expiryDate).toLocaleDateString() : 'Due for Renewal'}
+                        </div>
+                      </div>
+                      <div>
+                        {renderExpirationBadge(srv.daysUntilExpiry)}
+                      </div>
+                    </div>
+
+                    {/* Right: Quick Renewal Action */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        onClick={() => handleRenewService(srv.itemType, srv)}
+                        className="btn btn-sm"
+                        style={{
+                          background: '#DC2626',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          fontWeight: 700,
+                          fontSize: '0.82rem',
+                          padding: '7px 16px',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 2px 6px rgba(220, 38, 38, 0.25)',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <span>Renew Now</span>
+                        <span>💳</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1370,10 +1476,10 @@ export default function ClientDashboard() {
                 </div>
 
                 <div className="table-responsive">
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '820px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '980px' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
-                        <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Domain Name</th>
+                        <th style={{ padding: '12px 16px', whiteSpace: 'nowrap', minWidth: '240px' }}>Domain Name</th>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Renewal / Expiry</th>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Transfer Lock</th>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Auto-Renew</th>
@@ -1384,13 +1490,15 @@ export default function ClientDashboard() {
                     <tbody>
                       {domains.map((d: any) => (
                         <tr key={d.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                          <td style={{ padding: '16px', fontWeight: 700, color: '#0F172A' }}>
+                          <td style={{ padding: '16px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>
                             <button
                               onClick={() => handleOpenDomainHub(d)}
-                              style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontWeight: 700, color: '#0F172A', fontSize: '0.95rem' }}
+                              style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontWeight: 700, color: '#0F172A', fontSize: '0.95rem', whiteSpace: 'nowrap' }}
                             >
-                              {d.domainName}
-                              <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--brand-action-teal)', fontWeight: 600 }}>Domain Security &amp; Nameservers ⚙️</span>
+                              <div style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>{d.domainName}</span>
+                              </div>
+                              <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--brand-action-teal)', fontWeight: 600, whiteSpace: 'nowrap' }}>Domain Security &amp; Nameservers ⚙️</span>
                             </button>
                           </td>
                           <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
@@ -1518,10 +1626,10 @@ export default function ClientDashboard() {
             </div>
 
             <div className="table-responsive">
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '850px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '1080px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
-                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Domain Name</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap', minWidth: '250px' }}>Domain Name</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Expiry / Lifecycle</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Transfer Lock</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Auto-Renew</th>
@@ -1533,13 +1641,15 @@ export default function ClientDashboard() {
                 <tbody>
                   {paginatedClientDomains.map((d: any) => (
                     <tr key={d.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      <td style={{ padding: '16px', fontWeight: 700, color: '#0F172A' }}>
+                      <td style={{ padding: '16px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>
                         <button
                           onClick={() => handleOpenDomainHub(d)}
-                          style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontWeight: 700, color: '#0F172A', fontSize: '0.95rem' }}
+                          style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontWeight: 700, color: '#0F172A', fontSize: '0.95rem', whiteSpace: 'nowrap' }}
                         >
-                          {d.domainName}
-                          <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--brand-action-teal)', fontWeight: 600 }}>Domain Delegation &amp; Lock ⚙️</span>
+                          <div style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{d.domainName}</span>
+                          </div>
+                          <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--brand-action-teal)', fontWeight: 600, whiteSpace: 'nowrap' }}>Domain Delegation &amp; Lock ⚙️</span>
                         </button>
                       </td>
                       <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
@@ -1685,11 +1795,11 @@ export default function ClientDashboard() {
             </div>
 
             <div className="table-responsive">
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '850px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '980px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
-                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Plan</th>
-                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Primary Domain</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap', minWidth: '220px' }}>Plan</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap', minWidth: '200px' }}>Primary Domain</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Next Due / Renewal</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Server IP</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>cPanel User</th>
@@ -1700,13 +1810,13 @@ export default function ClientDashboard() {
                 <tbody>
                   {paginatedClientHosting.map((h: any) => (
                     <tr key={h.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      <td style={{ padding: '16px', fontWeight: 700, color: '#0F172A' }}>
+                      <td style={{ padding: '16px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>
                         <button
                           onClick={() => handleOpenHostingHub(h)}
-                          style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontWeight: 700, color: '#0F172A', fontSize: '0.92rem' }}
+                          style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', cursor: 'pointer', fontWeight: 700, color: '#0F172A', fontSize: '0.92rem', whiteSpace: 'nowrap' }}
                         >
-                          {h.planName}
-                          <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--brand-action-green)', fontWeight: 600 }}>Resource Gauges &amp; Controls ⚙️</span>
+                          <div style={{ whiteSpace: 'nowrap' }}>{h.planName}</div>
+                          <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--brand-action-green)', fontWeight: 600, whiteSpace: 'nowrap' }}>Resource Gauges &amp; Controls ⚙️</span>
                         </button>
                       </td>
                       <td style={{ padding: '16px', color: 'var(--brand-action-cyan)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h.domainName}</td>
