@@ -65,8 +65,15 @@ export default function AdminDashboardPage() {
 
   const fetchAdminData = () => {
     fetch('/api/admin/overview')
-      .then((res) => res.json())
+      .then((res) => {
+        if (res.status === 401 || res.status === 403) {
+          window.location.href = '/admin/login';
+          return null;
+        }
+        return res.json();
+      })
       .then((d) => {
+        if (!d) return;
         if (d.success) {
           setData(d);
         }

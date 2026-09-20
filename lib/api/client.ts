@@ -4,12 +4,20 @@
  * Automatically provides reliable simulated fallback if partner API credentials are not yet set.
  */
 
-const BASE_URL = process.env.RESELLER_API_BASE_URL || 'https://httpapi.com/api';
-const AUTH_USERID = process.env.RESELLER_AUTH_USERID || '';
-const API_KEY = process.env.RESELLER_API_KEY || '';
+function getBaseUrl(): string {
+  return process.env.RESELLER_API_BASE_URL || 'https://httpapi.com/api';
+}
+
+function getAuthUserId(): string {
+  return process.env.RESELLER_AUTH_USERID?.trim() || '';
+}
+
+function getApiKey(): string {
+  return process.env.RESELLER_API_KEY?.trim() || '';
+}
 
 export const isLiveApiConfigured = (): boolean => {
-  return Boolean(AUTH_USERID && API_KEY);
+  return Boolean(getAuthUserId() && getApiKey());
 };
 
 export interface ApiResponse<T = any> {
@@ -27,7 +35,11 @@ export async function apiClient<T = any>(
   params: Record<string, string | number | boolean> = {},
   method: 'GET' | 'POST' = 'GET'
 ): Promise<ApiResponse<T>> {
-  if (!isLiveApiConfigured()) {
+  const authUserId = getAuthUserId();
+  const apiKey = getApiKey();
+  const baseUrl = getBaseUrl();
+
+  if (!authUserId || !apiKey) {
     // Graceful fallback for staging / development prior to API key assignment
     return {
       success: true,
@@ -35,11 +47,11 @@ export async function apiClient<T = any>(
     };
   }
 
-  const url = new URL(`${BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`);
+  const url = new URL(`${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`);
 
   const authParams = {
-    'auth-userid': AUTH_USERID,
-    'api-key': API_KEY,
+    'auth-userid': authUserId,
+    'api-key': apiKey,
     ...params,
   };
 
