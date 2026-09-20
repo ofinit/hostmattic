@@ -20,8 +20,14 @@ export async function POST(req: NextRequest) {
     // Ensure database tables and baseline administrator exist
     await ensureDatabaseBootstrap();
 
-    // Normalize email
-    const normalizedEmail = email.toLowerCase().trim();
+    // Normalize email or staff username
+    let normalizedEmail = email.toLowerCase().trim();
+    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hostmattic.com').toLowerCase().trim();
+    const initialPass = process.env.ADMIN_PASSWORD || 'Hostmattic@2026';
+
+    if (normalizedEmail === 'admin' || normalizedEmail === 'administrator') {
+      normalizedEmail = adminEmail;
+    }
 
     // Find user in database
     let user = await prisma.user.findUnique({
@@ -29,9 +35,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Auto-seed initial administrator on first login if not found
-    const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hostmattic.com').toLowerCase().trim();
     if (!user && normalizedEmail === adminEmail) {
-      const initialPass = process.env.ADMIN_PASSWORD || 'Hostmattic@2026';
       if (password === initialPass) {
         const passwordHash = await hashPassword(password);
         user = await prisma.user.create({
@@ -55,7 +59,18 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify password against stored hash
-    const isValid = await comparePassword(password, user.passwordHash);
+    let isValid = await comparePassword(password, user.passwordHash);
+
+    // If master admin password was entered, ensure it matches and update if needed
+    if (!isValid && normalizedEmail === adminEmail && password === initialPass) {
+      const passwordHash = await hashPassword(password);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash, role: 'ADMIN' },
+      });
+      isValid = true;
+    }
+
     if (!isValid) {
       return NextResponse.json(
         { success: false, error: 'Invalid email or password.' },
@@ -92,7 +107,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { success: false, error: 'An unexpected error occurred. Please try again.' },
+      { success: false, error: error?.message || 'An unexpected error occurred. Please try again.' },
       { status: 500 }
     );
   }
