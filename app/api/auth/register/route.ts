@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, signToken } from '@/lib/auth';
 import { createUpstreamCustomer } from '@/lib/api/customers';
+import { ensureDatabaseBootstrap } from '@/lib/dbBootstrap';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
+    await ensureDatabaseBootstrap();
     const body = await req.json();
     const { email, password, name, company, phone, address, city, state, country, zip } = body;
 

@@ -6,6 +6,28 @@ const prisma = new PrismaClient();
 
 async function seedAdmin() {
   try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "User" (
+        "id" TEXT PRIMARY KEY,
+        "email" TEXT UNIQUE NOT NULL,
+        "passwordHash" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "company" TEXT,
+        "phone" TEXT,
+        "address" TEXT,
+        "city" TEXT,
+        "state" TEXT,
+        "country" TEXT,
+        "zip" TEXT,
+        "role" TEXT NOT NULL DEFAULT 'CUSTOMER',
+        "upstreamCustomerId" TEXT,
+        "lockedCurrency" TEXT,
+        "currencyLockedAt" TIMESTAMP(3),
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     const adminCount = await prisma.user.count({
       where: { role: 'ADMIN' },
     });

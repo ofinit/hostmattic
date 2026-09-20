@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { comparePassword, hashPassword, signToken } from '@/lib/auth';
+import { ensureDatabaseBootstrap } from '@/lib/dbBootstrap';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Ensure database tables and baseline administrator exist
+    await ensureDatabaseBootstrap();
+
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim();
 
@@ -24,15 +28,15 @@ export async function POST(req: NextRequest) {
       where: { email: normalizedEmail },
     });
 
-    // Auto-seed initial administrator on first login if no admin exists yet
+    // Auto-seed initial administrator on first login if not found
     const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hostmattic.com').toLowerCase().trim();
     if (!user && normalizedEmail === adminEmail) {
-      const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
       const initialPass = process.env.ADMIN_PASSWORD || 'Hostmattic@2026';
-      if (adminCount === 0 && password === initialPass) {
+      if (password === initialPass) {
         const passwordHash = await hashPassword(password);
         user = await prisma.user.create({
           data: {
+            id: 'admin_root_seed',
             email: normalizedEmail,
             name: 'Hostmattic Administrator',
             passwordHash,
