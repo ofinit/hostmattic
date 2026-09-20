@@ -79,9 +79,10 @@ export default function AdminLoginPage() {
                 type="text"
                 className="form-input"
                 style={{ background: 'rgba(0,0,0,0.35)', color: '#FFF', borderColor: 'rgba(255,255,255,0.15)' }}
-                placeholder="admin@hostmattic.com"
+                placeholder="Enter staff username or email"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
                 required
               />
             </div>
@@ -93,9 +94,10 @@ export default function AdminLoginPage() {
                   type={showMasterPass ? 'text' : 'password'}
                   className="form-input"
                   style={{ background: 'rgba(0,0,0,0.35)', color: '#FFF', borderColor: 'rgba(255,255,255,0.15)' }}
-                  placeholder="••••••••••••••••"
+                  placeholder="Enter master password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                   required
                 />
                 <button
@@ -113,16 +115,17 @@ export default function AdminLoginPage() {
             <div style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <label style={{ color: '#CBD5E1', fontSize: '0.88rem', fontWeight: 600, margin: 0 }}>2FA Authenticator Code</label>
-                <span style={{ fontSize: '0.75rem', color: 'var(--brand-gold)' }}>TOTP (Use 000000 if not set)</span>
+                <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>TOTP / Security Key</span>
               </div>
               <input
                 type="text"
                 className="form-input mono"
                 style={{ background: 'rgba(0,0,0,0.35)', color: '#FFF', borderColor: 'rgba(255,255,255,0.15)', letterSpacing: '0.2em', fontSize: '1.1rem', textAlign: 'center' }}
-                placeholder="000 000"
+                placeholder="000000"
                 maxLength={7}
                 value={totp}
                 onChange={(e) => setTotp(e.target.value)}
+                autoComplete="one-time-code"
                 required
               />
             </div>

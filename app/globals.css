@@ -1432,6 +1432,10 @@ h4 { font-size: 1.15rem; }
   background-color: #FFFFFF;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   outline: none;
+  cursor: text;
+  pointer-events: auto !important;
+  position: relative;
+  z-index: 2;
 }
 .form-input:focus, .form-select:focus {
   border-color: var(--brand-cyan);
@@ -1703,6 +1707,9 @@ h4 { font-size: 1.15rem; }
               var(--bg-canvas);
 }
 .auth-card {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
   width: 100%;
   max-width: 480px;
   background: var(--bg-surface);
@@ -1765,6 +1772,9 @@ h4 { font-size: 1.15rem; }
   background: radial-gradient(circle at 50% 10%, rgba(41, 180, 213, 0.12) 0%, rgba(14, 19, 22, 0.95) 70%);
 }
 .admin-card {
+  position: relative;
+  z-index: 10;
+  pointer-events: auto;
   width: 100%;
   max-width: 440px;
   margin: auto;

@@ -489,73 +489,75 @@ export default function Header() {
       </header>
 
       {/* Mobile Drawer */}
-      <div className={`mobile-drawer ${drawerOpen ? 'open' : ''}`} role="dialog" aria-modal="true">
-        <div className="drawer-content">
-          <div className="drawer-header">
-            <picture>
-              <source srcSet="/assets/img/hostmattic-logo.webp" type="image/webp" />
-              <img
-                src="/assets/img/hostmattic-logo.png"
-                alt="Hostmattic"
-                width="160"
-                height="32"
-                loading="lazy"
-                decoding="async"
-                style={{ height: '32px', width: 'auto' }}
-              />
-            </picture>
-            <button className="drawer-close" aria-label="Close Menu" onClick={() => setDrawerOpen(false)}>
-              &times;
-            </button>
-          </div>
-          <div className="drawer-group-title">Domains &amp; Web</div>
-          <ul className="drawer-menu">
-            <li><Link href="/domains" onClick={() => setDrawerOpen(false)}>Register a Domain</Link></li>
-            <li><Link href="/domains/transfer" onClick={() => setDrawerOpen(false)}>Transfer Domain</Link></li>
-            <li><Link href="/domains/new-gtlds" onClick={() => setDrawerOpen(false)}>New Domain Extensions</Link></li>
-            <li><Link href="/tools/website-builder" onClick={() => setDrawerOpen(false)}>Website Builder</Link></li>
-          </ul>
-          <div className="drawer-group-title">Hosting &amp; Servers</div>
-          <ul className="drawer-menu">
-            <li><Link href="/hosting/shared-linux" onClick={() => setDrawerOpen(false)}>Linux Shared (cPanel)</Link></li>
-            <li><Link href="/hosting/shared-windows" onClick={() => setDrawerOpen(false)}>Windows Shared (Plesk)</Link></li>
-            <li><Link href="/hosting/wordpress" onClick={() => setDrawerOpen(false)}>WordPress Hosting</Link></li>
-            <li><Link href="/hosting/cloud" onClick={() => setDrawerOpen(false)}>Cloud Hosting</Link></li>
-            <li><Link href="/hosting/reseller" onClick={() => setDrawerOpen(false)}>Reseller Hosting</Link></li>
-            <li><Link href="/servers/vps" onClick={() => setDrawerOpen(false)}>Linux KVM VPS</Link></li>
-            <li><Link href="/servers/dedicated" onClick={() => setDrawerOpen(false)}>Dedicated Servers</Link></li>
-          </ul>
-          <div className="drawer-group-title">Email &amp; Security</div>
-          <ul className="drawer-menu">
-            <li><Link href="/email/business" onClick={() => setDrawerOpen(false)}>Business Email</Link></li>
-            <li><Link href="/email/google-workspace" onClick={() => setDrawerOpen(false)}>Google Workspace</Link></li>
-            <li><Link href="/security/ssl" onClick={() => setDrawerOpen(false)}>SSL Certificates</Link></li>
-            <li><Link href="/security/sitelock" onClick={() => setDrawerOpen(false)}>SiteLock Malware Guard</Link></li>
-            <li><Link href="/security/codeguard" onClick={() => setDrawerOpen(false)}>CodeGuard Backups</Link></li>
-            <li><Link href="/security/acronis" onClick={() => setDrawerOpen(false)}>Acronis Cyber Backup</Link></li>
-            <li><Link href="/bundles/combo-plans" onClick={() => setDrawerOpen(false)}>Combo Offers</Link></li>
-            <li><Link href="/products" onClick={() => setDrawerOpen(false)}>All Products &amp; Solutions Directory</Link></li>
-          </ul>
-          <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <Link
-              href="/login"
-              className="btn btn-outline"
-              style={{ width: '100%', justifyContent: 'center' }}
-              onClick={() => setDrawerOpen(false)}
-            >
-              Client Portal Login
-            </Link>
-            <Link
-              href="/register"
-              className="btn btn-primary"
-              style={{ width: '100%', justifyContent: 'center' }}
-              onClick={() => setDrawerOpen(false)}
-            >
-              Create Account →
-            </Link>
+      {drawerOpen && (
+        <div className="mobile-drawer open" role="dialog" aria-modal="true">
+          <div className="drawer-content">
+            <div className="drawer-header">
+              <picture>
+                <source srcSet="/assets/img/hostmattic-logo.webp" type="image/webp" />
+                <img
+                  src="/assets/img/hostmattic-logo.png"
+                  alt="Hostmattic"
+                  width="160"
+                  height="32"
+                  loading="lazy"
+                  decoding="async"
+                  style={{ height: '32px', width: 'auto' }}
+                />
+              </picture>
+              <button className="drawer-close" aria-label="Close Menu" onClick={() => setDrawerOpen(false)}>
+                &times;
+              </button>
+            </div>
+            <div className="drawer-group-title">Domains &amp; Web</div>
+            <ul className="drawer-menu">
+              <li><Link href="/domains" onClick={() => setDrawerOpen(false)}>Register a Domain</Link></li>
+              <li><Link href="/domains/transfer" onClick={() => setDrawerOpen(false)}>Transfer Domain</Link></li>
+              <li><Link href="/domains/new-gtlds" onClick={() => setDrawerOpen(false)}>New Domain Extensions</Link></li>
+              <li><Link href="/tools/website-builder" onClick={() => setDrawerOpen(false)}>Website Builder</Link></li>
+            </ul>
+            <div className="drawer-group-title">Hosting &amp; Servers</div>
+            <ul className="drawer-menu">
+              <li><Link href="/hosting/shared-linux" onClick={() => setDrawerOpen(false)}>Linux Shared (cPanel)</Link></li>
+              <li><Link href="/hosting/shared-windows" onClick={() => setDrawerOpen(false)}>Windows Shared (Plesk)</Link></li>
+              <li><Link href="/hosting/wordpress" onClick={() => setDrawerOpen(false)}>WordPress Hosting</Link></li>
+              <li><Link href="/hosting/cloud" onClick={() => setDrawerOpen(false)}>Cloud Hosting</Link></li>
+              <li><Link href="/hosting/reseller" onClick={() => setDrawerOpen(false)}>Reseller Hosting</Link></li>
+              <li><Link href="/servers/vps" onClick={() => setDrawerOpen(false)}>Linux KVM VPS</Link></li>
+              <li><Link href="/servers/dedicated" onClick={() => setDrawerOpen(false)}>Dedicated Servers</Link></li>
+            </ul>
+            <div className="drawer-group-title">Email &amp; Security</div>
+            <ul className="drawer-menu">
+              <li><Link href="/email/business" onClick={() => setDrawerOpen(false)}>Business Email</Link></li>
+              <li><Link href="/email/google-workspace" onClick={() => setDrawerOpen(false)}>Google Workspace</Link></li>
+              <li><Link href="/security/ssl" onClick={() => setDrawerOpen(false)}>SSL Certificates</Link></li>
+              <li><Link href="/security/sitelock" onClick={() => setDrawerOpen(false)}>SiteLock Malware Guard</Link></li>
+              <li><Link href="/security/codeguard" onClick={() => setDrawerOpen(false)}>CodeGuard Backups</Link></li>
+              <li><Link href="/security/acronis" onClick={() => setDrawerOpen(false)}>Acronis Cyber Backup</Link></li>
+              <li><Link href="/bundles/combo-plans" onClick={() => setDrawerOpen(false)}>Combo Offers</Link></li>
+              <li><Link href="/products" onClick={() => setDrawerOpen(false)}>All Products &amp; Solutions Directory</Link></li>
+            </ul>
+            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <Link
+                href="/login"
+                className="btn btn-outline"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => setDrawerOpen(false)}
+              >
+                Client Portal Login
+              </Link>
+              <Link
+                href="/register"
+                className="btn btn-primary"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => setDrawerOpen(false)}
+              >
+                Create Account →
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 }
