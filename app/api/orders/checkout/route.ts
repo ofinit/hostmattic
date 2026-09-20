@@ -4,6 +4,7 @@ import { registerDomain } from '@/lib/api/domains';
 import { provisionHosting } from '@/lib/api/hosting';
 import { validateCurrencyMatch, lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { requireAuth } from '@/lib/auth';
+import { sendEmail, generateOrderReceiptEmail } from '@/lib/email/resend';
 
 export const dynamic = 'force-dynamic';
 
@@ -172,6 +173,33 @@ export async function POST(req: NextRequest) {
       }
     } catch (dbErr) {
       console.warn('[Checkout DB Notice] DB logging bypassed in preview:', dbErr);
+    }
+
+    // Send Transactional Order Confirmation Email via Resend
+    const recipientEmail = customer?.email || session?.email;
+    if (recipientEmail) {
+      try {
+        const emailContent = generateOrderReceiptEmail({
+          orderNumber,
+          customerName: customer?.name || session?.name || 'Valued Customer',
+          items: items.map((it: any) => ({
+            description: it.name || it.domainName || 'Hostmattic Cloud Service',
+            price: Number(it.price) || 0,
+            billingPeriod: it.period || 'ANNUAL',
+          })),
+          totalAmount: Number(totalAmount) || 0,
+          currency: currency || 'USD',
+          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://hostmattic.com'}/client/dashboard`,
+        });
+
+        sendEmail({
+          to: recipientEmail,
+          subject: emailContent.subject,
+          html: emailContent.html,
+        }).catch((e) => console.warn('[Order Email Dispatch Warning]', e));
+      } catch (mailErr) {
+        console.warn('[Order Mail Notice]', mailErr);
+      }
     }
 
     return NextResponse.json({

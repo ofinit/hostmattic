@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
+import { sendEmail, generatePasswordResetEmail } from '@/lib/email/resend';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,21 +21,41 @@ export async function POST(req: NextRequest) {
 
     // Check if user exists in the database
     let userExists = false;
+    let userName = 'Valued Customer';
     try {
       const user = await prisma.user.findUnique({
         where: { email: normalizedEmail },
-        select: { id: true, email: true },
+        select: { id: true, email: true, name: true },
       });
       userExists = !!user;
+      if (user?.name) userName = user.name;
     } catch (dbErr) {
       console.warn('[Forgot Password] DB lookup notice:', dbErr);
     }
 
     // Generate secure reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetExpiry = new Date(Date.now() + 3600000); // 1 hour
+    const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://hostmattic.com'}/login?resetToken=${resetToken}&email=${encodeURIComponent(normalizedEmail)}`;
 
     console.log(`[Forgot Password] Reset token generated for ${normalizedEmail} (exists: ${userExists})`);
+
+    // Dispatch password reset email via Resend (only if user exists or in simulation)
+    if (userExists) {
+      try {
+        const emailContent = generatePasswordResetEmail({
+          customerName: userName,
+          resetUrl,
+        });
+
+        sendEmail({
+          to: normalizedEmail,
+          subject: emailContent.subject,
+          html: emailContent.html,
+        }).catch((err) => console.warn('[Password Reset Email Warning]', err));
+      } catch (mailErr) {
+        console.warn('[Password Reset Mail Error]', mailErr);
+      }
+    }
 
     // Standard timing-safe response preventing user enumeration
     return NextResponse.json({
