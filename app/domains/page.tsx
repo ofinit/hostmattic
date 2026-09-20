@@ -27,6 +27,8 @@ export default function DomainsPage() {
     { ext: '.org', defaultUsd: 13.29, defaultBadge: 'Special Offer', desc: 'The proven choice for communities, NGOs, and open projects.' },
     { ext: '.tech', defaultUsd: 12.24, defaultBadge: '73% OFF', desc: 'Built for developers, engineering teams, and startups.' },
     { ext: '.online', defaultUsd: 8.81, defaultBadge: '75% OFF', desc: 'Versatile, modern extension for any online presence.' },
+    { ext: '.store', defaultUsd: 10.53, defaultBadge: '80% OFF', desc: 'The dedicated identity for e-commerce, retail brands, and shops.' },
+    { ext: '.io', defaultUsd: 40.30, defaultBadge: '24% OFF', desc: 'The top-tier domain for tech innovators, SaaS, and cutting-edge apps.' },
   ];
 
   return (
@@ -54,7 +56,7 @@ export default function DomainsPage() {
             <p className="lead">All registrations include free DNS Zone editing, privacy protection, and automated renewal safeguards.</p>
           </div>
 
-          <div className="grid-3">
+          <div className="grid-ecosystem">
             {tldConfigs.map((t) => {
               const live = pricingData[t.ext];
               const priceUsd = live?.retailUsd || t.defaultUsd;
