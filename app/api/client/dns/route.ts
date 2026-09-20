@@ -126,6 +126,11 @@ export async function POST(req: NextRequest) {
       priority: priority ? Number(priority) : undefined,
     };
 
+    if (!DEFAULT_DNS_RECORDS[domain]) {
+      DEFAULT_DNS_RECORDS[domain] = [];
+    }
+    DEFAULT_DNS_RECORDS[domain].push(newRecord);
+
     if (!isLiveApiConfigured()) {
       return NextResponse.json({
         success: true,
@@ -152,6 +157,128 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to save DNS record' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const session = requireAuth(req);
+    if (session instanceof NextResponse) return session;
+
+    const body = await req.json();
+    const { domain, id, type, host, value, ttl = 14400, priority, currentValue } = body;
+
+    if (!domain || !id || !type || !value) {
+      return NextResponse.json({ success: false, error: 'Missing required DNS update parameters' }, { status: 400 });
+    }
+
+    const updatedRecord: DnsRecord = {
+      id,
+      type,
+      host: host || '@',
+      value,
+      ttl: Number(ttl),
+      priority: priority ? Number(priority) : undefined,
+    };
+
+    if (DEFAULT_DNS_RECORDS[domain]) {
+      const idx = DEFAULT_DNS_RECORDS[domain].findIndex((r) => r.id === id);
+      if (idx !== -1) {
+        DEFAULT_DNS_RECORDS[domain][idx] = updatedRecord;
+      }
+    }
+
+    if (!isLiveApiConfigured()) {
+      return NextResponse.json({
+        success: true,
+        message: `DNS Record (${type}) updated successfully.`,
+        record: updatedRecord,
+        isMock: true,
+      });
+    }
+
+    try {
+      const endpoint = type === 'A' ? '/dns/manage/modify-ipv4-record.json' :
+                       type === 'CNAME' ? '/dns/manage/modify-cname-record.json' :
+                       type === 'MX' ? '/dns/manage/modify-mx-record.json' :
+                       type === 'TXT' ? '/dns/manage/modify-txt-record.json' :
+                       '/dns/manage/modify-record.json';
+
+      await apiClient(endpoint, {
+        'domain-name': domain,
+        host: host === '@' ? '' : host,
+        'current-value': currentValue || value,
+        'new-value': value,
+        ttl,
+      }, 'POST');
+    } catch (err: any) {
+      console.warn('[Upstream DNS Modify Notice]', err.message);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `DNS Record (${type}) updated successfully.`,
+      record: updatedRecord,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to update DNS record' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = requireAuth(req);
+    if (session instanceof NextResponse) return session;
+
+    const body = await req.json();
+    const { domain, id, type, host, value } = body;
+
+    if (!domain || !id) {
+      return NextResponse.json({ success: false, error: 'Missing required parameters' }, { status: 400 });
+    }
+
+    if (DEFAULT_DNS_RECORDS[domain]) {
+      DEFAULT_DNS_RECORDS[domain] = DEFAULT_DNS_RECORDS[domain].filter((r) => r.id !== id);
+    }
+
+    if (!isLiveApiConfigured()) {
+      return NextResponse.json({
+        success: true,
+        message: 'DNS record removed successfully.',
+        id,
+        isMock: true,
+      });
+    }
+
+    try {
+      const endpoint = type === 'A' ? '/dns/manage/delete-ipv4-record.json' :
+                       type === 'CNAME' ? '/dns/manage/delete-cname-record.json' :
+                       type === 'MX' ? '/dns/manage/delete-mx-record.json' :
+                       type === 'TXT' ? '/dns/manage/delete-txt-record.json' :
+                       '/dns/manage/delete-record.json';
+
+      await apiClient(endpoint, {
+        'domain-name': domain,
+        host: host === '@' ? '' : host,
+        value,
+      }, 'POST');
+    } catch (err: any) {
+      console.warn('[Upstream DNS Delete Notice]', err.message);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'DNS record removed successfully.',
+      id,
+    });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || 'Failed to delete DNS record' },
       { status: 500 }
     );
   }

@@ -84,6 +84,8 @@ export default function ClientDashboard() {
   const [newRecordType, setNewRecordType] = useState('A');
   const [newRecordHost, setNewRecordHost] = useState('');
   const [newRecordValue, setNewRecordValue] = useState('');
+  const [newRecordTtl, setNewRecordTtl] = useState('14400');
+  const [editingDnsRecord, setEditingDnsRecord] = useState<any | null>(null);
   const [dnsSuccessMsg, setDnsSuccessMsg] = useState('');
 
   // Ticket Creation Modal state
@@ -482,6 +484,10 @@ export default function ClientDashboard() {
     setSelectedDomainForDns(domainName);
     setLoadingDns(true);
     setDnsSuccessMsg('');
+    setEditingDnsRecord(null);
+    setNewRecordHost('');
+    setNewRecordValue('');
+    setNewRecordTtl('14400');
     try {
       const res = await fetch(`/api/client/dns?domain=${encodeURIComponent(domainName)}`);
       const json = await res.json();
@@ -503,32 +509,108 @@ export default function ClientDashboard() {
     }
   };
 
-  const handleAddDnsRecord = async (e: React.FormEvent) => {
+  const handleStartEditDnsRecord = (record: any) => {
+    setEditingDnsRecord(record);
+    setNewRecordType(record.type || 'A');
+    setNewRecordHost(record.host === '@' ? '@' : record.host || '');
+    setNewRecordValue(record.value || '');
+    setNewRecordTtl(String(record.ttl || 14400));
+  };
+
+  const handleCancelEditDnsRecord = () => {
+    setEditingDnsRecord(null);
+    setNewRecordHost('');
+    setNewRecordValue('');
+    setNewRecordTtl('14400');
+  };
+
+  const handleSaveDnsRecord = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRecordValue.trim() || !selectedDomainForDns) return;
 
     try {
+      if (editingDnsRecord) {
+        // PUT request to modify existing record
+        const res = await fetch('/api/client/dns', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domain: selectedDomainForDns,
+            id: editingDnsRecord.id,
+            type: newRecordType,
+            host: newRecordHost.trim() || '@',
+            value: newRecordValue.trim(),
+            currentValue: editingDnsRecord.value,
+            ttl: Number(newRecordTtl) || 14400,
+          }),
+        });
+        const json = await res.json();
+        if (json.success && json.record) {
+          setDnsRecords(dnsRecords.map((r: any) => (r.id === editingDnsRecord.id ? json.record : r)));
+          handleCancelEditDnsRecord();
+          setDnsSuccessMsg(`DNS Record (${newRecordType}) updated successfully!`);
+          setTimeout(() => setDnsSuccessMsg(''), 4000);
+        } else {
+          alert(json.error || 'Failed to update DNS record');
+        }
+      } else {
+        // POST request to add new record
+        const res = await fetch('/api/client/dns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domain: selectedDomainForDns,
+            type: newRecordType,
+            host: newRecordHost.trim() || '@',
+            value: newRecordValue.trim(),
+            ttl: Number(newRecordTtl) || 14400,
+          }),
+        });
+        const json = await res.json();
+        if (json.success && json.record) {
+          setDnsRecords([...dnsRecords, json.record]);
+          setNewRecordHost('');
+          setNewRecordValue('');
+          setNewRecordTtl('14400');
+          setDnsSuccessMsg(`Record (${newRecordType}) successfully added to zone!`);
+          setTimeout(() => setDnsSuccessMsg(''), 4000);
+        } else {
+          alert(json.error || 'Failed to add DNS record');
+        }
+      }
+    } catch {
+      alert('Failed to save DNS record');
+    }
+  };
+
+  const handleDeleteDnsRecord = async (record: any) => {
+    if (!confirm(`Are you sure you want to delete the ${record.type} record for "${record.host}"?`)) return;
+
+    try {
       const res = await fetch('/api/client/dns', {
-        method: 'POST',
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           domain: selectedDomainForDns,
-          type: newRecordType,
-          host: newRecordHost.trim() || '@',
-          value: newRecordValue.trim(),
-          ttl: 14400,
+          id: record.id,
+          type: record.type,
+          host: record.host,
+          value: record.value,
         }),
       });
       const json = await res.json();
-      if (json.success && json.record) {
-        setDnsRecords([...dnsRecords, json.record]);
-        setNewRecordHost('');
-        setNewRecordValue('');
-        setDnsSuccessMsg(`Record (${newRecordType}) successfully added to zone!`);
+      if (json.success) {
+        setDnsRecords(dnsRecords.filter((r: any) => r.id !== record.id));
+        if (editingDnsRecord?.id === record.id) {
+          handleCancelEditDnsRecord();
+        }
+        setDnsSuccessMsg(`Record (${record.type}) deleted successfully.`);
         setTimeout(() => setDnsSuccessMsg(''), 4000);
+      } else {
+        alert(json.error || 'Failed to delete DNS record');
       }
     } catch {
-      alert('Failed to add DNS record');
+      alert('Failed to delete DNS record');
     }
   };
 
@@ -2825,30 +2907,76 @@ export default function ClientDashboard() {
                 <div style={{ padding: '20px', textAlign: 'center', color: '#64748B' }}>Loading DNS records...</div>
               ) : (
                 <div className="table-responsive" style={{ border: '1px solid #E2E8F0', borderRadius: '12px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem', minWidth: '580px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem', minWidth: '680px' }}>
                     <thead>
                       <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                         <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>Type</th>
                         <th style={{ padding: '10px 14px' }}>Host / Name</th>
                         <th style={{ padding: '10px 14px' }}>Target / Value</th>
                         <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>TTL</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {Array.isArray(dnsRecords) && dnsRecords.length > 0 ? (
-                        dnsRecords.map((r: any, idx: number) => (
-                          <tr key={r.id || idx} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                            <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                              <span className="status-badge status-success">{r.type || 'A'}</span>
-                            </td>
-                            <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)' }}>{r.host || '@'}</td>
-                            <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>{r.value}</td>
-                            <td style={{ padding: '10px 14px', color: '#64748B', whiteSpace: 'nowrap' }}>{r.ttl || 14400}s</td>
-                          </tr>
-                        ))
+                        dnsRecords.map((r: any, idx: number) => {
+                          const isEditing = editingDnsRecord?.id === r.id;
+                          return (
+                            <tr
+                              key={r.id || idx}
+                              style={{
+                                borderBottom: '1px solid #F1F5F9',
+                                background: isEditing ? '#FEFCE8' : 'transparent',
+                                transition: 'background 0.2s',
+                              }}
+                            >
+                              <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                                <span className="status-badge status-success">{r.type || 'A'}</span>
+                              </td>
+                              <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)' }}>{r.host || '@'}</td>
+                              <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', wordBreak: 'break-all' }}>{r.value}</td>
+                              <td style={{ padding: '10px 14px', color: '#64748B', whiteSpace: 'nowrap' }}>{r.ttl || 14400}s</td>
+                              <td style={{ padding: '10px 14px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditDnsRecord(r)}
+                                    className="btn btn-sm btn-outline"
+                                    style={{
+                                      fontSize: '0.75rem',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      background: isEditing ? '#FEF08A' : '#FFFFFF',
+                                    }}
+                                    title="Edit this DNS record"
+                                  >
+                                    ✏️ Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteDnsRecord(r)}
+                                    className="btn btn-sm"
+                                    style={{
+                                      fontSize: '0.75rem',
+                                      padding: '4px 8px',
+                                      borderRadius: '6px',
+                                      background: '#FEE2E2',
+                                      color: '#991B1B',
+                                      border: '1px solid #FCA5A5',
+                                      cursor: 'pointer',
+                                    }}
+                                    title="Delete this record"
+                                  >
+                                    🗑️ Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr>
-                          <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#64748B' }}>
+                          <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: '#64748B' }}>
                             No active DNS records found in this zone. You can add your first record below.
                           </td>
                         </tr>
@@ -2859,10 +2987,39 @@ export default function ClientDashboard() {
               )}
             </div>
 
-            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '14px', padding: '20px' }}>
-              <h4 style={{ fontSize: '0.95rem', marginBottom: '12px', color: '#0F172A' }}>Add New Zone Record</h4>
-              <form onSubmit={handleAddDnsRecord}>
-                <div className="grid-dns-row">
+            <div style={{
+              background: editingDnsRecord ? '#FEFCE8' : '#F8FAFC',
+              border: editingDnsRecord ? '1.5px solid #FDE047' : '1px solid #E2E8F0',
+              borderRadius: '14px',
+              padding: '20px',
+              transition: 'all 0.2s',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h4 style={{ fontSize: '0.95rem', margin: 0, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {editingDnsRecord ? (
+                    <>
+                      <span>✏️ Edit Zone Record:</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', background: '#FEF08A', padding: '1px 6px', borderRadius: '4px', fontSize: '0.85rem' }}>
+                        {editingDnsRecord.type} ({editingDnsRecord.host})
+                      </span>
+                    </>
+                  ) : (
+                    <span>+ Add New Zone Record</span>
+                  )}
+                </h4>
+                {editingDnsRecord && (
+                  <button
+                    type="button"
+                    onClick={handleCancelEditDnsRecord}
+                    style={{ background: 'none', border: 'none', color: '#64748B', fontSize: '0.8rem', cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    Cancel Editing ✕
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handleSaveDnsRecord}>
+                <div className="grid-dns-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: '4px' }}>Type</label>
                     <select
@@ -2871,11 +3028,11 @@ export default function ClientDashboard() {
                       className="form-select"
                       style={{ padding: '8px 10px', fontSize: '0.85rem' }}
                     >
-                      <option value="A">A</option>
-                      <option value="CNAME">CNAME</option>
-                      <option value="MX">MX</option>
-                      <option value="TXT">TXT</option>
-                      <option value="AAAA">AAAA</option>
+                      <option value="A">A (IPv4 Address)</option>
+                      <option value="CNAME">CNAME (Alias)</option>
+                      <option value="MX">MX (Mail Server)</option>
+                      <option value="TXT">TXT (SPF / Verification)</option>
+                      <option value="AAAA">AAAA (IPv6 Address)</option>
                     </select>
                   </div>
                   <div>
@@ -2901,11 +3058,34 @@ export default function ClientDashboard() {
                       style={{ padding: '8px 10px', fontSize: '0.85rem' }}
                     />
                   </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: '4px' }}>TTL</label>
+                    <select
+                      value={newRecordTtl}
+                      onChange={(e) => setNewRecordTtl(e.target.value)}
+                      className="form-select"
+                      style={{ padding: '8px 10px', fontSize: '0.85rem' }}
+                    >
+                      <option value="300">300s (5m)</option>
+                      <option value="3600">3600s (1h)</option>
+                      <option value="14400">14400s (4h - Standard)</option>
+                      <option value="86400">86400s (1d)</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '14px' }}>
+                  {editingDnsRecord && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEditDnsRecord}
+                      className="btn btn-sm btn-outline"
+                    >
+                      Cancel
+                    </button>
+                  )}
                   <button type="submit" className="btn btn-sm btn-primary">
-                    + Add DNS Record
+                    {editingDnsRecord ? '💾 Save Record Changes' : '+ Add DNS Record'}
                   </button>
                 </div>
               </form>
