@@ -18,9 +18,6 @@ export default function Header() {
   const closeMenu = () => {
     setActiveMenu(null);
     setNavClosed(true);
-    if (typeof document !== 'undefined') {
-      (document.activeElement as HTMLElement)?.blur();
-    }
   };
 
   const handleNavMouseEnter = (menuName: string) => {
@@ -46,7 +43,7 @@ export default function Header() {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest('.desktop-nav')) {
-        closeMenu();
+        setActiveMenu(null);
       }
     };
     document.addEventListener('click', handleClickOutside);
