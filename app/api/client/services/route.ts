@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/auth';
+import { computeExpirationAnalytics } from '@/lib/analytics/pnl';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,8 +48,18 @@ export async function GET(req: NextRequest) {
           domainName: 'hostmattic-sample.com',
           tld: '.com',
           status: 'ACTIVE',
-          expiryDate: new Date(Date.now() + 31536000000).toISOString(),
+          expiryDate: new Date(Date.now() + 86400000 * 18).toISOString(), // Expiring in 18 days!
           autoRenew: true,
+          privacyEnabled: true,
+          nameservers: 'ns1.hostmattic.com,ns2.hostmattic.com',
+        },
+        {
+          id: 'dom_2',
+          domainName: 'cloudhost-matrix.io',
+          tld: '.io',
+          status: 'ACTIVE',
+          expiryDate: new Date(Date.now() + 86400000 * 240).toISOString(),
+          autoRenew: false,
           privacyEnabled: true,
           nameservers: 'ns1.hostmattic.com,ns2.hostmattic.com',
         },
@@ -64,7 +75,7 @@ export async function GET(req: NextRequest) {
           serverLocation: 'US',
           status: 'ACTIVE',
           billingCycle: 'ANNUAL',
-          nextDueDate: new Date(Date.now() + 31536000000).toISOString(),
+          nextDueDate: new Date(Date.now() + 86400000 * 18).toISOString(), // Due in 18 days!
         },
       ];
     }
@@ -135,13 +146,42 @@ export async function GET(req: NextRequest) {
       ];
     }
 
+    // Enrich domains with daysUntilExpiry
+    const enrichedDomains = domains.map((d: any) => {
+      const diffDays = Math.ceil((new Date(d.expiryDate).getTime() - Date.now()) / 86400000);
+      return {
+        ...d,
+        daysUntilExpiry: diffDays,
+        isExpired: diffDays < 0,
+        isExpiringSoon: diffDays >= 0 && diffDays <= 30,
+        isCritical: diffDays >= 0 && diffDays <= 7,
+      };
+    });
+
+    // Enrich hosting with daysUntilExpiry
+    const enrichedHosting = hosting.map((h: any) => {
+      const targetDate = h.nextDueDate || h.createdAt;
+      const diffDays = Math.ceil((new Date(targetDate).getTime() - Date.now()) / 86400000);
+      return {
+        ...h,
+        daysUntilExpiry: diffDays,
+        isExpired: diffDays < 0,
+        isExpiringSoon: diffDays >= 0 && diffDays <= 30,
+        isCritical: diffDays >= 0 && diffDays <= 7,
+      };
+    });
+
+    // Compute Expiration Analytics for Customer
+    const expirations = computeExpirationAnalytics(domains, hosting);
+
     return NextResponse.json({
       success: true,
       user: session,
-      domains,
-      hosting,
+      domains: enrichedDomains,
+      hosting: enrichedHosting,
       orders,
       tickets,
+      expirations,
     });
   } catch (error: any) {
     return NextResponse.json(

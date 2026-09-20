@@ -104,6 +104,10 @@ export default function ClientDashboard() {
   const [clientTicketPage, setClientTicketPage] = useState(1);
   const clientPageSize = 10;
 
+  // 30-Day Expiration & Lifecycle Filters
+  const [domainFilter, setDomainFilter] = useState<'all' | 'warning' | 'critical' | 'expired'>('all');
+  const [hostingFilter, setHostingFilter] = useState<'all' | 'warning' | 'critical' | 'expired'>('all');
+
   const fetchServices = () => {
     fetch('/api/client/services')
       .then((res) => res.json())
@@ -125,6 +129,123 @@ export default function ClientDashboard() {
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
+  };
+
+  // 1-Click Renewal Helper
+  const handleRenewService = (type: 'DOMAIN' | 'HOSTING', item: any) => {
+    if (type === 'DOMAIN') {
+      const renewPrice = pricingData?.[item.tld || '.com']?.renew || 12.99;
+      addItem({
+        type: 'DOMAIN',
+        name: `Domain Renewal - ${item.domainName}`,
+        domainName: item.domainName,
+        billingPeriod: 'annual',
+        priceMonthly: +(renewPrice / 12).toFixed(2),
+        priceAnnual: renewPrice,
+      }, false);
+      setDealAddedMsg(`Added 1-Year Renewal for ${item.domainName} to Cart! 🛒`);
+      setTimeout(() => setDealAddedMsg(null), 4000);
+    } else {
+      const isMonthly = (item.billingCycle || '').toUpperCase() === 'MONTHLY';
+      addItem({
+        type: 'HOSTING',
+        productType: item.productType || 'SHARED_LINUX',
+        name: `Hosting Renewal - ${item.planName} (${item.domainName || 'Cloud Node'})`,
+        domainName: item.domainName,
+        billingPeriod: isMonthly ? 'monthly' : 'annual',
+        priceMonthly: 9.99,
+        priceAnnual: 119.88,
+      }, false);
+      setDealAddedMsg(`Added Renewal for ${item.planName} to Cart! 🛒`);
+      setTimeout(() => setDealAddedMsg(null), 4000);
+    }
+  };
+
+  // Expiration & Lifecycle Badge Helper
+  const renderExpirationBadge = (days: number | undefined) => {
+    if (days === undefined || isNaN(days)) return null;
+    if (days < 0) {
+      return (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '2px 8px',
+            borderRadius: '999px',
+            fontSize: '0.74rem',
+            fontWeight: 700,
+            background: '#FEE2E2',
+            color: '#DC2626',
+            border: '1px solid #FCA5A5',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          🔴 Past Due ({Math.abs(days)}d ago)
+        </span>
+      );
+    }
+    if (days <= 7) {
+      return (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '2px 8px',
+            borderRadius: '999px',
+            fontSize: '0.74rem',
+            fontWeight: 700,
+            background: '#FEF2F2',
+            color: '#B91C1C',
+            border: '1px solid #F87171',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          🚨 Critical ({days === 0 ? 'Today' : `${days}d left`})
+        </span>
+      );
+    }
+    if (days <= 30) {
+      return (
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '2px 8px',
+            borderRadius: '999px',
+            fontSize: '0.74rem',
+            fontWeight: 700,
+            background: '#FEF3C7',
+            color: '#D97706',
+            border: '1px solid #FCD34D',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          ⚠️ Due in {days}d
+        </span>
+      );
+    }
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '2px 8px',
+          borderRadius: '999px',
+          fontSize: '0.74rem',
+          fontWeight: 600,
+          background: '#F1F5F9',
+          color: '#475569',
+          border: '1px solid #E2E8F0',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        🟢 Active ({days}d)
+      </span>
+    );
   };
 
   // 1. TICKET THREAD INTERACTIONS
@@ -432,13 +553,28 @@ export default function ClientDashboard() {
   const hosting = data?.hosting || [];
   const orders = data?.orders || [];
   const tickets = data?.tickets || [];
+  const expirations = data?.expirations || null;
   const userName = data?.user?.name || profileName || 'Valued Customer';
 
-  const paginatedClientDomains = domains.slice((clientDomainPage - 1) * clientPageSize, clientDomainPage * clientPageSize);
-  const totalClientDomainPages = Math.ceil(domains.length / clientPageSize) || 1;
+  const filteredDomains = domains.filter((d: any) => {
+    if (domainFilter === 'warning') return d.daysUntilExpiry <= 30 && d.daysUntilExpiry > 7;
+    if (domainFilter === 'critical') return d.daysUntilExpiry <= 7 && d.daysUntilExpiry >= 0;
+    if (domainFilter === 'expired') return d.daysUntilExpiry < 0;
+    return true;
+  });
 
-  const paginatedClientHosting = hosting.slice((clientHostingPage - 1) * clientPageSize, clientHostingPage * clientPageSize);
-  const totalClientHostingPages = Math.ceil(hosting.length / clientPageSize) || 1;
+  const filteredHosting = hosting.filter((h: any) => {
+    if (hostingFilter === 'warning') return h.daysUntilExpiry <= 30 && h.daysUntilExpiry > 7;
+    if (hostingFilter === 'critical') return h.daysUntilExpiry <= 7 && h.daysUntilExpiry >= 0;
+    if (hostingFilter === 'expired') return h.daysUntilExpiry < 0;
+    return true;
+  });
+
+  const paginatedClientDomains = filteredDomains.slice((clientDomainPage - 1) * clientPageSize, clientDomainPage * clientPageSize);
+  const totalClientDomainPages = Math.ceil(filteredDomains.length / clientPageSize) || 1;
+
+  const paginatedClientHosting = filteredHosting.slice((clientHostingPage - 1) * clientPageSize, clientHostingPage * clientPageSize);
+  const totalClientHostingPages = Math.ceil(filteredHosting.length / clientPageSize) || 1;
 
   const paginatedClientOrders = orders.slice((clientOrderPage - 1) * clientPageSize, clientOrderPage * clientPageSize);
   const totalClientOrderPages = Math.ceil(orders.length / clientPageSize) || 1;
@@ -655,6 +791,129 @@ export default function ClientDashboard() {
             </button>
           </div>
         </div>
+
+        {/* 30-Day Expiration & Lifecycle Monitor Alert Banner */}
+        {expirations && expirations.totalRequiringAttention > 0 && (
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #FEF2F2 0%, #FFFBEB 100%)',
+              border: '1px solid #FCA5A5',
+              borderRadius: '16px',
+              padding: '20px 24px',
+              marginBottom: '28px',
+              boxShadow: '0 4px 16px rgba(220, 38, 38, 0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', maxWidth: '780px' }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: '#FEE2E2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.4rem',
+                  flexShrink: 0,
+                  border: '1px solid #FCA5A5',
+                }}
+              >
+                ⚠️
+              </div>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <strong style={{ color: '#991B1B', fontSize: '1.05rem', fontWeight: 800 }}>
+                    30-Day Expiration &amp; Lifecycle Alert
+                  </strong>
+                  <span
+                    style={{
+                      background: '#DC2626',
+                      color: '#FFFFFF',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      padding: '2px 9px',
+                      borderRadius: '999px',
+                    }}
+                  >
+                    {expirations.totalRequiringAttention} Service{expirations.totalRequiringAttention > 1 ? 's' : ''} Need Action
+                  </span>
+                </div>
+                <p style={{ margin: '4px 0 0', fontSize: '0.88rem', color: '#7F1D1D', lineHeight: 1.5 }}>
+                  You have services due for renewal in 30 days or less. Renew promptly to safeguard server uptime, prevent DNS downtime, and retain domain delegation.
+                </p>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexWrap: 'wrap', fontSize: '0.82rem' }}>
+                  {(expirations.expiredDomainsCount + expirations.expiredHostingCount) > 0 && (
+                    <span style={{ color: '#DC2626', fontWeight: 700, background: '#FEE2E2', padding: '2px 8px', borderRadius: '6px' }}>
+                      🔴 {expirations.expiredDomainsCount + expirations.expiredHostingCount} Past Due / Expired
+                    </span>
+                  )}
+                  {(expirations.criticalDomainsCount + expirations.criticalHostingCount) > 0 && (
+                    <span style={{ color: '#B91C1C', fontWeight: 700, background: '#FEF2F2', padding: '2px 8px', borderRadius: '6px' }}>
+                      🚨 {expirations.criticalDomainsCount + expirations.criticalHostingCount} Critical (≤7 Days)
+                    </span>
+                  )}
+                  {(expirations.expiringDomainsCount + expirations.expiringHostingCount) > 0 && (
+                    <span style={{ color: '#B45309', fontWeight: 700, background: '#FEF3C7', padding: '2px 8px', borderRadius: '6px' }}>
+                      ⚠️ {expirations.expiringDomainsCount + expirations.expiringHostingCount} Expiring Soon (8–30 Days)
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {expirations.expiringDomainsCount + expirations.criticalDomainsCount + expirations.expiredDomainsCount > 0 && (
+                <button
+                  onClick={() => {
+                    setActiveTab('domains');
+                    setDomainFilter('warning');
+                    setClientDomainPage(1);
+                  }}
+                  className="btn btn-sm"
+                  style={{
+                    background: '#FFFFFF',
+                    border: '1px solid #F87171',
+                    color: '#B91C1C',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Expiring Domains ({expirations.expiringDomainsCount + expirations.criticalDomainsCount + expirations.expiredDomainsCount}) →
+                </button>
+              )}
+              {expirations.expiringHostingCount + expirations.criticalHostingCount + expirations.expiredHostingCount > 0 && (
+                <button
+                  onClick={() => {
+                    setActiveTab('hosting');
+                    setHostingFilter('warning');
+                    setClientHostingPage(1);
+                  }}
+                  className="btn btn-sm"
+                  style={{
+                    background: '#FFFFFF',
+                    border: '1px solid #F87171',
+                    color: '#B91C1C',
+                    fontWeight: 700,
+                    fontSize: '0.84rem',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Expiring Hosting ({expirations.expiringHostingCount + expirations.criticalHostingCount + expirations.expiredHostingCount}) →
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Navigation Tabs */}
         <div className="dashboard-tabs-bar">
@@ -990,6 +1249,7 @@ export default function ClientDashboard() {
                       <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Service / Plan</th>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Domain</th>
+                        <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Next Due / Renewal</th>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Server IP</th>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
                         <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
@@ -1012,6 +1272,14 @@ export default function ClientDashboard() {
                               {h.domainName}
                             </a>
                           </td>
+                          <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontSize: '0.86rem', color: '#0F172A', fontWeight: 600 }}>
+                              {h.nextDueDate ? new Date(h.nextDueDate).toLocaleDateString() : 'Annual Cycle'}
+                            </div>
+                            <div style={{ marginTop: '3px' }}>
+                              {renderExpirationBadge(h.daysUntilExpiry)}
+                            </div>
+                          </td>
                           <td style={{ padding: '16px', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{h.serverIp}</td>
                           <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
                             <span className="status-badge status-success">
@@ -1020,7 +1288,23 @@ export default function ClientDashboard() {
                             </span>
                           </td>
                           <td style={{ padding: '16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                              <button
+                                onClick={() => handleRenewService('HOSTING', h)}
+                                className="btn btn-sm"
+                                style={{
+                                  background: h.isExpiringSoon || h.isCritical || h.isExpired ? '#DC2626' : '#F1F5F9',
+                                  color: h.isExpiringSoon || h.isCritical || h.isExpired ? '#FFFFFF' : '#334155',
+                                  border: h.isExpiringSoon || h.isCritical || h.isExpired ? 'none' : '1px solid #CBD5E1',
+                                  fontWeight: 700,
+                                  fontSize: '0.8rem',
+                                  padding: '6px 12px',
+                                  whiteSpace: 'nowrap',
+                                }}
+                                title="Add Renewal to Cart"
+                              >
+                                Renew 💳
+                              </button>
                               <button
                                 onClick={() => handleOpenHostingHub(h)}
                                 className="btn btn-sm btn-outline"
@@ -1058,7 +1342,7 @@ export default function ClientDashboard() {
                     <thead>
                       <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Domain Name</th>
-                        <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Renewal Date</th>
+                        <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Renewal / Expiry</th>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Transfer Lock</th>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Auto-Renew</th>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Privacy Shield</th>
@@ -1077,7 +1361,14 @@ export default function ClientDashboard() {
                               <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--brand-action-teal)', fontWeight: 600 }}>Domain Security &amp; Nameservers ⚙️</span>
                             </button>
                           </td>
-                          <td style={{ padding: '16px', color: '#64748B', whiteSpace: 'nowrap' }}>{new Date(d.expiryDate).toLocaleDateString()}</td>
+                          <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontSize: '0.86rem', color: '#0F172A', fontWeight: 600 }}>
+                              {new Date(d.expiryDate).toLocaleDateString()}
+                            </div>
+                            <div style={{ marginTop: '3px' }}>
+                              {renderExpirationBadge(d.daysUntilExpiry)}
+                            </div>
+                          </td>
                           <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
                             <span className={`status-badge ${d.theftProtection !== false ? 'status-success' : 'status-warning'}`}>
                               <span className="status-dot"></span>
@@ -1097,7 +1388,23 @@ export default function ClientDashboard() {
                             </span>
                           </td>
                           <td style={{ padding: '16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                              <button
+                                onClick={() => handleRenewService('DOMAIN', d)}
+                                className="btn btn-sm"
+                                style={{
+                                  background: d.isExpiringSoon || d.isCritical || d.isExpired ? '#DC2626' : '#F1F5F9',
+                                  color: d.isExpiringSoon || d.isCritical || d.isExpired ? '#FFFFFF' : '#334155',
+                                  border: d.isExpiringSoon || d.isCritical || d.isExpired ? 'none' : '1px solid #CBD5E1',
+                                  fontWeight: 700,
+                                  fontSize: '0.8rem',
+                                  padding: '6px 12px',
+                                  whiteSpace: 'nowrap',
+                                }}
+                                title="Add 1-Year Renewal to Cart"
+                              >
+                                Renew 💳
+                              </button>
                               <button
                                 onClick={() => handleOpenDomainHub(d)}
                                 className="btn btn-sm btn-outline"
@@ -1137,12 +1444,53 @@ export default function ClientDashboard() {
               </Link>
             </div>
 
+            {/* Lifecycle Filter Pills */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748B', marginRight: '4px' }}>Lifecycle Filter:</span>
+              {[
+                { id: 'all', label: `All Domains (${domains.length})` },
+                {
+                  id: 'warning',
+                  label: `⚠️ Expiring Soon (≤30d) (${domains.filter((d: any) => d.daysUntilExpiry <= 30 && d.daysUntilExpiry > 7).length})`,
+                },
+                {
+                  id: 'critical',
+                  label: `🚨 Critical (≤7d) (${domains.filter((d: any) => d.daysUntilExpiry <= 7 && d.daysUntilExpiry >= 0).length})`,
+                },
+                {
+                  id: 'expired',
+                  label: `🔴 Past Due (${domains.filter((d: any) => d.daysUntilExpiry < 0).length})`,
+                },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => {
+                    setDomainFilter(f.id as any);
+                    setClientDomainPage(1);
+                  }}
+                  style={{
+                    background: domainFilter === f.id ? '#0F172A' : '#F1F5F9',
+                    color: domainFilter === f.id ? '#FFFFFF' : '#334155',
+                    border: `1px solid ${domainFilter === f.id ? '#0F172A' : '#E2E8F0'}`,
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: domainFilter === f.id ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
             <div className="table-responsive">
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '850px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Domain Name</th>
-                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Expiry Date</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Expiry / Lifecycle</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Transfer Lock</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Auto-Renew</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Privacy Shield</th>
@@ -1162,7 +1510,14 @@ export default function ClientDashboard() {
                           <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--brand-action-teal)', fontWeight: 600 }}>Domain Delegation &amp; Lock ⚙️</span>
                         </button>
                       </td>
-                      <td style={{ padding: '16px', color: '#64748B', whiteSpace: 'nowrap' }}>{new Date(d.expiryDate).toLocaleDateString()}</td>
+                      <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.86rem', color: '#0F172A', fontWeight: 600 }}>
+                          {new Date(d.expiryDate).toLocaleDateString()}
+                        </div>
+                        <div style={{ marginTop: '3px' }}>
+                          {renderExpirationBadge(d.daysUntilExpiry)}
+                        </div>
+                      </td>
                       <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
                         <span className={`status-badge ${d.theftProtection !== false ? 'status-success' : 'status-warning'}`}>
                           <span className="status-dot"></span>
@@ -1185,7 +1540,23 @@ export default function ClientDashboard() {
                         ns1.hostmattic.com
                       </td>
                       <td style={{ padding: '16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <button
+                            onClick={() => handleRenewService('DOMAIN', d)}
+                            className="btn btn-sm"
+                            style={{
+                              background: d.isExpiringSoon || d.isCritical || d.isExpired ? '#DC2626' : '#F1F5F9',
+                              color: d.isExpiringSoon || d.isCritical || d.isExpired ? '#FFFFFF' : '#334155',
+                              border: d.isExpiringSoon || d.isCritical || d.isExpired ? 'none' : '1px solid #CBD5E1',
+                              fontWeight: 700,
+                              fontSize: '0.8rem',
+                              padding: '6px 12px',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title="Add 1-Year Renewal to Cart"
+                          >
+                            Renew 💳
+                          </button>
                           <button
                             onClick={() => handleOpenDomainHub(d)}
                             className="btn btn-sm btn-outline"
@@ -1206,7 +1577,7 @@ export default function ClientDashboard() {
                   ))}
                 </tbody>
               </table>
-              {renderClientPagination(clientDomainPage, totalClientDomainPages, domains.length, 'domains', setClientDomainPage)}
+              {renderClientPagination(clientDomainPage, totalClientDomainPages, filteredDomains.length, 'domains', setClientDomainPage)}
             </div>
           </div>
         )}
@@ -1224,16 +1595,58 @@ export default function ClientDashboard() {
               </Link>
             </div>
 
+            {/* Lifecycle Filter Pills */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '18px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748B', marginRight: '4px' }}>Lifecycle Filter:</span>
+              {[
+                { id: 'all', label: `All Hosting (${hosting.length})` },
+                {
+                  id: 'warning',
+                  label: `⚠️ Expiring Soon (≤30d) (${hosting.filter((h: any) => h.daysUntilExpiry <= 30 && h.daysUntilExpiry > 7).length})`,
+                },
+                {
+                  id: 'critical',
+                  label: `🚨 Critical (≤7d) (${hosting.filter((h: any) => h.daysUntilExpiry <= 7 && h.daysUntilExpiry >= 0).length})`,
+                },
+                {
+                  id: 'expired',
+                  label: `🔴 Past Due (${hosting.filter((h: any) => h.daysUntilExpiry < 0).length})`,
+                },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => {
+                    setHostingFilter(f.id as any);
+                    setClientHostingPage(1);
+                  }}
+                  style={{
+                    background: hostingFilter === f.id ? '#0F172A' : '#F1F5F9',
+                    color: hostingFilter === f.id ? '#FFFFFF' : '#334155',
+                    border: `1px solid ${hostingFilter === f.id ? '#0F172A' : '#E2E8F0'}`,
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: hostingFilter === f.id ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
             <div className="table-responsive">
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '850px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Plan</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Primary Domain</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Next Due / Renewal</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Server IP</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>cPanel User</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Location</th>
-                    <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Server Hub</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1249,6 +1662,14 @@ export default function ClientDashboard() {
                         </button>
                       </td>
                       <td style={{ padding: '16px', color: 'var(--brand-action-cyan)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h.domainName}</td>
+                      <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontSize: '0.86rem', color: '#0F172A', fontWeight: 600 }}>
+                          {h.nextDueDate ? new Date(h.nextDueDate).toLocaleDateString() : 'Annual Cycle'}
+                        </div>
+                        <div style={{ marginTop: '3px' }}>
+                          {renderExpirationBadge(h.daysUntilExpiry)}
+                        </div>
+                      </td>
                       <td style={{ padding: '16px', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{h.serverIp}</td>
                       <td style={{ padding: '16px', fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: '#0F172A', whiteSpace: 'nowrap' }}>{h.cpanelUsername}</td>
                       <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
@@ -1257,13 +1678,29 @@ export default function ClientDashboard() {
                         </span>
                       </td>
                       <td style={{ padding: '16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          <button
+                            onClick={() => handleRenewService('HOSTING', h)}
+                            className="btn btn-sm"
+                            style={{
+                              background: h.isExpiringSoon || h.isCritical || h.isExpired ? '#DC2626' : '#F1F5F9',
+                              color: h.isExpiringSoon || h.isCritical || h.isExpired ? '#FFFFFF' : '#334155',
+                              border: h.isExpiringSoon || h.isCritical || h.isExpired ? 'none' : '1px solid #CBD5E1',
+                              fontWeight: 700,
+                              fontSize: '0.8rem',
+                              padding: '6px 12px',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title="Add Renewal to Cart"
+                          >
+                            Renew 💳
+                          </button>
                           <button
                             onClick={() => handleOpenHostingHub(h)}
                             className="btn btn-sm btn-outline"
                             style={{ fontSize: '0.8rem', padding: '6px 12px', whiteSpace: 'nowrap' }}
                           >
-                            Manage Server ⚙️
+                            Server Hub ⚙️
                           </button>
                           <button
                             onClick={() => window.open(`https://${h.serverIp}:2083`, '_blank')}
@@ -1278,7 +1715,7 @@ export default function ClientDashboard() {
                   ))}
                 </tbody>
               </table>
-              {renderClientPagination(clientHostingPage, totalClientHostingPages, hosting.length, 'hosting plans', setClientHostingPage)}
+              {renderClientPagination(clientHostingPage, totalClientHostingPages, filteredHosting.length, 'hosting plans', setClientHostingPage)}
             </div>
           </div>
         )}
