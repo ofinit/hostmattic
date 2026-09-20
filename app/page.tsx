@@ -126,7 +126,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          <div className="grid-3">
+          <div className="grid-ecosystem">
             {/* 1. Domains Suite */}
             <div className="feature-card">
               <div className="feature-icon-box icon-lime">
@@ -137,7 +137,7 @@ export default function HomePage() {
               </div>
               <h3>Domain Names &amp; TLDs</h3>
               <p>Registration, transfers, bulk availability checks, premium domains, whois privacy, and DNSSEC across 800+ TLD extensions.</p>
-              <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div className="card-btn-grid">
                 <Link href="/domains" className="btn btn-sm btn-outline">Domain Suite →</Link>
                 <Link href="/domains/transfer" className="btn btn-sm btn-outline">Transfer →</Link>
               </div>
@@ -155,7 +155,7 @@ export default function HomePage() {
               </div>
               <h3>Web Hosting &amp; CMS</h3>
               <p>Linux cPanel, Windows Plesk, managed WordPress with automated updates, and cloud hosting with instant 4x burst scalability.</p>
-              <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div className="card-btn-grid">
                 <Link href="/hosting/shared-linux" className="btn btn-sm btn-outline">Linux cPanel →</Link>
                 <Link href="/hosting/wordpress" className="btn btn-sm btn-outline">WordPress →</Link>
               </div>
@@ -179,7 +179,7 @@ export default function HomePage() {
               </div>
               <h3>Virtual &amp; Dedicated Servers</h3>
               <p>KVM Linux VPS with full root access, dedicated bare-metal Intel Xeon/AMD EPYC servers with RAID-10 storage and 1 Gbps unmetered uplinks.</p>
-              <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div className="card-btn-grid">
                 <Link href="/servers/vps" className="btn btn-sm btn-outline">KVM VPS →</Link>
                 <Link href="/servers/dedicated" className="btn btn-sm btn-outline">Bare Metal →</Link>
               </div>
@@ -197,8 +197,9 @@ export default function HomePage() {
               </div>
               <h3>Reseller Web Hosting</h3>
               <p>Launch your own web hosting agency with Linux WHM/cPanel or Windows Plesk. Automated client account creation and private branded nameservers.</p>
-              <div style={{ marginTop: 'auto', paddingTop: '20px' }}>
-                <Link href="/hosting/reseller" className="btn btn-sm btn-outline">Explore Reseller Plans →</Link>
+              <div className="card-btn-grid">
+                <Link href="/hosting/reseller" className="btn btn-sm btn-outline">Linux WHM →</Link>
+                <Link href="/hosting/reseller" className="btn btn-sm btn-outline">Plesk Reseller →</Link>
               </div>
             </div>
 
@@ -212,7 +213,7 @@ export default function HomePage() {
               </div>
               <h3>Email &amp; Productivity</h3>
               <p>Professional branded email (you@yourdomain.com), calendar sync, webmail, and full official Google Workspace integration with automated DNS records.</p>
-              <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div className="card-btn-grid">
                 <Link href="/email/business" className="btn btn-sm btn-outline">Business Email →</Link>
                 <Link href="/email/google-workspace" className="btn btn-sm btn-outline">Google Suite →</Link>
               </div>
@@ -228,9 +229,40 @@ export default function HomePage() {
               </div>
               <h3>Security &amp; Cloud Backup</h3>
               <p>Sectigo SSL certificates, SiteLock automated malware removal, CodeGuard daily website rollback backups, and Acronis cyber disaster protection.</p>
-              <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div className="card-btn-grid">
                 <Link href="/security/ssl" className="btn btn-sm btn-outline">SSL Certs →</Link>
                 <Link href="/security/codeguard" className="btn btn-sm btn-outline">Backups →</Link>
+              </div>
+            </div>
+
+            {/* 7. Website Builder & eCommerce */}
+            <div className="feature-card">
+              <div className="feature-icon-box icon-cyan">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+              </div>
+              <h3>Website Builder &amp; eCommerce</h3>
+              <p>Drag-and-drop AI visual builder with 200+ responsive designer templates, built-in SEO tools, free SSL, and instant online store publishing.</p>
+              <div className="card-btn-grid">
+                <Link href="/tools/website-builder" className="btn btn-sm btn-outline">Site Builder →</Link>
+                <Link href="/tools/website-builder" className="btn btn-sm btn-outline">Online Store →</Link>
+              </div>
+            </div>
+
+            {/* 8. Cloud Hosting & Bundles */}
+            <div className="feature-card">
+              <div className="feature-icon-box icon-lime">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
+                </svg>
+              </div>
+              <h3>Cloud Hosting &amp; Combos</h3>
+              <p>High-availability cloud hosting with auto-failover, scalable NVMe storage pools, and discounted all-in-one domain + hosting bundle packages.</p>
+              <div className="card-btn-grid">
+                <Link href="/hosting/cloud" className="btn btn-sm btn-outline">Cloud Hosting →</Link>
+                <Link href="/bundles/combo-plans" className="btn btn-sm btn-outline">Combo Offers →</Link>
               </div>
             </div>
           </div>
