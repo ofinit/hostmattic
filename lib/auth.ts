@@ -3,15 +3,18 @@ import bcrypt from 'bcryptjs';
 import { NextRequest, NextResponse } from 'next/server';
 
 // SECURITY: No hardcoded fallback. The app MUST have JWT_SECRET set in environment.
-const _jwtSecret = process.env.JWT_SECRET;
-if (!_jwtSecret) {
-  throw new Error(
-    'FATAL: JWT_SECRET environment variable is not set. ' +
-    'Generate a strong random secret (e.g. `openssl rand -base64 64`) and add it to your .env file. ' +
-    'The application will not start without it.'
-  );
+// Lazy initialization so `next build` can import this module without the env var.
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error(
+      'FATAL: JWT_SECRET environment variable is not set. ' +
+      'Generate a strong random secret (e.g. `openssl rand -base64 64`) and add it to your .env file. ' +
+      'The application will not start without it.'
+    );
+  }
+  return secret;
 }
-const JWT_SECRET: string = _jwtSecret;
 
 export interface UserSession {
   id: string;
@@ -38,14 +41,14 @@ export function signToken(user: UserSession): string {
       name: user.name,
       role: user.role,
     },
-    JWT_SECRET,
+    getJwtSecret(),
     { expiresIn: '24h' }
   );
 }
 
 export function verifyToken(token: string): UserSession | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as UserSession;
+    const decoded = jwt.verify(token, getJwtSecret()) as UserSession;
     return decoded;
   } catch {
     return null;
