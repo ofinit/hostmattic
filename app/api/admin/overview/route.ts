@@ -29,9 +29,15 @@ export async function GET(req: NextRequest) {
           email: true,
           name: true,
           company: true,
-          role: true,
+          phone: true,
+          address: true,
+          city: true,
+          state: true,
           country: true,
+          zip: true,
+          role: true,
           upstreamCustomerId: true,
+          lockedCurrency: true,
           createdAt: true,
           _count: {
             select: {
@@ -41,30 +47,57 @@ export async function GET(req: NextRequest) {
               tickets: true,
             },
           },
+          domains: {
+            select: { id: true, domainName: true, status: true, expiryDate: true },
+          },
+          hostingAccounts: {
+            select: { id: true, planName: true, domainName: true, serverIp: true, status: true },
+          },
+          orders: {
+            select: { id: true, orderNumber: true, totalAmount: true, currency: true, paymentStatus: true, createdAt: true },
+            take: 5,
+          },
         },
         orderBy: { createdAt: 'desc' },
       });
 
       domains = await prisma.domain.findMany({
-        include: { user: { select: { name: true, email: true } } },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true, company: true, country: true, address: true, city: true, state: true, zip: true, upstreamCustomerId: true },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       });
 
       hosting = await prisma.hostingAccount.findMany({
-        include: { user: { select: { name: true, email: true } } },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true, company: true, country: true, address: true, city: true, state: true, zip: true, upstreamCustomerId: true },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       });
 
       orders = await prisma.order.findMany({
         include: {
-          user: { select: { name: true, email: true } },
+          user: {
+            select: { id: true, name: true, email: true, phone: true, company: true, country: true, address: true, city: true, state: true, zip: true, upstreamCustomerId: true },
+          },
           items: true,
         },
         orderBy: { createdAt: 'desc' },
       });
 
       tickets = await prisma.supportTicket.findMany({
-        include: { user: { select: { name: true, email: true } } },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true, company: true, country: true, upstreamCustomerId: true },
+          },
+          replies: {
+            orderBy: { createdAt: 'desc' },
+          },
+        },
         orderBy: { createdAt: 'desc' },
       });
     } catch (dbErr) {
@@ -79,44 +112,102 @@ export async function GET(req: NextRequest) {
           name: 'Apex Digital Media',
           email: 'admin@apexdigital.io',
           company: 'Apex Media Ltd.',
-          role: 'CUSTOMER',
+          phone: '+1 (415) 890-4120',
+          address: '450 Mission St, Suite 1200',
+          city: 'San Francisco',
+          state: 'California',
           country: 'US',
+          zip: '94105',
+          role: 'CUSTOMER',
           upstreamCustomerId: '8492019',
           createdAt: new Date(Date.now() - 86400000 * 12).toISOString(),
           _count: { domains: 3, hostingAccounts: 2, orders: 4, tickets: 0 },
+          domains: [
+            { id: 'dom_1', domainName: 'apexdigital.io', status: 'ACTIVE', expiryDate: new Date(Date.now() + 86400000 * 305).toISOString() },
+          ],
+          hostingAccounts: [
+            { id: 'host_1', planName: 'Linux cPanel NVMe Pro', domainName: 'apexdigital.io', serverIp: '198.51.100.24', status: 'ACTIVE' },
+          ],
+          orders: [
+            { id: 'ord_demo_1', orderNumber: 'HM-2026-7712', totalAmount: 119.88, currency: 'USD', paymentStatus: 'PAID', createdAt: new Date(Date.now() - 86400000 * 12).toISOString() },
+          ],
         },
         {
           id: 'usr_c2',
           name: 'TechMatrix Solutions',
           email: 'billing@techmatrix.in',
           company: 'TechMatrix Global Pvt Ltd',
-          role: 'CUSTOMER',
+          phone: '+91 98450 12345',
+          address: 'Level 5, Cyber Park, Electronic City Phase 1',
+          city: 'Bengaluru',
+          state: 'Karnataka',
           country: 'IN',
+          zip: '560100',
+          gstin: '29AABCT1234F1Z9',
+          role: 'CUSTOMER',
           upstreamCustomerId: '5284910',
           createdAt: new Date(Date.now() - 86400000 * 25).toISOString(),
           _count: { domains: 5, hostingAccounts: 3, orders: 7, tickets: 1 },
+          domains: [
+            { id: 'dom_2', domainName: 'techmatrix.in', status: 'ACTIVE', expiryDate: new Date(Date.now() + 86400000 * 245).toISOString() },
+            { id: 'dom_3', domainName: 'cloudpulse.tech', status: 'ACTIVE', expiryDate: new Date(Date.now() + 86400000 * 355).toISOString() },
+          ],
+          hostingAccounts: [
+            { id: 'host_2', planName: 'High-Performance Cloud 4-Core', domainName: 'techmatrix.in', serverIp: '103.120.178.55', status: 'ACTIVE' },
+          ],
+          orders: [
+            { id: 'ord_3', orderNumber: 'HM-2026-8810', totalAmount: 14500, currency: 'INR', paymentStatus: 'PAID', createdAt: new Date(Date.now() - 86400000 * 12).toISOString() },
+          ],
         },
         {
           id: 'usr_c3',
           name: 'Vanguard Ventures',
           email: 'ops@vanguardventures.co',
-          company: 'Vanguard Capital',
-          role: 'CUSTOMER',
+          company: 'Vanguard Capital Partners LLP',
+          phone: '+44 20 7946 0912',
+          address: '25 Bank Street, Canary Wharf',
+          city: 'London',
+          state: 'Greater London',
           country: 'UK',
+          zip: 'E14 5JP',
+          role: 'CUSTOMER',
           upstreamCustomerId: '9182374',
           createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
           _count: { domains: 2, hostingAccounts: 1, orders: 2, tickets: 0 },
+          domains: [
+            { id: 'dom_4', domainName: 'vanguardventures.co', status: 'ACTIVE', expiryDate: new Date(Date.now() + 86400000 * 320).toISOString() },
+          ],
+          hostingAccounts: [
+            { id: 'host_3', planName: 'Linux KVM Enterprise VPS (8GB)', domainName: 'vanguardventures.co', serverIp: '185.190.140.12', status: 'ACTIVE' },
+          ],
+          orders: [
+            { id: 'ord_2', orderNumber: 'HM-2026-8924', totalAmount: 420.00, currency: 'USD', paymentStatus: 'PAID', createdAt: new Date(Date.now() - 86400000 * 5).toISOString() },
+          ],
         },
         {
           id: 'usr_c4',
           name: 'Sarah Jenkins',
           email: 'sarah.j@creativeedge.design',
-          company: 'Creative Edge',
-          role: 'CUSTOMER',
+          company: 'Creative Edge Studios',
+          phone: '+1 (555) 392-1049',
+          address: '742 Evergreen Terrace, Suite 300',
+          city: 'Seattle',
+          state: 'Washington',
           country: 'US',
+          zip: '98101',
+          role: 'CUSTOMER',
           upstreamCustomerId: '6391024',
           createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
           _count: { domains: 1, hostingAccounts: 1, orders: 1, tickets: 1 },
+          domains: [
+            { id: 'dom_5', domainName: 'creativeedge.design', status: 'ACTIVE', expiryDate: new Date(Date.now() + 86400000 * 363).toISOString() },
+          ],
+          hostingAccounts: [
+            { id: 'host_4', planName: 'WordPress Managed Pro', domainName: 'creativeedge.design', serverIp: '198.51.100.48', status: 'ACTIVE' },
+          ],
+          orders: [
+            { id: 'ord_1', orderNumber: 'HM-2026-9041', totalAmount: 189.99, currency: 'USD', paymentStatus: 'PAID', createdAt: new Date(Date.now() - 86400000 * 2).toISOString() },
+          ],
         },
       ];
     }
@@ -276,7 +367,23 @@ export async function GET(req: NextRequest) {
           priority: 'HIGH',
           status: 'OPEN',
           createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
-          user: { name: 'TechMatrix Solutions', email: 'billing@techmatrix.in' },
+          user: {
+            id: 'usr_c2',
+            name: 'TechMatrix Solutions',
+            email: 'billing@techmatrix.in',
+            company: 'TechMatrix Global Pvt Ltd',
+            phone: '+91 98450 12345',
+            country: 'IN',
+          },
+          replies: [
+            {
+              id: 'rep_1_1',
+              senderType: 'CUSTOMER',
+              senderName: 'TechMatrix Solutions',
+              message: 'Hello, our mail server requires a reverse DNS (rDNS) PTR record configured for IP 103.120.178.55 pointing to mail.techmatrix.in. Could you please update this on the upstream datacenter switch?',
+              createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+            },
+          ],
         },
         {
           id: 'tkt_2',
@@ -286,7 +393,30 @@ export async function GET(req: NextRequest) {
           priority: 'MEDIUM',
           status: 'ANSWERED',
           createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
-          user: { name: 'Sarah Jenkins', email: 'sarah.j@creativeedge.design' },
+          user: {
+            id: 'usr_c4',
+            name: 'Sarah Jenkins',
+            email: 'sarah.j@creativeedge.design',
+            company: 'Creative Edge Studios',
+            phone: '+1 (555) 392-1049',
+            country: 'US',
+          },
+          replies: [
+            {
+              id: 'rep_2_1',
+              senderType: 'CUSTOMER',
+              senderName: 'Sarah Jenkins',
+              message: 'I purchased the PositiveSSL certificate. Does this cover *.creativeedge.design automatically or do I need the Wildcard option?',
+              createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+            },
+            {
+              id: 'rep_2_2',
+              senderType: 'STAFF',
+              senderName: 'Hostmattic Support Engineer',
+              message: 'Hi Sarah! The standard PositiveSSL covers single domain (e.g. creativeedge.design and www.creativeedge.design). For unlimited subdomains (*.creativeedge.design), we recommend the PositiveSSL Wildcard option.',
+              createdAt: new Date(Date.now() - 86400000 * 1.5).toISOString(),
+            },
+          ],
         },
       ];
     }
@@ -354,6 +484,108 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    // Enrich tickets with reply tracking & response telemetry
+    const enrichedTickets = tickets.map((t: any) => {
+      const replies = t.replies || [];
+      const latestReply = replies.length > 0 ? replies[0] : null;
+      const lastRepliedAt = latestReply?.createdAt || t.updatedAt || t.createdAt;
+      const lastRepliedBy = latestReply?.senderType || 'CUSTOMER';
+      const lastRepliedByName = latestReply?.senderName || t.user?.name || 'Customer';
+      const needsStaffReply = t.status !== 'CLOSED' && lastRepliedBy === 'CUSTOMER';
+
+      return {
+        ...t,
+        lastRepliedAt,
+        lastRepliedBy,
+        lastRepliedByName,
+        needsStaffReply,
+      };
+    });
+
+    // Extract all add-on services (SSL, Security, Email, Backup)
+    let addons: any[] = [];
+    orders.forEach((o: any) => {
+      (o.items || []).forEach((it: any) => {
+        const pType = (it.productType || '').toUpperCase();
+        if (
+          ['SECURITY', 'EMAIL', 'SSL', 'BACKUP', 'TOOLS', 'BUNDLE'].includes(pType) ||
+          pType.includes('SSL') ||
+          pType.includes('EMAIL') ||
+          pType.includes('SECURITY') ||
+          pType.includes('SITELOCK')
+        ) {
+          addons.push({
+            id: it.id || `addon_${addons.length + 1}`,
+            orderNumber: o.orderNumber,
+            productType: it.productType || 'SECURITY',
+            name: it.description,
+            price: it.price,
+            currency: o.currency || 'USD',
+            billingPeriod: it.billingPeriod || 'ANNUAL',
+            status: o.status === 'COMPLETED' ? 'ACTIVE' : 'PENDING',
+            domainName: it.domainName || o.domainName || 'Linked Service',
+            user: o.user,
+            createdAt: o.createdAt,
+            expiryDate: new Date(new Date(o.createdAt).getTime() + 86400000 * 365).toISOString(),
+            daysUntilExpiry: Math.ceil((new Date(new Date(o.createdAt).getTime() + 86400000 * 365).getTime() - Date.now()) / 86400000),
+          });
+        }
+      });
+    });
+
+    if (addons.length === 0) {
+      addons = [
+        {
+          id: 'addon_demo_1',
+          orderNumber: 'HM-2026-9041',
+          productType: 'SECURITY',
+          name: 'PositiveSSL Wildcard Certificate (DV)',
+          category: 'SSL',
+          price: 30.99,
+          currency: 'USD',
+          billingPeriod: 'ANNUAL',
+          status: 'ACTIVE',
+          domainName: 'creativeedge.design',
+          user: { name: 'Sarah Jenkins', email: 'sarah.j@creativeedge.design', company: 'Creative Edge Studios', phone: '+1 (555) 392-1049' },
+          createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+          expiryDate: new Date(Date.now() + 86400000 * 363).toISOString(),
+          daysUntilExpiry: 363,
+        },
+        {
+          id: 'addon_demo_2',
+          orderNumber: 'HM-2026-8810',
+          productType: 'SECURITY',
+          name: 'SiteLock Web Application Firewall (WAF)',
+          category: 'SECURITY',
+          price: 1500,
+          currency: 'INR',
+          billingPeriod: 'ANNUAL',
+          status: 'ACTIVE',
+          domainName: 'techmatrix.in',
+          user: { name: 'TechMatrix Solutions', email: 'billing@techmatrix.in', company: 'TechMatrix Global Pvt Ltd', phone: '+91 98450 12345' },
+          createdAt: new Date(Date.now() - 86400000 * 12).toISOString(),
+          expiryDate: new Date(Date.now() + 86400000 * 353).toISOString(),
+          daysUntilExpiry: 353,
+        },
+        {
+          id: 'addon_demo_3',
+          orderNumber: 'HM-2026-8924',
+          productType: 'EMAIL',
+          name: 'Business Email Inbox (5 GB Storage)',
+          category: 'EMAIL',
+          price: 7.10,
+          currency: 'USD',
+          billingPeriod: 'ANNUAL',
+          status: 'ACTIVE',
+          domainName: 'vanguardventures.co',
+          user: { name: 'Vanguard Ventures', email: 'ops@vanguardventures.co', company: 'Vanguard Capital Partners LLP', phone: '+44 20 7946 0912' },
+          createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+          expiryDate: new Date(Date.now() + 86400000 * 360).toISOString(),
+          daysUntilExpiry: 360,
+        },
+      ];
+    }
+
     return NextResponse.json({
       success: true,
       metrics: {
@@ -361,6 +593,7 @@ export async function GET(req: NextRequest) {
         activeDomains: domains.length,
         activeHosting: hosting.length,
         totalOrders: orders.length,
+        activeAddons: addons.length,
         openTickets: tickets.filter((t: any) => t.status === 'OPEN').length,
         expirationsRequiringAttention: expirations.totalRequiringAttention,
         expirationsCritical: expirations.criticalCount,
@@ -378,7 +611,8 @@ export async function GET(req: NextRequest) {
       domains: enrichedDomains,
       hosting: enrichedHosting,
       orders: enrichedOrders,
-      tickets,
+      addons,
+      tickets: enrichedTickets,
     });
   } catch (error: any) {
     console.error('Admin overview error:', error);

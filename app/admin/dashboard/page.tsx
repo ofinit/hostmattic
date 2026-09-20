@@ -9,7 +9,7 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'orders' | 'domains' | 'hosting' | 'customers' | 'tickets' | 'taxes' | 'gateway'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'orders' | 'domains' | 'hosting' | 'addons' | 'customers' | 'tickets' | 'taxes' | 'gateway'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Financial & Reports State
@@ -25,6 +25,7 @@ export default function AdminDashboardPage() {
   const [orderGatewayFilter, setOrderGatewayFilter] = useState<'ALL' | 'RAZORPAY' | 'INSTAMOJO' | 'MANUAL'>('ALL');
   const [orderStatusFilter, setOrderStatusFilter] = useState<'ALL' | 'COMPLETED' | 'PAID' | 'PENDING'>('ALL');
   const [orderCurrencyFilter, setOrderCurrencyFilter] = useState<'ALL' | 'INR' | 'USD'>('ALL');
+  const [orderCategoryFilter, setOrderCategoryFilter] = useState<'ALL' | 'DOMAIN' | 'HOSTING' | 'SECURITY' | 'EMAIL'>('ALL');
 
   // Tax & GST Engine Settings state
   const [taxSettings, setTaxSettings] = useState<any>({
@@ -62,9 +63,22 @@ export default function AdminDashboardPage() {
   const [customerPage, setCustomerPage] = useState(1);
   const [domainPage, setDomainPage] = useState(1);
   const [hostingPage, setHostingPage] = useState(1);
+  const [addonPage, setAddonPage] = useState(1);
   const [orderPage, setOrderPage] = useState(1);
   const [ticketPage, setTicketPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  // Helper: Open Customer Dossier from any service row
+  const handleOpenCustomerDossier = (custOrUser: any) => {
+    if (!custOrUser) return;
+    const allCusts = data?.customers || [];
+    const matched = allCusts.find((c: any) =>
+      (custOrUser.id && c.id === custOrUser.id) ||
+      (custOrUser.email && c.email?.toLowerCase() === custOrUser.email?.toLowerCase()) ||
+      (custOrUser.name && c.name?.toLowerCase() === custOrUser.name?.toLowerCase())
+    );
+    setSelectedCustomerDossier(matched || custOrUser);
+  };
 
   // CSV Export for Financial Ledger & P&L
   const exportFinancialsCsv = () => {
@@ -348,7 +362,8 @@ export default function AdminDashboardPage() {
     const matchesSearch =
       (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (o.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (o.gatewayPaymentId || '').toLowerCase().includes(searchQuery.toLowerCase());
+      (o.gatewayPaymentId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (o.items || []).some((it: any) => (it.description || '').toLowerCase().includes(searchQuery.toLowerCase()));
     if (!matchesSearch) return false;
     if (orderGatewayFilter !== 'ALL') {
       const gw = (o.gatewayName || o.paymentMethod || '').toUpperCase();
@@ -361,12 +376,31 @@ export default function AdminDashboardPage() {
     if (orderCurrencyFilter !== 'ALL') {
       if (o.currency !== orderCurrencyFilter) return false;
     }
+    if (orderCategoryFilter !== 'ALL') {
+      const hasCategory = (o.items || []).some((it: any) => {
+        const pt = (it.productType || '').toUpperCase();
+        if (orderCategoryFilter === 'DOMAIN') return pt === 'DOMAIN';
+        if (orderCategoryFilter === 'HOSTING') return ['SHARED_LINUX', 'SHARED_WINDOWS', 'WORDPRESS', 'CLOUD', 'RESELLER', 'VPS', 'DEDICATED'].includes(pt);
+        if (orderCategoryFilter === 'SECURITY') return ['SECURITY', 'SSL', 'BACKUP'].includes(pt) || pt.includes('SSL') || pt.includes('SECURITY');
+        if (orderCategoryFilter === 'EMAIL') return ['EMAIL'].includes(pt) || pt.includes('EMAIL');
+        return true;
+      });
+      if (!hasCategory) return false;
+    }
     return true;
   });
 
+  const addons = (data?.addons || []).filter((a: any) =>
+    (a.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.domainName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (a.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const tickets = (data?.tickets || []).filter((t: any) =>
     (t.ticketNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (t.subject || '').toLowerCase().includes(searchQuery.toLowerCase())
+    (t.subject || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (t.user?.name || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // Paginated items
@@ -378,6 +412,9 @@ export default function AdminDashboardPage() {
 
   const totalHostingPages = Math.ceil(hosting.length / pageSize) || 1;
   const paginatedHosting = hosting.slice((hostingPage - 1) * pageSize, hostingPage * pageSize);
+
+  const totalAddonPages = Math.ceil(addons.length / pageSize) || 1;
+  const paginatedAddons = addons.slice((addonPage - 1) * pageSize, addonPage * pageSize);
 
   const totalOrderPages = Math.ceil(orders.length / pageSize) || 1;
   const paginatedOrders = orders.slice((orderPage - 1) * pageSize, orderPage * pageSize);
@@ -774,6 +811,7 @@ export default function AdminDashboardPage() {
               { id: 'orders', label: `Orders (${orders.length})`, icon: '💳' },
               { id: 'domains', label: `Domains (${domains.length})${data?.expirations?.domains?.warning > 0 ? ' ⚠️' : ''}`, icon: '🌐' },
               { id: 'hosting', label: `Hosting (${hosting.length})${data?.expirations?.hosting?.warning > 0 ? ' ⚠️' : ''}`, icon: '☁️' },
+              { id: 'addons', label: `Security & Add-ons (${addons.length})`, icon: '🛡️' },
               { id: 'customers', label: `Customers (${customers.length})`, icon: '👥' },
               { id: 'tickets', label: `Support Queue (${tickets.length})`, icon: '🎫' },
               { id: 'taxes', label: 'Tax & GST Settings', icon: '🏛️' },
@@ -1492,7 +1530,16 @@ export default function AdminDashboardPage() {
                     <tr key={h.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
                       <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>
                         {h.planName}
-                        <div style={{ fontSize: '0.75rem', color: '#94A3B8', fontWeight: 400 }}>{h.user?.name}</div>
+                        <div style={{ marginTop: '2px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCustomerDossier(h.user)}
+                            title="Click to view full customer profile & dossier"
+                            style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.75rem', color: '#29B4D5', fontWeight: 500, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px' }}
+                          >
+                            👤 {h.user?.name || 'View Customer'}
+                          </button>
+                        </div>
                       </td>
                       <td style={{ padding: '14px 16px', color: '#29B4D5', fontWeight: 600, whiteSpace: 'nowrap' }}>{h.domainName}</td>
                       <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono)', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{h.serverIp}</td>
@@ -1556,6 +1603,141 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
+        {/* 3.5 SECURITY & ADD-ONS TAB (SSL, EMAIL, SITELOCK, BACKUPS) */}
+        {activeTab === 'addons' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Context Header Card */}
+            <div style={{ background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.8) 100%)', border: '1px solid rgba(41, 180, 213, 0.25)', borderRadius: '16px', padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1.25rem' }}>🛡️</span>
+                  <h3 style={{ fontSize: '1.15rem', color: '#FFFFFF', margin: 0, fontWeight: 700 }}>Security, Email &amp; Value-Added Subscriptions</h3>
+                </div>
+                <p style={{ color: '#94A3B8', fontSize: '0.84rem', margin: '4px 0 0' }}>
+                  All non-hosting/non-domain products provisioned: SSL Certificates, SiteLock WAF, Acronis Cloud Backups, and Business Email.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ background: 'rgba(41, 180, 213, 0.12)', border: '1px solid rgba(41, 180, 213, 0.3)', borderRadius: '10px', padding: '8px 14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>Active Subscriptions</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#29B4D5' }}>{addons.length}</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '950px' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Service &amp; Product</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Customer</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Assigned Domain</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Price &amp; Billing</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Next Renewal / Expiry</th>
+                    <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedAddons.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: '#94A3B8' }}>
+                        No add-on subscriptions match your search filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedAddons.map((a: any) => {
+                      const cSign = a.currency === 'USD' ? '$' : '₹';
+                      const isSsl = (a.productType || '').includes('SSL') || (a.name || '').includes('SSL');
+                      const isEmail = (a.productType || '').includes('EMAIL') || (a.name || '').toLowerCase().includes('email');
+                      const badgeBg = isSsl ? 'rgba(41, 180, 213, 0.2)' : isEmail ? 'rgba(255, 205, 0, 0.2)' : 'rgba(155, 203, 68, 0.2)';
+                      const badgeColor = isSsl ? '#29B4D5' : isEmail ? '#FFCD00' : '#9BCB44';
+
+                      return (
+                        <tr key={a.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                          <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ padding: '2px 8px', borderRadius: '4px', background: badgeBg, color: badgeColor, fontSize: '0.7rem', fontWeight: 800 }}>
+                                {isSsl ? '🔒 SSL' : isEmail ? '✉️ EMAIL' : '🛡️ SECURITY'}
+                              </span>
+                              <strong style={{ color: '#FFFFFF', fontSize: '0.88rem' }}>{a.name}</strong>
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '3px' }}>
+                              Order: <span style={{ fontFamily: 'var(--font-mono)', color: '#FFCD00' }}>{a.orderNumber}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenCustomerDossier(a.user)}
+                              title="Click to view full customer details & dossier"
+                              style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.85rem', color: '#29B4D5', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px', textAlign: 'left' }}
+                            >
+                              👤 {a.user?.name || 'Customer'}
+                            </button>
+                            {a.user?.company && <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>{a.user.company}</div>}
+                          </td>
+                          <td style={{ padding: '14px 16px', color: '#CBD5E1', fontFamily: 'monospace', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                            {a.domainName || '—'}
+                          </td>
+                          <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontWeight: 700, color: '#FFFFFF', fontSize: '0.86rem' }}>
+                              {cSign}{Number(a.price).toLocaleString()}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>{a.billingPeriod || 'ANNUAL'}</div>
+                          </td>
+                          <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                            <div style={{ fontSize: '0.84rem', color: '#CBD5E1', marginBottom: '3px' }}>
+                              {a.expiryDate ? new Date(a.expiryDate).toLocaleDateString() : 'N/A'}
+                            </div>
+                            {a.daysUntilExpiry !== undefined && (
+                              a.daysUntilExpiry <= 7 ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.25)', color: '#F87171', border: '1px solid rgba(239, 68, 68, 0.5)', fontSize: '0.72rem', fontWeight: 800 }}>
+                                  <span>🚨</span>
+                                  <span>Due in {a.daysUntilExpiry}d</span>
+                                </span>
+                              ) : a.daysUntilExpiry <= 30 ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(255, 205, 0, 0.2)', color: '#FFCD00', border: '1px solid rgba(255, 205, 0, 0.45)', fontSize: '0.72rem', fontWeight: 700 }}>
+                                  <span>⚠️</span>
+                                  <span>Due in {a.daysUntilExpiry}d</span>
+                                </span>
+                              ) : (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', borderRadius: '4px', background: 'rgba(155, 203, 68, 0.15)', color: '#9BCB44', border: '1px solid rgba(155, 203, 68, 0.35)', fontSize: '0.72rem', fontWeight: 600 }}>
+                                  <span>🟢</span>
+                                  <span>Active ({a.daysUntilExpiry}d left)</span>
+                                </span>
+                              )
+                            )}
+                          </td>
+                          <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                            <span className="status-badge status-badge-dark-success">
+                              <span className="status-dot"></span>
+                              ⚡ {a.status || 'Active'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                            <button
+                              onClick={() => {
+                                const matchingOrder = (data?.orders || []).find((o: any) => o.orderNumber === a.orderNumber);
+                                if (matchingOrder) setSelectedTransaction(matchingOrder);
+                                else handleOpenCustomerDossier(a.user);
+                              }}
+                              style={{ background: 'rgba(255, 205, 0, 0.15)', border: '1px solid rgba(255, 205, 0, 0.35)', color: '#FFCD00', padding: '6px 12px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            >
+                              Inspect Details 🔍
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+              {renderPagination(addonPage, totalAddonPages, addons.length, 'subscriptions', setAddonPage)}
+            </div>
+          </div>
+        )}
+
         {/* 4. DOMAINS TAB */}
         {activeTab === 'domains' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1609,7 +1791,17 @@ export default function AdminDashboardPage() {
                   {paginatedDomains.map((d: any) => (
                     <tr key={d.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
                       <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>{d.domainName}</td>
-                      <td style={{ padding: '14px 16px', color: '#94A3B8', whiteSpace: 'nowrap' }}>{d.user?.name || 'Customer'}</td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCustomerDossier(d.user)}
+                          title="Click to view full customer profile & dossier"
+                          style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.85rem', color: '#29B4D5', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px', textAlign: 'left' }}
+                        >
+                          👤 {d.user?.name || 'Customer'}
+                        </button>
+                        {d.user?.email && <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>{d.user.email}</div>}
+                      </td>
                       <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
                         <div style={{ fontSize: '0.84rem', color: '#CBD5E1', marginBottom: '4px' }}>
                           {new Date(d.expiryDate).toLocaleDateString()}
@@ -1675,68 +1867,101 @@ export default function AdminDashboardPage() {
         {activeTab === 'orders' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Orders Filter Toolbar */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                {/* Gateway Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '4px 10px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Gateway:</span>
-                  <select
-                    value={orderGatewayFilter}
-                    onChange={(e) => { setOrderGatewayFilter(e.target.value as any); setOrderPage(1); }}
-                    style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Product Category Filter Pills */}
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600, marginRight: '4px' }}>Product Filter:</span>
+                {[
+                  { id: 'ALL', label: 'All Orders' },
+                  { id: 'DOMAIN', label: '🌐 Domains' },
+                  { id: 'HOSTING', label: '☁️ Web Hosting' },
+                  { id: 'SECURITY', label: '🛡️ Security & SSL' },
+                  { id: 'EMAIL', label: '✉️ Business Email' },
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => { setOrderCategoryFilter(cat.id as any); setOrderPage(1); }}
+                    style={{
+                      background: orderCategoryFilter === cat.id ? 'rgba(255, 205, 0, 0.2)' : 'rgba(30, 41, 59, 0.7)',
+                      border: `1px solid ${orderCategoryFilter === cat.id ? '#FFCD00' : 'rgba(255, 255, 255, 0.1)'}`,
+                      color: orderCategoryFilter === cat.id ? '#FFCD00' : '#CBD5E1',
+                      borderRadius: '8px',
+                      padding: '4px 12px',
+                      fontSize: '0.78rem',
+                      fontWeight: orderCategoryFilter === cat.id ? 700 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
                   >
-                    <option value="ALL" style={{ background: '#0F172A' }}>All Gateways</option>
-                    <option value="RAZORPAY" style={{ background: '#0F172A' }}>Razorpay</option>
-                    <option value="INSTAMOJO" style={{ background: '#0F172A' }}>Instamojo</option>
-                    <option value="MANUAL" style={{ background: '#0F172A' }}>Manual / Admin</option>
-                  </select>
-                </div>
-
-                {/* Status Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '4px 10px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Status:</span>
-                  <select
-                    value={orderStatusFilter}
-                    onChange={(e) => { setOrderStatusFilter(e.target.value as any); setOrderPage(1); }}
-                    style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
-                  >
-                    <option value="ALL" style={{ background: '#0F172A' }}>All Statuses</option>
-                    <option value="PAID" style={{ background: '#0F172A' }}>Paid</option>
-                    <option value="COMPLETED" style={{ background: '#0F172A' }}>Completed</option>
-                    <option value="PENDING" style={{ background: '#0F172A' }}>Pending</option>
-                  </select>
-                </div>
-
-                {/* Currency Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '4px 10px' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Currency:</span>
-                  <select
-                    value={orderCurrencyFilter}
-                    onChange={(e) => { setOrderCurrencyFilter(e.target.value as any); setOrderPage(1); }}
-                    style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
-                  >
-                    <option value="ALL" style={{ background: '#0F172A' }}>All Currencies</option>
-                    <option value="INR" style={{ background: '#0F172A' }}>INR (₹)</option>
-                    <option value="USD" style={{ background: '#0F172A' }}>USD ($)</option>
-                  </select>
-                </div>
+                    {cat.label}
+                  </button>
+                ))}
               </div>
 
-              <button
-                onClick={exportFinancialsCsv}
-                style={{ background: 'rgba(155, 203, 68, 0.15)', border: '1px solid rgba(155, 203, 68, 0.35)', color: '#9BCB44', padding: '6px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-              >
-                <span>📥</span>
-                <span>Export Ledger CSV</span>
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {/* Gateway Filter */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '4px 10px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Gateway:</span>
+                    <select
+                      value={orderGatewayFilter}
+                      onChange={(e) => { setOrderGatewayFilter(e.target.value as any); setOrderPage(1); }}
+                      style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+                    >
+                      <option value="ALL" style={{ background: '#0F172A' }}>All Gateways</option>
+                      <option value="RAZORPAY" style={{ background: '#0F172A' }}>Razorpay</option>
+                      <option value="INSTAMOJO" style={{ background: '#0F172A' }}>Instamojo</option>
+                      <option value="MANUAL" style={{ background: '#0F172A' }}>Manual / Admin</option>
+                    </select>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '4px 10px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Status:</span>
+                    <select
+                      value={orderStatusFilter}
+                      onChange={(e) => { setOrderStatusFilter(e.target.value as any); setOrderPage(1); }}
+                      style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+                    >
+                      <option value="ALL" style={{ background: '#0F172A' }}>All Statuses</option>
+                      <option value="PAID" style={{ background: '#0F172A' }}>Paid</option>
+                      <option value="COMPLETED" style={{ background: '#0F172A' }}>Completed</option>
+                      <option value="PENDING" style={{ background: '#0F172A' }}>Pending</option>
+                    </select>
+                  </div>
+
+                  {/* Currency Filter */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '4px 10px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Currency:</span>
+                    <select
+                      value={orderCurrencyFilter}
+                      onChange={(e) => { setOrderCurrencyFilter(e.target.value as any); setOrderPage(1); }}
+                      style={{ background: 'transparent', border: 'none', color: '#FFFFFF', fontSize: '0.78rem', fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+                    >
+                      <option value="ALL" style={{ background: '#0F172A' }}>All Currencies</option>
+                      <option value="INR" style={{ background: '#0F172A' }}>INR (₹)</option>
+                      <option value="USD" style={{ background: '#0F172A' }}>USD ($)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button
+                  onClick={exportFinancialsCsv}
+                  style={{ background: 'rgba(155, 203, 68, 0.15)', border: '1px solid rgba(155, 203, 68, 0.35)', color: '#9BCB44', padding: '6px 14px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <span>📥</span>
+                  <span>Export Ledger CSV</span>
+                </button>
+              </div>
             </div>
 
             <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '960px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '1080px' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Order Number</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Customer</th>
+                    <th style={{ padding: '12px 16px', minWidth: '200px' }}>Items &amp; Products</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Invoiced Price</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Wholesale COGS &amp; Margin</th>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Payment Method &amp; Gateway</th>
@@ -1764,10 +1989,41 @@ export default function AdminDashboardPage() {
                           </button>
                         </td>
                         <td style={{ padding: '14px 16px', color: '#FFFFFF', whiteSpace: 'nowrap' }}>
-                          <div>{o.user?.name}</div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCustomerDossier(o.user)}
+                            title="Click to view full customer profile & dossier"
+                            style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.88rem', color: '#29B4D5', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px', textAlign: 'left' }}
+                          >
+                            👤 {o.user?.name || 'Customer'}
+                          </button>
+                          {o.user?.email && <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>{o.user.email}</div>}
                           {o.customerGstin && (
                             <div style={{ fontSize: '0.72rem', color: '#9BCB44', fontFamily: 'monospace' }}>GSTIN: {o.customerGstin}</div>
                           )}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxWidth: '280px' }}>
+                            {(o.items || []).map((it: any, idx: number) => {
+                              const pt = (it.productType || '').toUpperCase();
+                              const isSsl = pt.includes('SSL') || (it.description || '').includes('SSL');
+                              const isEmail = pt.includes('EMAIL') || (it.description || '').toLowerCase().includes('email');
+                              const isHost = ['SHARED_LINUX', 'SHARED_WINDOWS', 'WORDPRESS', 'CLOUD', 'RESELLER', 'VPS', 'DEDICATED'].includes(pt);
+                              const tagColor = isSsl ? '#29B4D5' : isEmail ? '#FFCD00' : isHost ? '#9BCB44' : '#CBD5E1';
+                              const tagBg = isSsl ? 'rgba(41, 180, 213, 0.15)' : isEmail ? 'rgba(255, 205, 0, 0.15)' : isHost ? 'rgba(155, 203, 68, 0.15)' : 'rgba(255, 255, 255, 0.08)';
+
+                              return (
+                                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem' }}>
+                                  <span style={{ padding: '1px 5px', borderRadius: '3px', background: tagBg, color: tagColor, fontSize: '0.65rem', fontWeight: 700, flexShrink: 0 }}>
+                                    {isSsl ? 'SSL' : isEmail ? 'EMAIL' : isHost ? 'HOST' : pt === 'DOMAIN' ? 'DOM' : 'ADDON'}
+                                  </span>
+                                  <span style={{ color: '#E2E8F0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={it.description}>
+                                    {it.description}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </td>
                         <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>
                           <div>{o.currency === 'INR' ? `₹${o.totalAmount.toLocaleString()}` : `$${o.totalAmount.toFixed(2)}`}</div>
@@ -1871,50 +2127,98 @@ export default function AdminDashboardPage() {
         {/* 6. SUPPORT QUEUE (STAFF TICKETING DESK) */}
         {activeTab === 'tickets' && (
           <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '850px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '1020px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Ticket #</th>
-                  <th style={{ padding: '12px 16px', minWidth: '240px' }}>Subject</th>
+                  <th style={{ padding: '12px 16px', minWidth: '220px' }}>Subject</th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Customer</th>
+                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Created Date</th>
+                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Last Replied Date</th>
+                  <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Last Replied By</th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Priority</th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Status</th>
                   <th style={{ padding: '12px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>Resolution Desk</th>
                 </tr>
               </thead>
               <tbody>
-                {paginatedTickets.map((t: any) => (
-                  <tr
-                    key={t.id}
-                    onClick={() => setSelectedStaffTicket(t)}
-                    style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', cursor: 'pointer' }}
-                  >
-                    <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#29B4D5', whiteSpace: 'nowrap' }}>
-                      {t.ticketNumber}
-                    </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: '#FFFFFF' }}>{t.subject}</td>
-                    <td style={{ padding: '14px 16px', color: '#94A3B8', whiteSpace: 'nowrap' }}>{t.user?.name}</td>
-                    <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                      <span className={`status-badge ${t.priority === 'HIGH' ? 'status-badge-dark-danger' : 'status-badge-dark-warning'}`}>
-                        {t.priority}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                      <span className={`status-badge ${t.status === 'OPEN' ? 'status-badge-dark-success' : t.status === 'ANSWERED' ? 'status-badge-dark-info' : 'status-badge-dark-neutral'}`}>
-                        <span className="status-dot"></span>
-                        {t.status === 'CLOSED' ? '🔒 Closed' : t.status === 'ANSWERED' ? '💬 Answered' : '🟢 Open'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setSelectedStaffTicket(t); }}
-                        style={{ background: 'rgba(255, 205, 0, 0.15)', border: '1px solid rgba(255, 205, 0, 0.35)', color: '#FFCD00', padding: '6px 14px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
-                      >
-                        Open Desk 💬
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {paginatedTickets.map((t: any) => {
+                  const isCustLast = t.lastRepliedBy === 'CUSTOMER' || !t.lastRepliedBy;
+                  const needsReply = t.status !== 'CLOSED' && isCustLast;
+
+                  return (
+                    <tr
+                      key={t.id}
+                      onClick={() => setSelectedStaffTicket(t)}
+                      style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', cursor: 'pointer' }}
+                    >
+                      <td style={{ padding: '14px 16px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#29B4D5', whiteSpace: 'nowrap' }}>
+                        {t.ticketNumber}
+                      </td>
+                      <td style={{ padding: '14px 16px', fontWeight: 600, color: '#FFFFFF' }}>{t.subject}</td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleOpenCustomerDossier(t.user); }}
+                          title="Click to view full customer details & dossier"
+                          style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.85rem', color: '#29B4D5', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline', textUnderlineOffset: '2px', textAlign: 'left' }}
+                        >
+                          👤 {t.user?.name || 'Customer'}
+                        </button>
+                        {t.user?.email && <div style={{ fontSize: '0.72rem', color: '#94A3B8' }}>{t.user.email}</div>}
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#CBD5E1', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                        <div>{new Date(t.createdAt).toLocaleDateString()}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748B' }}>
+                          {new Date(t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 16px', color: '#CBD5E1', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                        <div>{new Date(t.lastRepliedAt || t.createdAt).toLocaleDateString()}</div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748B' }}>
+                          {new Date(t.lastRepliedAt || t.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        {needsReply ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.45)', color: '#FCA5A5', fontSize: '0.74rem', fontWeight: 700 }}>
+                            <span>👤</span>
+                            <span>Customer (Needs Reply)</span>
+                          </span>
+                        ) : t.lastRepliedBy === 'STAFF' ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(155, 203, 68, 0.15)', border: '1px solid rgba(155, 203, 68, 0.35)', color: '#9BCB44', fontSize: '0.74rem', fontWeight: 600 }}>
+                            <span>🛡️</span>
+                            <span>Staff (Answered)</span>
+                          </span>
+                        ) : (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.08)', color: '#94A3B8', fontSize: '0.74rem' }}>
+                            <span>👤</span>
+                            <span>{t.lastRepliedByName || 'Customer'}</span>
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        <span className={`status-badge ${t.priority === 'HIGH' ? 'status-badge-dark-danger' : 'status-badge-dark-warning'}`}>
+                          {t.priority}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                        <span className={`status-badge ${t.status === 'OPEN' ? 'status-badge-dark-success' : t.status === 'ANSWERED' ? 'status-badge-dark-info' : 'status-badge-dark-neutral'}`}>
+                          <span className="status-dot"></span>
+                          {t.status === 'CLOSED' ? '🔒 Closed' : t.status === 'ANSWERED' ? '💬 Answered' : '🟢 Open'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setSelectedStaffTicket(t); }}
+                          style={{ background: 'rgba(255, 205, 0, 0.15)', border: '1px solid rgba(255, 205, 0, 0.35)', color: '#FFCD00', padding: '6px 14px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >
+                          Open Desk 💬
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {renderPagination(ticketPage, totalTicketPages, tickets.length, 'tickets', setTicketPage)}
@@ -2523,9 +2827,26 @@ export default function AdminDashboardPage() {
                     <span className="status-dot"></span>
                     {selectedStaffTicket.status === 'CLOSED' ? '🔒 CLOSED & ARCHIVED' : selectedStaffTicket.status === 'ANSWERED' ? '💬 ANSWERED' : '🟢 OPEN'}
                   </span>
-                  <span style={{ fontSize: '0.78rem', color: '#94A3B8' }}>Customer: {selectedStaffTicket.user?.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenCustomerDossier(selectedStaffTicket.user)}
+                    style={{ background: 'none', border: 'none', padding: 0, fontSize: '0.78rem', color: '#29B4D5', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    👤 {selectedStaffTicket.user?.name || 'Customer'}
+                  </button>
                 </div>
-                <h3 style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: 0, wordBreak: 'break-word' }}>{selectedStaffTicket.subject}</h3>
+                <h3 style={{ fontSize: '1.25rem', color: '#FFFFFF', margin: '0 0 8px', wordBreak: 'break-word' }}>{selectedStaffTicket.subject}</h3>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '0.76rem', color: '#94A3B8' }}>
+                  <div>
+                    Created: <strong style={{ color: '#CBD5E1' }}>{new Date(selectedStaffTicket.createdAt).toLocaleString()}</strong>
+                  </div>
+                  <div>
+                    Last Replied: <strong style={{ color: '#CBD5E1' }}>{new Date(selectedStaffTicket.lastRepliedAt || selectedStaffTicket.createdAt).toLocaleString()}</strong>
+                  </div>
+                  <div>
+                    Last Replied By: <strong style={{ color: selectedStaffTicket.lastRepliedBy === 'STAFF' ? '#9BCB44' : '#FFCD00' }}>{selectedStaffTicket.lastRepliedByName || selectedStaffTicket.lastRepliedBy || 'Customer'}</strong>
+                  </div>
+                </div>
               </div>
               <button
                 onClick={() => setSelectedStaffTicket(null)}
@@ -2634,61 +2955,210 @@ export default function AdminDashboardPage() {
       {/* ========================================================================= */}
       {/* ADMIN DETAIL MODAL 2: CUSTOMER DEEP-DIVE DOSSIER (Option 1 Core)          */}
       {/* ========================================================================= */}
-      {selectedCustomerDossier && (
-        <div className="modal-backdrop-responsive">
-          <div className="modal-card-responsive dark" style={{ maxWidth: '720px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '16px' }}>
-              <div>
-                <span style={{ fontSize: '0.75rem', background: 'rgba(255, 205, 0, 0.15)', color: '#FFCD00', padding: '2px 8px', borderRadius: '999px', fontWeight: 700 }}>
-                  CUSTOMER DOSSIER
-                </span>
-                <h3 style={{ fontSize: '1.4rem', color: '#FFFFFF', margin: '6px 0 2px', wordBreak: 'break-word' }}>{selectedCustomerDossier.name}</h3>
-                <div style={{ color: '#94A3B8', fontSize: '0.85rem', wordBreak: 'break-word' }}>{selectedCustomerDossier.email} &bull; Upstream Partner ID: <strong style={{ color: '#FFCD00' }}>{selectedCustomerDossier.upstreamCustomerId || 'Local'}</strong></div>
-              </div>
-              <button onClick={() => setSelectedCustomerDossier(null)} style={{ background: 'rgba(255, 255, 255, 0.1)', border: 'none', borderRadius: '999px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, color: '#FFFFFF', flexShrink: 0 }}>✕</button>
-            </div>
+      {selectedCustomerDossier && (() => {
+        const custEmail = (selectedCustomerDossier.email || '').toLowerCase();
+        const custId = selectedCustomerDossier.id;
+        const custName = (selectedCustomerDossier.name || '').toLowerCase();
 
-            <div className="grid-col-1-to-3" style={{ marginBottom: '24px' }}>
-              <div style={{ background: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Active Domains</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#9BCB44', marginTop: '2px' }}>{selectedCustomerDossier._count?.domains || 1}</div>
-              </div>
-              <div style={{ background: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Hosting Accounts</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#29B4D5', marginTop: '2px' }}>{selectedCustomerDossier._count?.hostingAccounts || 1}</div>
-              </div>
-              <div style={{ background: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Total Invoices</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFCD00', marginTop: '2px' }}>{selectedCustomerDossier._count?.orders || 2}</div>
-              </div>
-            </div>
+        const linkedDomains = (data?.domains || []).filter((d: any) =>
+          (custId && d.userId === custId) ||
+          (d.user?.email && d.user.email.toLowerCase() === custEmail) ||
+          (d.user?.name && d.user.name.toLowerCase() === custName) ||
+          (selectedCustomerDossier.domains || []).some((cd: any) => cd.domainName === d.domainName)
+        );
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
-              <button onClick={() => setSelectedCustomerDossier(null)} style={{ background: 'transparent', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#FFFFFF', padding: '8px 18px', borderRadius: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
-                Close
-              </button>
-              {selectedCustomerDossier.upstreamCustomerId && selectedCustomerDossier.upstreamCustomerId !== 'Pending Sync' ? (
-                <a
-                  href={`/api/client/sso?customerId=${selectedCustomerDossier.upstreamCustomerId}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ background: '#9BCB44', color: '#090D12', padding: '8px 18px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none' }}
-                >
-                  Launch 1-Click Client SSO ↗
-                </a>
-              ) : (
-                <button
-                  disabled
-                  title="No upstream customer ID linked to this account"
-                  style={{ background: 'rgba(255, 255, 255, 0.08)', color: '#64748B', padding: '8px 18px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, cursor: 'not-allowed', border: 'none' }}
-                >
-                  SSO Unavailable (Unsynced)
+        const linkedHosting = (data?.hosting || []).filter((h: any) =>
+          (custId && h.userId === custId) ||
+          (h.user?.email && h.user.email.toLowerCase() === custEmail) ||
+          (h.user?.name && h.user.name.toLowerCase() === custName) ||
+          (selectedCustomerDossier.hostingAccounts || []).some((ch: any) => ch.domainName === h.domainName)
+        );
+
+        const linkedOrders = (data?.orders || []).filter((o: any) =>
+          (custId && o.userId === custId) ||
+          (o.user?.email && o.user.email.toLowerCase() === custEmail) ||
+          (o.user?.name && o.user.name.toLowerCase() === custName) ||
+          (selectedCustomerDossier.orders || []).some((co: any) => co.orderNumber === o.orderNumber)
+        );
+
+        return (
+          <div className="modal-backdrop-responsive">
+            <div className="modal-card-responsive dark" style={{ maxWidth: '820px', maxHeight: '90vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '16px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '0.75rem', background: 'rgba(255, 205, 0, 0.15)', color: '#FFCD00', padding: '2px 8px', borderRadius: '999px', fontWeight: 700 }}>
+                      CUSTOMER CRM DOSSIER
+                    </span>
+                    <span style={{ fontSize: '0.75rem', background: 'rgba(41, 180, 213, 0.15)', color: '#29B4D5', padding: '2px 8px', borderRadius: '999px', fontFamily: 'monospace' }}>
+                      ID: {selectedCustomerDossier.upstreamCustomerId || selectedCustomerDossier.id?.slice(0, 10) || 'Local Client'}
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: '1.45rem', color: '#FFFFFF', margin: '4px 0 2px', wordBreak: 'break-word' }}>{selectedCustomerDossier.name}</h3>
+                  <div style={{ color: '#94A3B8', fontSize: '0.85rem' }}>
+                    {selectedCustomerDossier.email} {selectedCustomerDossier.company ? `• ${selectedCustomerDossier.company}` : ''}
+                  </div>
+                </div>
+                <button onClick={() => setSelectedCustomerDossier(null)} style={{ background: 'rgba(255, 255, 255, 0.1)', border: 'none', borderRadius: '999px', width: '32px', height: '32px', cursor: 'pointer', fontWeight: 700, color: '#FFFFFF', flexShrink: 0 }}>✕</button>
+              </div>
+
+              {/* Complete Contact & Billing Address Grid */}
+              <div style={{ background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '14px', padding: '18px', marginBottom: '20px' }}>
+                <h4 style={{ fontSize: '0.85rem', color: '#FFCD00', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 12px', fontWeight: 700 }}>
+                  Contact &amp; Statutory Profile
+                </h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', fontSize: '0.82rem' }}>
+                  <div>
+                    <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Phone Number:</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedCustomerDossier.phone || '—'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Organization / Company:</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedCustomerDossier.company || 'Individual / None'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>GSTIN / Tax ID:</span>
+                    <strong style={{ color: '#9BCB44', fontFamily: 'monospace' }}>{selectedCustomerDossier.gstin || selectedCustomerDossier.taxId || 'Unregistered (B2C)'}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Country &amp; Jurisdiction:</span>
+                    <strong style={{ color: '#FFFFFF' }}>{selectedCustomerDossier.country || 'IN'} ({selectedCustomerDossier.state || 'National'})</strong>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Registered Billing Address:</span>
+                    <span style={{ color: '#CBD5E1' }}>
+                      {[selectedCustomerDossier.address, selectedCustomerDossier.city, selectedCustomerDossier.state, selectedCustomerDossier.zip, selectedCustomerDossier.country].filter(Boolean).join(', ') || 'Address not on file'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Service Summary KPI Cards */}
+              <div className="grid-col-1-to-3" style={{ marginBottom: '20px' }}>
+                <div style={{ background: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Active Domains</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#9BCB44', marginTop: '2px' }}>{linkedDomains.length || selectedCustomerDossier._count?.domains || 0}</div>
+                </div>
+                <div style={{ background: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Hosting Accounts</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#29B4D5', marginTop: '2px' }}>{linkedHosting.length || selectedCustomerDossier._count?.hostingAccounts || 0}</div>
+                </div>
+                <div style={{ background: 'rgba(30, 41, 59, 0.5)', borderRadius: '12px', padding: '14px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#94A3B8' }}>Invoices &amp; Orders</div>
+                  <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFCD00', marginTop: '2px' }}>{linkedOrders.length || selectedCustomerDossier._count?.orders || 0}</div>
+                </div>
+              </div>
+
+              {/* Linked Services Details */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                {/* Linked Domains List */}
+                <div style={{ background: 'rgba(30, 41, 59, 0.3)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#9BCB44', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>🌐</span>
+                    <span>Domains Owned ({linkedDomains.length})</span>
+                  </div>
+                  {linkedDomains.length === 0 ? (
+                    <div style={{ fontSize: '0.78rem', color: '#64748B' }}>No active domain registrations for this customer.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {linkedDomains.map((d: any) => (
+                        <div key={d.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '8px', fontSize: '0.82rem' }}>
+                          <div>
+                            <strong style={{ color: '#FFFFFF' }}>{d.domainName}</strong>
+                            <div style={{ fontSize: '0.7rem', color: '#94A3B8' }}>Expires: {new Date(d.expiryDate).toLocaleDateString()}</div>
+                          </div>
+                          <span style={{ fontSize: '0.72rem', color: d.autoRenew ? '#9BCB44' : '#FFCD00', background: 'rgba(255, 255, 255, 0.05)', padding: '2px 8px', borderRadius: '4px' }}>
+                            {d.autoRenew ? 'Auto-Renew' : 'Manual Renew'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Linked Hosting Plans */}
+                <div style={{ background: 'rgba(30, 41, 59, 0.3)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#29B4D5', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>☁️</span>
+                    <span>Web Hosting Subscriptions ({linkedHosting.length})</span>
+                  </div>
+                  {linkedHosting.length === 0 ? (
+                    <div style={{ fontSize: '0.78rem', color: '#64748B' }}>No active hosting subscriptions for this customer.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {linkedHosting.map((h: any) => (
+                        <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '8px', fontSize: '0.82rem' }}>
+                          <div>
+                            <strong style={{ color: '#FFFFFF' }}>{h.planName}</strong>
+                            <div style={{ fontSize: '0.7rem', color: '#94A3B8' }}>Target: {h.domainName} &bull; IP: {h.serverIp}</div>
+                          </div>
+                          <button
+                            onClick={() => { setSelectedHostingForAction(h); setSelectedCustomerDossier(null); }}
+                            style={{ background: 'rgba(41, 180, 213, 0.15)', border: '1px solid rgba(41, 180, 213, 0.35)', color: '#29B4D5', padding: '4px 8px', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer' }}
+                          >
+                            Manage
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Recent Orders */}
+                <div style={{ background: 'rgba(30, 41, 59, 0.3)', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#FFCD00', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>💳</span>
+                    <span>Order &amp; Billing History ({linkedOrders.length})</span>
+                  </div>
+                  {linkedOrders.length === 0 ? (
+                    <div style={{ fontSize: '0.78rem', color: '#64748B' }}>No orders found for this customer.</div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {linkedOrders.slice(0, 5).map((o: any) => (
+                        <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '8px', fontSize: '0.82rem' }}>
+                          <div>
+                            <span style={{ fontFamily: 'var(--font-mono)', color: '#FFCD00', fontWeight: 700 }}>{o.orderNumber}</span>
+                            <div style={{ fontSize: '0.7rem', color: '#94A3B8' }}>{new Date(o.createdAt).toLocaleDateString()} &bull; {o.paymentMethod || 'Online'}</div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <strong style={{ color: '#FFFFFF' }}>{o.currency === 'INR' ? `₹${o.totalAmount.toLocaleString()}` : `$${o.totalAmount.toFixed(2)}`}</strong>
+                            <div style={{ fontSize: '0.7rem', color: '#9BCB44' }}>{o.paymentStatus || 'PAID'}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', flexWrap: 'wrap' }}>
+                <button onClick={() => setSelectedCustomerDossier(null)} style={{ background: 'transparent', border: '1px solid rgba(255, 255, 255, 0.2)', color: '#FFFFFF', padding: '8px 18px', borderRadius: '8px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                  Close Dossier
                 </button>
-              )}
+                {selectedCustomerDossier.upstreamCustomerId && selectedCustomerDossier.upstreamCustomerId !== 'Pending Sync' ? (
+                  <a
+                    href={`/api/client/sso?customerId=${selectedCustomerDossier.upstreamCustomerId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ background: '#9BCB44', color: '#090D12', padding: '8px 18px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, textDecoration: 'none' }}
+                  >
+                    Launch 1-Click Client SSO ↗
+                  </a>
+                ) : (
+                  <button
+                    disabled
+                    title="No upstream customer ID linked to this account"
+                    style={{ background: 'rgba(255, 255, 255, 0.08)', color: '#64748B', padding: '8px 18px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, cursor: 'not-allowed', border: 'none' }}
+                  >
+                    SSO Unavailable (Unsynced)
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* ADMIN DETAIL MODAL 3: HOSTING SERVICE MANAGEMENT (Option 1 Core)          */}
