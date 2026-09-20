@@ -42,7 +42,12 @@ export default function LoginPage() {
 
       const data = await res.json();
       if (data.success) {
-        router.push('/client/dashboard');
+        const destination = data.user?.role === 'ADMIN' ? '/admin/dashboard' : '/client/dashboard';
+        if (typeof window !== 'undefined') {
+          window.location.href = destination;
+        } else {
+          router.push(destination);
+        }
       } else {
         setError(data.error || 'Invalid email or password.');
       }
@@ -176,15 +181,15 @@ export default function LoginPage() {
           {tab === 'client' && (
             <form onSubmit={handleClientLogin}>
               <div className="form-group">
-                <label className="form-label" htmlFor="clientEmail">Email Address</label>
+                <label className="form-label" htmlFor="clientEmail">Email Address or Username</label>
                 <input
-                  type="email"
+                  type="text"
                   id="clientEmail"
                   className="form-input"
-                  placeholder="name@yourcompany.com"
+                  placeholder="name@yourcompany.com or admin"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  autoComplete="email"
+                  autoComplete="username"
                   required
                 />
               </div>
@@ -341,11 +346,19 @@ export default function LoginPage() {
           )}
         </div>
 
-        <div className="auth-footer">
-          Don&apos;t have an account yet?{' '}
-          <Link href="/register" className="form-link" style={{ fontWeight: 700 }}>
-            Create an Account →
-          </Link>
+        <div className="auth-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+          <div>
+            Don&apos;t have an account yet?{' '}
+            <Link href="/register" className="form-link" style={{ fontWeight: 700 }}>
+              Create an Account →
+            </Link>
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Hostmattic Staff?{' '}
+            <Link href="/admin/login" style={{ color: 'var(--brand-cyan)', fontWeight: 600 }}>
+              Staff Operations Portal →
+            </Link>
+          </div>
         </div>
       </div>
 

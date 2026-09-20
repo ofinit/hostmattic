@@ -28,7 +28,11 @@ export default function AdminLoginPage() {
 
       const data = await res.json();
       if (data.success) {
-        router.push('/admin/dashboard');
+        if (typeof window !== 'undefined') {
+          window.location.href = '/admin/dashboard';
+        } else {
+          router.push('/admin/dashboard');
+        }
       } else {
         setError(data.error || 'Authentication rejected by security policy.');
       }
@@ -79,7 +83,7 @@ export default function AdminLoginPage() {
                 type="text"
                 className="form-input"
                 style={{ background: 'rgba(0,0,0,0.35)', color: '#FFF', borderColor: 'rgba(255,255,255,0.15)' }}
-                placeholder="Enter staff username or email"
+                placeholder="admin or admin@hostmattic.com"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
@@ -115,7 +119,7 @@ export default function AdminLoginPage() {
             <div style={{ marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <label style={{ color: '#CBD5E1', fontSize: '0.88rem', fontWeight: 600, margin: 0 }}>2FA Authenticator Code</label>
-                <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>TOTP / Security Key</span>
+                <span style={{ fontSize: '0.75rem', color: '#94A3B8' }}>TOTP / Security Key (Optional)</span>
               </div>
               <input
                 type="text"
@@ -126,7 +130,6 @@ export default function AdminLoginPage() {
                 value={totp}
                 onChange={(e) => setTotp(e.target.value)}
                 autoComplete="one-time-code"
-                required
               />
             </div>
 

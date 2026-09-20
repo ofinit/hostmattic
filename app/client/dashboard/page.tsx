@@ -546,9 +546,51 @@ export default function ClientDashboard() {
     <div style={{ background: 'var(--bg-canvas)', minHeight: 'calc(100vh - 180px)', padding: '36px 0 80px' }}>
       <div className="container">
         {/* Top Welcome Header */}
+        {data?.user?.role === 'ADMIN' && (
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
+              border: '1px solid rgba(255, 205, 0, 0.4)',
+              borderRadius: '16px',
+              padding: '16px 24px',
+              marginBottom: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '1.5rem' }}>🛡️</span>
+              <div>
+                <strong style={{ color: '#F1F5F9', fontSize: '1rem' }}>Administrator Access Active</strong>
+                <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#94A3B8' }}>
+                  You are signed in as Hostmattic Administrator. Launch the Staff Console to manage server operations, billing, and API sync.
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/admin/dashboard"
+              className="btn btn-primary"
+              style={{
+                background: 'var(--brand-gold, #FFCD00)',
+                color: '#0F172A',
+                fontWeight: 700,
+                padding: '9px 18px',
+                fontSize: '0.88rem',
+                border: 'none',
+              }}
+            >
+              Open Staff Operations Console →
+            </Link>
+          </div>
+        )}
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '28px', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <span className="section-tag tag-lime">Customer Control Panel</span>
+            <span className="section-tag tag-lime">{data?.user?.role === 'ADMIN' ? 'Staff Administrator' : 'Customer Control Panel'}</span>
             <h1 style={{ fontSize: 'clamp(1.4rem, 4vw, 2.1rem)', marginBottom: '4px', letterSpacing: '-0.02em', color: '#0F172A' }}>
               Welcome back, {userName}!
             </h1>
@@ -558,6 +600,25 @@ export default function ClientDashboard() {
           </div>
 
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {data?.user?.role === 'ADMIN' && (
+              <Link
+                href="/admin/dashboard"
+                className="btn btn-sm"
+                style={{
+                  background: '#0F172A',
+                  color: 'var(--brand-gold, #FFCD00)',
+                  border: '1px solid rgba(255,205,0,0.4)',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>🛡️</span>
+                <span>Admin Console</span>
+              </Link>
+            )}
             <button
               onClick={() => setShowProfileModal(true)}
               className="btn btn-sm btn-outline"
