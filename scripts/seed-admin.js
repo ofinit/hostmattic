@@ -34,7 +34,18 @@ async function seedAdmin() {
 
     if (adminCount === 0) {
       const email = (process.env.ADMIN_EMAIL || 'admin@hostmattic.com').toLowerCase().trim();
-      const password = process.env.ADMIN_PASSWORD || 'Hostmattic@2026';
+      // No hardcoded fallback: without an explicit ADMIN_PASSWORD we create nothing,
+      // rather than standing up an administrator whose password is public in this repo.
+      const password = (process.env.ADMIN_PASSWORD || '').trim();
+
+      if (!password) {
+        console.warn(
+          '[Hostmattic] No administrator exists and ADMIN_PASSWORD is not set. ' +
+          'No account was created. Run: npm run admin:password -- "<password>"'
+        );
+        return;
+      }
+
       const passwordHash = await bcrypt.hash(password, 12);
 
       await prisma.user.upsert({

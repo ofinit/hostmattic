@@ -172,40 +172,51 @@ export async function ensureDatabaseBootstrap() {
       }
     }
 
-    // 2. Ensure initial administrator exists with designated credentials
+    // 2. Ensure the initial administrator exists.
+    //
+    // ADMIN_PASSWORD seeds an EMPTY database and nothing else. There is deliberately
+    // no hardcoded fallback: a default compiled into the source is a backdoor for the
+    // life of the repository. With no password supplied we refuse to create the account
+    // and say how to create it, rather than quietly standing up a known-credential admin.
     const adminEmail = (process.env.ADMIN_EMAIL || 'admin@hostmattic.com').toLowerCase().trim();
-    const adminPass = process.env.ADMIN_PASSWORD || 'Hostmattic@2026';
+    const adminPass = (process.env.ADMIN_PASSWORD || '').trim();
 
     const existingAdmin = await prisma.user.findFirst({
       where: { email: adminEmail },
     }).catch(() => null);
 
     if (!existingAdmin) {
-      const passwordHash = await bcrypt.hash(adminPass, 12);
-      await prisma.user.create({
-        data: {
-          id: 'admin_root_seed',
-          email: adminEmail,
-          passwordHash,
-          name: 'Hostmattic Administrator',
-          role: 'ADMIN',
-        },
-      }).catch((e) => console.warn('[Hostmattic DB Bootstrap] Admin seed notice:', e?.message));
-      console.log(`[Hostmattic DB Bootstrap] Seeded administrator: ${adminEmail}`);
-    } else {
-      // If admin already exists, check if password matches adminPass. If not, update it so that the master password works.
-      const passwordMatches = await bcrypt.compare(adminPass, existingAdmin.passwordHash).catch(() => false);
-      if (!passwordMatches || existingAdmin.role !== 'ADMIN') {
+      if (!adminPass) {
+        console.warn(
+          `[Hostmattic DB Bootstrap] No administrator exists and ADMIN_PASSWORD is not set. ` +
+          `No account was created. Run: npm run admin:password -- "<password>"`
+        );
+      } else {
         const passwordHash = await bcrypt.hash(adminPass, 12);
-        await prisma.user.update({
-          where: { id: existingAdmin.id },
+        await prisma.user.create({
           data: {
-            role: 'ADMIN',
+            id: 'admin_root_seed',
+            email: adminEmail,
             passwordHash,
+            name: 'Hostmattic Administrator',
+            role: 'ADMIN',
           },
-        }).catch((e) => console.warn('[Hostmattic DB Bootstrap] Admin update notice:', e?.message));
-        console.log(`[Hostmattic DB Bootstrap] Synchronized administrator credentials for: ${adminEmail}`);
+        }).catch((e) => console.warn('[Hostmattic DB Bootstrap] Admin seed notice:', e?.message));
+        console.log(`[Hostmattic DB Bootstrap] Seeded administrator: ${adminEmail}`);
       }
+    } else if (existingAdmin.role !== 'ADMIN') {
+      // The account exists but has lost its ADMIN role - repair the role ONLY.
+      //
+      // The stored passwordHash is deliberately never touched here. This function runs
+      // on every /api/auth/login and /api/auth/register request, so rewriting the hash
+      // to ADMIN_PASSWORD would (a) revert any password the administrator sets and
+      // (b) make the fallback password a permanent backdoor. ADMIN_PASSWORD applies at
+      // account creation only; to rotate it afterwards run `npm run admin:password`.
+      await prisma.user.update({
+        where: { id: existingAdmin.id },
+        data: { role: 'ADMIN' },
+      }).catch((e) => console.warn('[Hostmattic DB Bootstrap] Admin role repair notice:', e?.message));
+      console.log(`[Hostmattic DB Bootstrap] Restored ADMIN role for: ${adminEmail}`);
     }
 
     // 3. Ensure TaxSetting default row exists

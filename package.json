@@ -7,6 +7,7 @@
     "build": "prisma generate && node scripts/db-push.js && next build && node scripts/copy-standalone-assets.js",
     "start": "node server.js",
     "lint": "next lint",
+    "admin:password": "node scripts/set-admin-password.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio"
