@@ -12,6 +12,14 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'orders' | 'domains' | 'hosting' | 'addons' | 'customers' | 'tickets' | 'taxes' | 'gateway'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Administrator account settings (change own email / password)
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [acct, setAcct] = useState({
+    currentPassword: '', newEmail: '', newName: '', newPassword: '', confirmPassword: '',
+  });
+  const [acctBusy, setAcctBusy] = useState(false);
+  const [acctMsg, setAcctMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   // Financial & Reports State
   const [reportPeriod, setReportPeriod] = useState<'allTime' | 'mtd' | 'last30d' | 'last7d'>('allTime');
   const [reportCurrency, setReportCurrency] = useState<'CONSOLIDATED' | 'INR' | 'USD'>('CONSOLIDATED');
@@ -222,6 +230,44 @@ export default function AdminDashboardPage() {
     setOrderPage(1);
     setTicketPage(1);
   }, [searchQuery, activeTab]);
+
+  const openAccountSettings = async () => {
+    setAcctMsg(null);
+    setAcct({ currentPassword: '', newEmail: '', newName: '', newPassword: '', confirmPassword: '' });
+    setAccountOpen(true);
+    try {
+      const res = await fetch('/api/admin/account');
+      const json = await res.json();
+      if (json.success && json.account) {
+        setAcct((a) => ({ ...a, newEmail: json.account.email || '', newName: json.account.name || '' }));
+      }
+    } catch {
+      /* the form still works; the fields just start empty */
+    }
+  };
+
+  const submitAccountSettings = async () => {
+    setAcctBusy(true);
+    setAcctMsg(null);
+    try {
+      const res = await fetch('/api/admin/account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(acct),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        setAcctMsg({ ok: false, text: json.error || 'Could not update the account.' });
+      } else {
+        setAcctMsg({ ok: true, text: json.message || 'Account updated.' });
+        setAcct((a) => ({ ...a, currentPassword: '', newPassword: '', confirmPassword: '' }));
+      }
+    } catch (e: any) {
+      setAcctMsg({ ok: false, text: e?.message || 'Network error.' });
+    } finally {
+      setAcctBusy(false);
+    }
+  };
 
   const handleAdminLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -619,6 +665,13 @@ export default function AdminDashboardPage() {
               <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FFFFFF' }}>Super Administrator</div>
               <div style={{ fontSize: '0.75rem', color: '#FFCD00' }}>Master Role</div>
             </div>
+            <button
+              onClick={openAccountSettings}
+              title="Change your sign-in email and password"
+              style={{ background: 'rgba(255, 255, 255, 0.08)', border: '1px solid rgba(255, 255, 255, 0.16)', color: '#CBD5E1', padding: '6px 14px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              <span aria-hidden="true">&#9881;</span> Account
+            </button>
             <button
               onClick={handleAdminLogout}
               style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.35)', color: '#FCA5A5', padding: '6px 14px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
@@ -1405,7 +1458,7 @@ export default function AdminDashboardPage() {
         {/* 2. CUSTOMERS TABLE */}
         {activeTab === 'customers' && (
           <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '850px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Customer Name</th>
@@ -1513,7 +1566,7 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '920px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Service Plan</th>
@@ -1626,7 +1679,7 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '950px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Service &amp; Product</th>
@@ -1775,7 +1828,7 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '920px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Domain</th>
@@ -1956,7 +2009,7 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '1080px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Order Number</th>
@@ -2127,7 +2180,7 @@ export default function AdminDashboardPage() {
         {/* 6. SUPPORT QUEUE (STAFF TICKETING DESK) */}
         {activeTab === 'tickets' && (
           <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem', minWidth: '1020px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Ticket #</th>
@@ -3425,7 +3478,97 @@ export default function AdminDashboardPage() {
           </div>
         );
       })()}
+      {/* ---------- Administrator account settings ---------- */}
+      {accountOpen && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setAccountOpen(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(5, 8, 12, 0.72)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+        >
+          <div style={{ background: '#111827', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 30px 60px -20px rgba(0,0,0,0.8)' }}>
+            <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#FFFFFF' }}>Administrator Account</div>
+                <div style={{ fontSize: '0.8rem', color: '#94A3B8', marginTop: '2px' }}>Change your sign-in email and password</div>
+              </div>
+              <button
+                onClick={() => setAccountOpen(false)}
+                aria-label="Close"
+                style={{ marginLeft: 'auto', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: '#CBD5E1', width: '32px', height: '32px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem' }}
+              >
+                X
+              </button>
+            </div>
+
+            <div style={{ padding: '20px 24px', display: 'grid', gap: '16px' }}>
+              {acctMsg && (
+                <div style={{ padding: '11px 14px', borderRadius: '10px', fontSize: '0.86rem', background: acctMsg.ok ? 'rgba(155, 203, 68, 0.12)' : 'rgba(239, 68, 68, 0.12)', border: acctMsg.ok ? '1px solid rgba(155, 203, 68, 0.35)' : '1px solid rgba(239, 68, 68, 0.35)', color: acctMsg.ok ? '#C4E58C' : '#FCA5A5' }}>
+                  {acctMsg.text}
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gap: '6px' }}>
+                <label htmlFor="acctName" style={{ fontSize: '0.78rem', fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Display name</label>
+                <input
+                  id="acctName" type="text" value={acct.newName} autoComplete="name"
+                  onChange={(e) => setAcct({ ...acct, newName: e.target.value })}
+                  style={{ background: '#0B1017', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '11px 13px', color: '#E2E8F0', fontSize: '0.92rem', minHeight: '44px' }}
+                />
+              </div>
+              <div style={{ display: 'grid', gap: '6px' }}>
+                <label htmlFor="acctEmail" style={{ fontSize: '0.78rem', fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Sign-in email</label>
+                <input
+                  id="acctEmail" type="email" value={acct.newEmail} autoComplete="email"
+                  onChange={(e) => setAcct({ ...acct, newEmail: e.target.value })}
+                  style={{ background: '#0B1017', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '11px 13px', color: '#E2E8F0', fontSize: '0.92rem', minHeight: '44px' }}
+                />
+              </div>
+
+              <div style={{ height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+
+              <div style={{ display: 'grid', gap: '6px' }}>
+                <label htmlFor="acctNewPw" style={{ fontSize: '0.78rem', fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.04em', textTransform: 'uppercase' }}>New password</label>
+                <input
+                  id="acctNewPw" type="password" value={acct.newPassword} autoComplete="new-password" placeholder="Leave blank to keep the current one"
+                  onChange={(e) => setAcct({ ...acct, newPassword: e.target.value })}
+                  style={{ background: '#0B1017', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '11px 13px', color: '#E2E8F0', fontSize: '0.92rem', minHeight: '44px' }}
+                />
+              </div>
+              <div style={{ display: 'grid', gap: '6px' }}>
+                <label htmlFor="acctConfirmPw" style={{ fontSize: '0.78rem', fontWeight: 700, color: '#CBD5E1', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Confirm new password</label>
+                <input
+                  id="acctConfirmPw" type="password" value={acct.confirmPassword} autoComplete="new-password"
+                  onChange={(e) => setAcct({ ...acct, confirmPassword: e.target.value })}
+                  style={{ background: '#0B1017', border: '1px solid rgba(255,255,255,0.14)', borderRadius: '10px', padding: '11px 13px', color: '#E2E8F0', fontSize: '0.92rem', minHeight: '44px' }}
+                />
+              </div>
+              <div style={{ display: 'grid', gap: '6px' }}>
+                <label htmlFor="acctCurrentPw" style={{ fontSize: '0.78rem', fontWeight: 700, color: '#FFCD00', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Current password (required)</label>
+                <input
+                  id="acctCurrentPw" type="password" value={acct.currentPassword} autoComplete="current-password" placeholder="Confirm it is you"
+                  onChange={(e) => setAcct({ ...acct, currentPassword: e.target.value })}
+                  style={{ background: '#0B1017', border: '1px solid rgba(255, 205, 0, 0.3)', borderRadius: '10px', padding: '11px 13px', color: '#E2E8F0', fontSize: '0.92rem', minHeight: '44px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ padding: '16px 24px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setAccountOpen(false)}
+                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.16)', color: '#CBD5E1', padding: '10px 18px', borderRadius: '10px', fontSize: '0.86rem', fontWeight: 600, cursor: 'pointer', minHeight: '42px' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitAccountSettings}
+                disabled={acctBusy || !acct.currentPassword}
+                style={{ background: (acctBusy || !acct.currentPassword) ? 'rgba(155,203,68,0.3)' : '#9BCB44', border: 'none', color: '#090D12', padding: '10px 20px', borderRadius: '10px', fontSize: '0.86rem', fontWeight: 800, cursor: (acctBusy || !acct.currentPassword) ? 'not-allowed' : 'pointer', minHeight: '42px' }}
+              >
+                {acctBusy ? 'Saving...' : 'Save changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

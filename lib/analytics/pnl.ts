@@ -126,6 +126,14 @@ export interface ServiceExpiryInfo {
   autoRenew: boolean;
 }
 
+export interface ExpirationBuckets {
+  expired: number;  // past expiry
+  critical: number; // 0 to 7 days
+  warning: number;  // 8 to 30 days
+  normal: number;   // > 30 days
+  total: number;
+}
+
 export interface ExpirationAnalyticsSummary {
   totalServices: number;
   expiredCount: number;
@@ -134,6 +142,10 @@ export interface ExpirationAnalyticsSummary {
   normalCount: number;   // > 30 days
   totalRequiringAttention: number; // expired + <= 30 days
   expiringItems: ServiceExpiryInfo[];
+  // Per-service-type breakdowns. The admin lifecycle filter chips read these;
+  // without them every chip silently rendered 0 via `?? 0` even when rows existed.
+  domains: ExpirationBuckets;
+  hosting: ExpirationBuckets;
 }
 
 /**
@@ -387,6 +399,18 @@ export function computeExpirationAnalytics(
   let warningCount = 0;  // 8 to 30 days
   let normalCount = 0;   // > 30 days
 
+  const bucket = (): ExpirationBuckets => ({ expired: 0, critical: 0, warning: 0, normal: 0, total: 0 });
+  const domainBuckets = bucket();
+  const hostingBuckets = bucket();
+
+  const tally = (b: ExpirationBuckets, urgency: string) => {
+    if (urgency === 'EXPIRED') b.expired++;
+    else if (urgency === 'CRITICAL') b.critical++;
+    else if (urgency === 'WARNING') b.warning++;
+    else b.normal++;
+    b.total++;
+  };
+
   // 1. Process Domains
   for (const d of domains) {
     const expTime = new Date(d.expiryDate).getTime();
@@ -405,6 +429,8 @@ export function computeExpirationAnalytics(
     } else {
       normalCount++;
     }
+
+    tally(domainBuckets, urgency);
 
     items.push({
       id: d.id,
@@ -440,6 +466,8 @@ export function computeExpirationAnalytics(
       normalCount++;
     }
 
+    tally(hostingBuckets, urgency);
+
     items.push({
       id: h.id,
       name: h.domainName || h.planName,
@@ -466,5 +494,7 @@ export function computeExpirationAnalytics(
     normalCount,
     totalRequiringAttention: expiredCount + criticalCount + warningCount,
     expiringItems: items,
+    domains: domainBuckets,
+    hosting: hostingBuckets,
   };
 }

@@ -1464,7 +1464,7 @@ export default function ClientDashboard() {
                 </div>
 
                 <div className="table-responsive">
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '820px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Service / Plan</th>
@@ -1558,7 +1558,7 @@ export default function ClientDashboard() {
                 </div>
 
                 <div className="table-responsive">
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '980px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                         <th style={{ padding: '12px 16px', whiteSpace: 'nowrap', minWidth: '240px' }}>Domain Name</th>
@@ -1708,7 +1708,7 @@ export default function ClientDashboard() {
             </div>
 
             <div className="table-responsive">
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '1080px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap', minWidth: '250px' }}>Domain Name</th>
@@ -1877,7 +1877,7 @@ export default function ClientDashboard() {
             </div>
 
             <div className="table-responsive">
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '980px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap', minWidth: '220px' }}>Plan</th>
@@ -1976,7 +1976,7 @@ export default function ClientDashboard() {
             </div>
 
             <div className="table-responsive">
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '850px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Service &amp; Product</th>
@@ -2091,7 +2091,7 @@ export default function ClientDashboard() {
             </div>
 
             <div className="table-responsive">
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '820px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Invoice #</th>
@@ -2157,7 +2157,7 @@ export default function ClientDashboard() {
             </div>
 
             <div className="table-responsive">
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem', minWidth: '920px' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
                     <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Ticket #</th>

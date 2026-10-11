@@ -2317,14 +2317,45 @@ h4 { font-size: 1.15rem; }
 /* Responsive Table Wrapper with Minimum Content Widths */
 .table-responsive {
   width: 100%;
-  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  /* No horizontal scrolling. Tables fit the container and wrap their long
+     values instead of forcing a sideways scrollbar. The previous
+     `min-width: 820px` floor guaranteed a scrollbar on every table. */
+  overflow-x: clip;
 }
 .table-responsive table {
-  min-width: 820px;
+  min-width: 0 !important;
+  width: 100%;
+  table-layout: auto;
+}
+/* Long domains, emails and URLs are what overflowed; let them break. */
+.table-responsive th,
+.table-responsive td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+/* Badges must still never break across lines (see .status-badge), so give the
+   columns that hold them only as much room as they need. */
+.table-responsive td:has(> .status-badge),
+.table-responsive td:has(> span[class*="badge"]) {
+  white-space: nowrap;
+  width: 1%;
 }
 .cell-nowrap {
   white-space: nowrap !important;
+}
+/* Tighten rather than scroll as the viewport narrows. */
+@media (max-width: 1100px) {
+  .table-responsive table { font-size: 0.82rem; }
+  .table-responsive th,
+  .table-responsive td { padding-left: 10px !important; padding-right: 10px !important; }
+}
+@media (max-width: 760px) {
+  .table-responsive table { font-size: 0.78rem; }
+  .table-responsive th,
+  .table-responsive td { padding-left: 7px !important; padding-right: 7px !important; }
+  /* Last-resort escape hatch on genuinely tiny screens. */
+  .table-responsive { overflow-x: auto; }
 }
 
 /* Responsive Full Checkout Page Grid */

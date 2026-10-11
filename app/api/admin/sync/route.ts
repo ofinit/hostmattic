@@ -15,6 +15,53 @@ export async function POST(req: NextRequest) {
   return handleSync();
 }
 
+const MAX_PAGES = 50; // hard stop so a bad `recsindb` cannot spin forever
+
+/**
+ * Resolve a domain's owner when the customer was not in the customer listing.
+ * Fetches them from upstream and creates the local record, so the domain lands
+ * on the real customer instead of being parked on the fallback admin account.
+ */
+async function recoverCustomer(
+  upstreamCustomerId: string,
+  customerMap: Map<string, string>
+): Promise<string | null> {
+  try {
+    const res = await apiClient<any>('/customers/details-by-id.json', {
+      'customer-id': upstreamCustomerId,
+    });
+    if (!res.success || !res.data) return null;
+
+    const d = res.data;
+    const username: string = d.username || d['customer.username'] || '';
+    if (!username) return null;
+
+    const telNo = d.telno || '';
+    const telCc = d.telnocc || '';
+
+    const user = await prisma.user.upsert({
+      where: { email: username.toLowerCase().trim() },
+      update: { upstreamCustomerId },
+      create: {
+        email: username.toLowerCase().trim(),
+        passwordHash: await hashPassword(crypto.randomBytes(24).toString('base64url')),
+        name: d.name || username,
+        company: d.company || null,
+        city: d.city || null,
+        country: d.country || 'IN',
+        phone: telNo ? `+${telCc}${telNo}` : null,
+        upstreamCustomerId,
+      },
+    });
+
+    customerMap.set(upstreamCustomerId, user.id);
+    return user.id;
+  } catch (e: any) {
+    console.warn(`[Sync] Could not recover customer ${upstreamCustomerId}:`, e?.message);
+    return null;
+  }
+}
+
 async function handleSync() {
   const authUserId = process.env.RESELLER_AUTH_USERID;
   if (!authUserId) {
@@ -30,6 +77,8 @@ async function handleSync() {
     domainsSynced: 0,
     totalCustomersInUpstream: 0,
     totalDomainsInUpstream: 0,
+    customersRecovered: 0,   // created from a domain whose owner was not in the customer list
+    domainsUnassigned: 0,    // owner could not be resolved; parked on the fallback account
     errors: [] as string[],
   };
 
@@ -55,14 +104,27 @@ async function handleSync() {
   const customerMap = new Map<string, string>(); // upstreamCustomerId -> prismaUserId
 
   try {
-    const custRes = await apiClient<any>('/customers/search.json', {
-      'no-of-records': 100,
-      'page-no': 1,
-    });
+    // Walk every page. A single page-1 request silently dropped every customer
+    // past the first 100, and their domains then fell through to the fallback
+    // account - which is why customer dossiers showed zero services.
+    const PAGE_SIZE = 100;
+    let page = 1;
+    let fetched = 0;
 
-    if (custRes.success && custRes.data) {
+    while (page <= MAX_PAGES) {
+      const custRes = await apiClient<any>('/customers/search.json', {
+        'no-of-records': PAGE_SIZE,
+        'page-no': page,
+      });
+
+      if (!custRes.success || !custRes.data) {
+        if (custRes.error) results.errors.push(`Customer search (page ${page}): ${custRes.error}`);
+        break;
+      }
+
       const data = custRes.data;
       results.totalCustomersInUpstream = parseInt(data.recsindb || '0', 10);
+      const onPage = parseInt(data.recsonpage || '0', 10);
 
       for (const [key, val] of Object.entries(data)) {
         if (key === 'recsindb' || key === 'recsonpage') continue;
@@ -116,8 +178,10 @@ async function handleSync() {
           console.error(`[Sync Customer DB Error] ${username}:`, dbErr.message);
         }
       }
-    } else if (custRes.error) {
-      results.errors.push(`Customer search: ${custRes.error}`);
+
+      fetched += onPage;
+      if (onPage < PAGE_SIZE || fetched >= results.totalCustomersInUpstream) break;
+      page++;
     }
   } catch (err: any) {
     results.errors.push(`Customer search error: ${err.message}`);
@@ -142,14 +206,24 @@ async function handleSync() {
 
   // 3. Fetch & Sync Domains
   try {
-    const domRes = await apiClient<any>('/domains/search.json', {
-      'no-of-records': 100,
-      'page-no': 1,
-    });
+    const DOM_PAGE_SIZE = 100;
+    let domPage = 1;
+    let domFetched = 0;
 
-    if (domRes.success && domRes.data) {
+    while (domPage <= MAX_PAGES) {
+      const domRes = await apiClient<any>('/domains/search.json', {
+        'no-of-records': DOM_PAGE_SIZE,
+        'page-no': domPage,
+      });
+
+      if (!domRes.success || !domRes.data) {
+        if (domRes.error) results.errors.push(`Domain search (page ${domPage}): ${domRes.error}`);
+        break;
+      }
+
       const data = domRes.data;
       results.totalDomainsInUpstream = parseInt(data.recsindb || '0', 10);
+      const domOnPage = parseInt(data.recsonpage || '0', 10);
 
       for (const [key, val] of Object.entries(data)) {
         if (key === 'recsindb' || key === 'recsonpage') continue;
@@ -174,14 +248,36 @@ async function handleSync() {
         const parts = domainName.split('.');
         const tld = parts.length > 1 ? `.${parts.slice(1).join('.')}` : '.com';
 
-        // Match owner
-        let assignedUserId = upstreamCustId ? customerMap.get(upstreamCustId) : null;
+        // Resolve the real owner. Previously an unresolved owner silently assigned
+        // the domain to the fallback ADMIN account, so the domain vanished from the
+        // customer's dossier while the sync still reported it as synchronised.
+        let assignedUserId: string | null | undefined =
+          upstreamCustId ? customerMap.get(upstreamCustId) : null;
+
         if (!assignedUserId && upstreamCustId) {
           const u = await prisma.user.findFirst({ where: { upstreamCustomerId: upstreamCustId } });
-          if (u) assignedUserId = u.id;
+          if (u) {
+            assignedUserId = u.id;
+            customerMap.set(upstreamCustId, u.id);
+          }
         }
+
+        // Still unknown: pull the customer from upstream rather than orphaning the domain.
+        if (!assignedUserId && upstreamCustId) {
+          const recovered = await recoverCustomer(upstreamCustId, customerMap);
+          if (recovered) {
+            assignedUserId = recovered;
+            results.customersRecovered++;
+          }
+        }
+
         if (!assignedUserId) {
           assignedUserId = fallbackUser.id;
+          results.domainsUnassigned++;
+          console.warn(
+            `[Sync] ${domainName}: no upstream customer id on the record ` +
+            `(entity.customerid=${upstreamCustId || 'missing'}); parked on fallback account.`
+          );
         }
 
         try {
@@ -213,8 +309,10 @@ async function handleSync() {
           console.error(`[Sync Domain DB Error] ${domainName}:`, domDbErr.message);
         }
       }
-    } else if (domRes.error) {
-      results.errors.push(`Domain search: ${domRes.error}`);
+
+      domFetched += domOnPage;
+      if (domOnPage < DOM_PAGE_SIZE || domFetched >= results.totalDomainsInUpstream) break;
+      domPage++;
     }
   } catch (err: any) {
     results.errors.push(`Domain search error: ${err.message}`);
@@ -222,7 +320,14 @@ async function handleSync() {
 
   return NextResponse.json({
     success: results.customersSynced > 0 || results.domainsSynced > 0,
-    message: `Synchronized ${results.customersSynced} customers and ${results.domainsSynced} domains from live upstream gateway.`,
+    message:
+      `Synchronized ${results.customersSynced} customers and ${results.domainsSynced} domains from live upstream gateway.` +
+      (results.customersRecovered
+        ? ` Recovered ${results.customersRecovered} customer${results.customersRecovered === 1 ? '' : 's'} referenced by a domain but missing from the customer list.`
+        : '') +
+      (results.domainsUnassigned
+        ? ` ${results.domainsUnassigned} domain${results.domainsUnassigned === 1 ? '' : 's'} had no resolvable owner and are held on the fallback account.`
+        : ''),
     results,
   });
 }
