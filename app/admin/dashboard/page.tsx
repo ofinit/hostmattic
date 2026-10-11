@@ -941,7 +941,7 @@ export default function AdminDashboardPage() {
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(155, 203, 68, 0.15)', color: '#9BCB44', fontWeight: 600 }}>
-                        {c._count?.hostingAccounts || 1} Hosting · {c._count?.domains || 1} Domains
+                        {c._count?.hostingAccounts ?? 0} Hosting · {c._count?.domains ?? 0} Domains
                       </span>
                       <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '2px' }}>Click to inspect dossier ↗</div>
                     </div>
@@ -1491,8 +1491,8 @@ export default function AdminDashboardPage() {
                       </span>
                     </td>
                     <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                      <span style={{ color: '#9BCB44', fontWeight: 600 }}>{c._count?.hostingAccounts || 1} Hosting</span> ·{' '}
-                      <span style={{ color: '#29B4D5', fontWeight: 600 }}>{c._count?.domains || 1} Domains</span>
+                      <span style={{ color: '#9BCB44', fontWeight: 600 }}>{c._count?.hostingAccounts ?? 0} Hosting</span> ·{' '}
+                      <span style={{ color: '#29B4D5', fontWeight: 600 }}>{c._count?.domains ?? 0} Domains</span>
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
