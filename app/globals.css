@@ -1108,9 +1108,15 @@ h4 { font-size: 1.15rem; }
   overflow-x: auto;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
   box-shadow: var(--shadow-sm);
   margin: 32px 0;
+}
+/* The white fill belongs to marketing spec tables only. Unscoped, it painted
+   every .table-responsive white - including the dark admin panels - which left
+   white text on a white background wherever the container did not happen to
+   set its own background inline. */
+.table-responsive:has(.spec-table) {
+  background: var(--bg-surface);
 }
 .spec-table {
   width: 100%;

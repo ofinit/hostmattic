@@ -124,9 +124,9 @@ export default function AdminDashboardPage() {
       o.totalAmount || 0,
       o.subtotalAmount || o.totalAmount || 0,
       o.taxAmount || 0,
-      o.financials?.wholesaleCost || 0,
+      o.financials?.totalCost ?? 0,
       o.financials?.grossProfit || 0,
-      (o.financials?.profitMargin || 0).toFixed(2) + '%',
+      (o.financials?.marginPercent ?? 0).toFixed(2) + '%',
       o.gatewayName || o.paymentMethod || 'MANUAL',
       `"${(o.gatewayPaymentId || '').replace(/"/g, '""')}"`,
       o.paymentStatus || 'PAID',
@@ -1385,7 +1385,7 @@ export default function AdminDashboardPage() {
                   <h3 style={{ fontSize: '1.15rem', color: '#FFFFFF', marginTop: 0, marginBottom: '16px' }}>
                     Product Line Profitability Analysis
                   </h3>
-                  <div className="table-responsive" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div className="table-responsive" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', overflow: 'hidden', background: 'rgba(15, 23, 42, 0.6)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
                       <thead>
                         <tr style={{ background: 'rgba(15, 23, 42, 0.8)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#94A3B8' }}>
@@ -2125,9 +2125,9 @@ export default function AdminDashboardPage() {
                 </thead>
                 <tbody>
                   {paginatedOrders.map((o: any) => {
-                    const cogs = o.financials?.wholesaleCost || 0;
+                    const cogs = o.financials?.totalCost ?? 0;
                     const profit = o.financials?.grossProfit || 0;
-                    const marginPct = o.financials?.profitMargin || 0;
+                    const marginPct = o.financials?.marginPercent ?? 0;
                     const cSign = o.currency === 'USD' ? '$' : '₹';
 
                     return (
@@ -3387,9 +3387,9 @@ export default function AdminDashboardPage() {
         const o = selectedTransaction;
         const cSign = o.currency === 'USD' ? '$' : '₹';
         const fin = o.financials || {};
-        const cogs = fin.wholesaleCost || 0;
+        const cogs = fin.totalCost ?? 0;
         const profit = fin.grossProfit || 0;
-        const margin = fin.profitMargin || 0;
+        const margin = fin.marginPercent ?? 0;
         const items = fin.items || o.items || [];
 
         return (
@@ -3503,7 +3503,7 @@ export default function AdminDashboardPage() {
                   <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '10px' }}>
                     Itemized Cost of Goods Sold (COGS) &amp; Margin Breakdown
                   </div>
-                  <div className="table-responsive" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', overflow: 'hidden' }}>
+                  <div className="table-responsive" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', overflow: 'hidden', background: 'rgba(15, 23, 42, 0.6)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                       <thead>
                         <tr style={{ background: 'rgba(15, 23, 42, 0.8)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#94A3B8' }}>
