@@ -12,6 +12,11 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'orders' | 'domains' | 'hosting' | 'addons' | 'customers' | 'tickets' | 'taxes' | 'gateway'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Bulk customer selection / deletion
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+
   // Administrator account settings (change own email / password)
   const [accountOpen, setAccountOpen] = useState(false);
   const [acct, setAcct] = useState({
@@ -230,6 +235,48 @@ export default function AdminDashboardPage() {
     setOrderPage(1);
     setTicketPage(1);
   }, [searchQuery, activeTab]);
+
+  const toggleCustomerSelected = (id: string) => {
+    setBulkConfirm(false);
+    setSelectedCustomerIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleAllOnPage = (rows: any[]) => {
+    setBulkConfirm(false);
+    const ids = rows.map((r) => r.id);
+    const allOn = ids.length > 0 && ids.every((id) => selectedCustomerIds.includes(id));
+    setSelectedCustomerIds((prev) =>
+      allOn ? prev.filter((x) => !ids.includes(x)) : Array.from(new Set([...prev, ...ids]))
+    );
+  };
+
+  const deleteSelectedCustomers = async (force: boolean) => {
+    if (selectedCustomerIds.length === 0) return;
+    setBulkBusy(true);
+    try {
+      const res = await fetch('/api/admin/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete-customers', customerIds: selectedCustomerIds, force }),
+      });
+      const json = await res.json();
+      setSyncNotice({
+        type: json.success ? 'success' : 'error',
+        message: json.message || json.error || 'Delete finished.',
+      });
+      if (json.success) {
+        setSelectedCustomerIds([]);
+        setBulkConfirm(false);
+        fetchAdminData();
+      }
+    } catch (e: any) {
+      setSyncNotice({ type: 'error', message: e?.message || 'Delete failed.' });
+    } finally {
+      setBulkBusy(false);
+    }
+  };
 
   const openAccountSettings = async () => {
     setAcctMsg(null);
@@ -1458,9 +1505,51 @@ export default function AdminDashboardPage() {
         {/* 2. CUSTOMERS TABLE */}
         {activeTab === 'customers' && (
           <div className="table-responsive" style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '24px' }}>
+            {selectedCustomerIds.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '12px 14px', marginBottom: '16px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                <span style={{ color: '#FCA5A5', fontWeight: 700, fontSize: '0.88rem' }}>
+                  {selectedCustomerIds.length} account{selectedCustomerIds.length === 1 ? '' : 's'} selected
+                </span>
+                <button
+                  onClick={() => { setSelectedCustomerIds([]); setBulkConfirm(false); }}
+                  style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.18)', color: '#CBD5E1', padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', cursor: 'pointer' }}
+                >
+                  Clear
+                </button>
+                <span style={{ marginLeft: 'auto', fontSize: '0.78rem', color: '#94A3B8' }}>
+                  Accounts holding domains, hosting or orders are skipped.
+                </span>
+                {!bulkConfirm ? (
+                  <button
+                    onClick={() => setBulkConfirm(true)}
+                    disabled={bulkBusy}
+                    style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.45)', color: '#FCA5A5', padding: '8px 16px', borderRadius: '8px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Delete selected
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => deleteSelectedCustomers(false)}
+                    disabled={bulkBusy}
+                    style={{ background: '#DC2626', border: '1px solid #DC2626', color: '#FFFFFF', padding: '8px 16px', borderRadius: '8px', fontSize: '0.84rem', fontWeight: 800, cursor: bulkBusy ? 'wait' : 'pointer' }}
+                  >
+                    {bulkBusy ? 'Deleting...' : 'Confirm permanent delete'}
+                  </button>
+                )}
+              </div>
+            )}
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.12)', color: '#94A3B8' }}>
+                  <th style={{ padding: '12px 8px', width: '1%' }}>
+                    <input
+                      type="checkbox"
+                      aria-label="Select all customers on this page"
+                      checked={paginatedCustomers.length > 0 && paginatedCustomers.every((r: any) => selectedCustomerIds.includes(r.id))}
+                      onChange={() => toggleAllOnPage(paginatedCustomers)}
+                      style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#9BCB44' }}
+                    />
+                  </th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Customer Name</th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Email Address</th>
                   <th style={{ padding: '12px 16px', whiteSpace: 'nowrap' }}>Upstream ID</th>
@@ -1471,7 +1560,18 @@ export default function AdminDashboardPage() {
               </thead>
               <tbody>
                 {paginatedCustomers.map((c: any) => (
-                  <tr key={c.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                  <tr key={c.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)', background: selectedCustomerIds.includes(c.id) ? 'rgba(239, 68, 68, 0.06)' : 'transparent' }}>
+                    <td style={{ padding: '14px 8px', width: '1%' }}>
+                      <input
+                        type="checkbox"
+                        aria-label={'Select ' + c.name}
+                        checked={selectedCustomerIds.includes(c.id)}
+                        onChange={() => toggleCustomerSelected(c.id)}
+                        disabled={c.role === 'ADMIN'}
+                        title={c.role === 'ADMIN' ? 'Administrator accounts cannot be deleted here' : undefined}
+                        style={{ width: '16px', height: '16px', cursor: c.role === 'ADMIN' ? 'not-allowed' : 'pointer', accentColor: '#9BCB44' }}
+                      />
+                    </td>
                     <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>
                       <button
                         onClick={() => setSelectedCustomerDossier(c)}

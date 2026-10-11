@@ -10,6 +10,7 @@ async function seedAdmin() {
       CREATE TABLE IF NOT EXISTS "User" (
         "id" TEXT PRIMARY KEY,
         "email" TEXT UNIQUE NOT NULL,
+        "emailCanonical" TEXT UNIQUE,
         "passwordHash" TEXT NOT NULL,
         "name" TEXT NOT NULL,
         "company" TEXT,

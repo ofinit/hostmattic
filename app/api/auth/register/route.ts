@@ -3,6 +3,14 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword, signToken } from '@/lib/auth';
 import { createUpstreamCustomer } from '@/lib/api/customers';
 import { ensureDatabaseBootstrap } from '@/lib/dbBootstrap';
+import {
+  canonicalizeEmail,
+  clientIp,
+  honeypotTripped,
+  isDisposableEmail,
+  rateLimit,
+  verifyTurnstile,
+} from '@/lib/security/signupGuard';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,6 +23,50 @@ export async function POST(req: NextRequest) {
     if (!email || !password || !name) {
       return NextResponse.json(
         { success: false, error: 'Email, password, and name are required.' },
+        { status: 400 }
+      );
+    }
+
+    // ---- Abuse controls -------------------------------------------------
+    const ip = clientIp(req);
+
+    // Bots complete every field, including one that is hidden from people.
+    // Answer as if it worked so they do not simply retry with another address.
+    if (honeypotTripped(body)) {
+      console.warn('[Register] Honeypot tripped from', ip);
+      return NextResponse.json({ success: true, user: null });
+    }
+
+    const limited = rateLimit('signup:' + ip);
+    if (!limited.ok) {
+      console.warn('[Register] Blocked:', limited.reason);
+      return NextResponse.json({ success: false, error: limited.error }, { status: limited.status || 429 });
+    }
+
+    const challenge = await verifyTurnstile(String(body?.turnstileToken || ''), ip);
+    if (!challenge.ok) {
+      console.warn('[Register] Blocked:', challenge.reason);
+      return NextResponse.json({ success: false, error: challenge.error }, { status: challenge.status || 400 });
+    }
+
+    if (isDisposableEmail(email)) {
+      return NextResponse.json(
+        { success: false, error: 'Please use a permanent email address rather than a disposable one.' },
+        { status: 400 }
+      );
+    }
+
+    // Gmail ignores dots and +tags, so one inbox can mint endless addresses.
+    // Compare canonically so those all collapse to a single account.
+    const canonical = canonicalizeEmail(email);
+    const clash = await prisma.user.findFirst({
+      where: { emailCanonical: canonical },
+      select: { id: true },
+    }).catch(() => null);
+
+    if (clash) {
+      return NextResponse.json(
+        { success: false, error: 'An account with this email address already exists.' },
         { status: 400 }
       );
     }
@@ -59,6 +111,7 @@ export async function POST(req: NextRequest) {
       user = await prisma.user.create({
         data: {
           email: email.toLowerCase().trim(),
+          emailCanonical: canonical,
           passwordHash,
           name,
           company,

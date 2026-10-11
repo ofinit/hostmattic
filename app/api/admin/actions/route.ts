@@ -73,6 +73,75 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 4. Delete customer accounts (single or bulk)
+    //
+    // Guards: never an ADMIN, never yourself, and never an account that still
+    // holds services or billing history unless the caller explicitly forces it.
+    if (action === 'delete-customers') {
+      const ids: string[] = Array.isArray(body?.customerIds)
+        ? body.customerIds.filter((x: unknown) => typeof x === 'string' && x)
+        : targetId ? [targetId] : [];
+
+      if (ids.length === 0) {
+        return NextResponse.json({ success: false, error: 'No customers selected.' }, { status: 400 });
+      }
+      if (ids.length > 200) {
+        return NextResponse.json({ success: false, error: 'Select at most 200 accounts at a time.' }, { status: 400 });
+      }
+
+      const force = body?.force === true;
+
+      const candidates = await prisma.user.findMany({
+        where: { id: { in: ids } },
+        select: {
+          id: true, email: true, role: true,
+          _count: { select: { domains: true, hostingAccounts: true, orders: true } },
+        },
+      });
+
+      const deleted: string[] = [];
+      const skipped: { email: string; reason: string }[] = [];
+
+      for (const c of candidates) {
+        if (c.role === 'ADMIN') {
+          skipped.push({ email: c.email, reason: 'administrator account' });
+          continue;
+        }
+        if (c.id === session.id) {
+          skipped.push({ email: c.email, reason: 'your own account' });
+          continue;
+        }
+        const services = c._count.domains + c._count.hostingAccounts + c._count.orders;
+        if (services > 0 && !force) {
+          skipped.push({
+            email: c.email,
+            reason: `has ${c._count.domains} domain(s), ${c._count.hostingAccounts} hosting and ${c._count.orders} order(s)`,
+          });
+          continue;
+        }
+
+        try {
+          await prisma.user.delete({ where: { id: c.id } });
+          deleted.push(c.email);
+        } catch (delErr: any) {
+          skipped.push({ email: c.email, reason: delErr?.message || 'delete failed' });
+        }
+      }
+
+      console.log(`[Hostmattic] Admin deleted ${deleted.length} customer account(s); ${skipped.length} skipped.`);
+
+      return NextResponse.json({
+        success: true,
+        deletedCount: deleted.length,
+        skippedCount: skipped.length,
+        deleted,
+        skipped,
+        message:
+          `Deleted ${deleted.length} account${deleted.length === 1 ? '' : 's'}.` +
+          (skipped.length ? ` Skipped ${skipped.length}: ${skipped.map((x) => x.email + ' (' + x.reason + ')').join(', ')}.` : ''),
+      });
+    }
+
     return NextResponse.json({ success: false, error: 'Unrecognized administrative action' }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json(

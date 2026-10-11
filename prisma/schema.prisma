@@ -10,6 +10,9 @@ generator client {
 model User {
   id                 String             @id @default(cuid())
   email              String             @unique
+  // Dot/plus-stripped form used only for duplicate detection on signup.
+  // Nullable so existing rows stay valid; backfilled on bootstrap.
+  emailCanonical     String?            @unique
   passwordHash       String
   name               String
   company            String?

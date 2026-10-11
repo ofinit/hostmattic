@@ -1,6 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 
+/**
+ * Additive, idempotent column migrations for pre-existing databases.
+ * Keep every statement safe to run on each boot.
+ */
+const MIGRATION_STATEMENTS = [
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailCanonical" TEXT`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "User_emailCanonical_key" ON "User" ("emailCanonical")`,
+];
+
 let isBootstrapping = false;
 let isBootstrapped = false;
 
@@ -9,6 +18,7 @@ const DDL_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "User" (
     "id" TEXT PRIMARY KEY,
     "email" TEXT UNIQUE NOT NULL,
+    "emailCanonical" TEXT UNIQUE,
     "passwordHash" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "company" TEXT,
@@ -170,6 +180,48 @@ export async function ensureDatabaseBootstrap() {
       } catch (ddlErr: any) {
         console.warn('[Hostmattic DB Bootstrap] DDL statement notice:', ddlErr?.message || ddlErr);
       }
+    }
+
+    // 1b. Additive migrations for databases created before a column existed.
+    // CREATE TABLE IF NOT EXISTS is a no-op on an existing table, so new
+    // columns have to be added explicitly or queries against them will throw.
+    for (const stmt of MIGRATION_STATEMENTS) {
+      try {
+        await prisma.$executeRawUnsafe(stmt);
+      } catch (migErr: any) {
+        console.warn('[Hostmattic DB Bootstrap] Migration notice:', migErr?.message || migErr);
+      }
+    }
+
+    // 1c. Backfill the canonical email for rows that predate the column.
+    // Gmail ignores dots and +tags; collapsing them is what lets signup reject
+    // the address-variant abuse that created a run of bot accounts.
+    try {
+      await prisma.$executeRawUnsafe(`
+        UPDATE "User"
+        SET "emailCanonical" = CASE
+          WHEN split_part("email", '@', 2) IN ('gmail.com', 'googlemail.com')
+            THEN replace(split_part(split_part("email", '@', 1), '+', 1), '.', '')
+                 || '@' || split_part("email", '@', 2)
+          ELSE split_part(split_part("email", '@', 1), '+', 1)
+               || '@' || split_part("email", '@', 2)
+        END
+        WHERE "emailCanonical" IS NULL
+          AND "email" LIKE '%@%'
+          AND NOT EXISTS (
+            SELECT 1 FROM "User" u2
+            WHERE u2."emailCanonical" IS NOT NULL
+              AND u2."emailCanonical" = CASE
+                WHEN split_part("User"."email", '@', 2) IN ('gmail.com', 'googlemail.com')
+                  THEN replace(split_part(split_part("User"."email", '@', 1), '+', 1), '.', '')
+                       || '@' || split_part("User"."email", '@', 2)
+                ELSE split_part(split_part("User"."email", '@', 1), '+', 1)
+                     || '@' || split_part("User"."email", '@', 2)
+              END
+          )
+      `);
+    } catch (backfillErr: any) {
+      console.warn('[Hostmattic DB Bootstrap] Email canonical backfill notice:', backfillErr?.message);
     }
 
     // 2. Ensure the initial administrator exists.
