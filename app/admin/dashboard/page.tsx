@@ -176,7 +176,31 @@ export default function AdminDashboardPage() {
     setSyncNotice(null);
     try {
       const res = await fetch('/api/admin/sync', { method: 'POST' });
-      const json = await res.json();
+
+      // A long sync can be cut off by the proxy, which closes the connection
+      // with no body. res.json() then throws "Unexpected end of JSON input",
+      // which tells the operator nothing. Read the text first and explain.
+      const raw = await res.text();
+      let json: any = null;
+      if (raw) {
+        try {
+          json = JSON.parse(raw);
+        } catch {
+          json = null;
+        }
+      }
+
+      if (!json) {
+        setSyncNotice({
+          type: 'error',
+          message: res.ok
+            ? 'The sync did not return a result. It was probably still running when the connection closed - check the server logs, then reload to see what was imported.'
+            : 'Sync failed with status ' + res.status + (res.statusText ? ' ' + res.statusText : '') + '.',
+        });
+        fetchAdminData();
+        return;
+      }
+
       if (json.success) {
         setSyncNotice({
           type: 'success',

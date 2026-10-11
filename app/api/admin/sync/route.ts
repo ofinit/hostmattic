@@ -5,6 +5,8 @@ import { hashPassword, requireAdmin } from '@/lib/auth';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
+// A full upstream walk is a long request. Tell the platform not to cut it short.
+export const maxDuration = 300;
 
 // SECURITY: POST only — removed GET handler to prevent CSRF-triggered syncs
 export async function POST(req: NextRequest) {
@@ -144,33 +146,47 @@ async function handleSync() {
 
         if (!username) continue;
 
-        // SECURITY: Generate unique random password per customer (not hardcoded)
-        const randomPassword = crypto.randomBytes(24).toString('base64url');
-        const defaultPasswordHash = await hashPassword(randomPassword);
+        const emailKey = username.toLowerCase().trim();
 
         try {
-          const user = await prisma.user.upsert({
-            where: { email: username.toLowerCase().trim() },
-            update: {
-              name,
-              company,
-              upstreamCustomerId,
-              phone,
-              city,
-              country,
-            },
-            create: {
-              email: username.toLowerCase().trim(),
-              passwordHash: defaultPasswordHash,
-              name,
-              company,
-              upstreamCustomerId,
-              phone,
-              city,
-              country,
-              createdAt,
-            },
+          // Hash ONLY when creating. bcrypt at cost 12 is roughly a quarter of a
+          // second of blocked CPU, and upsert computed it for every customer on
+          // every page even when the row already existed - enough, once the fetch
+          // was paginated, to run the whole request past the proxy timeout and
+          // return an empty body to the browser.
+          const existing = await prisma.user.findUnique({
+            where: { email: emailKey },
+            select: { id: true },
           });
+
+          let user;
+          if (existing) {
+            user = await prisma.user.update({
+              where: { id: existing.id },
+              data: { name, company, upstreamCustomerId, phone, city, country },
+              select: { id: true },
+            });
+          } else {
+            // Placeholder credential: synced customers sign in through SSO or a
+            // password reset, never with this value.
+            const defaultPasswordHash = await hashPassword(
+              crypto.randomBytes(24).toString('base64url')
+            );
+            user = await prisma.user.create({
+              data: {
+                email: emailKey,
+                passwordHash: defaultPasswordHash,
+                name,
+                company,
+                upstreamCustomerId,
+                phone,
+                city,
+                country,
+                createdAt,
+              },
+              select: { id: true },
+            });
+          }
 
           customerMap.set(upstreamCustomerId, user.id);
           results.customersSynced++;
