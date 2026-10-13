@@ -1,9 +1,16 @@
+import { legacyRedirects } from './legacy-redirects.mjs';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
   reactStrictMode: true,
   images: {
     unoptimized: true
+  },
+  async redirects() {
+    // Old SuperSite (.php) URLs -> their current equivalents. Without these
+    // every indexed legacy URL returns 404 and its ranking is lost.
+    return legacyRedirects();
   },
   async headers() {
     return [
