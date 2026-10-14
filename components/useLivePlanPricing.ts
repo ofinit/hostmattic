@@ -64,6 +64,22 @@ export function useLivePlanPricing<T extends Mergeable>(
         const live = json.plans as Record<string, LivePlanPrice>;
         if (!Object.keys(live).length) return;
 
+        // Two tiers naming the same upstream plan is a mapping mistake: both
+        // would take the same price and one of them is certainly wrong. There
+        // is no safe way to pick, so apply nothing.
+        const claimed = publishedPlans.map((p) => p.upstreamPlan).filter(Boolean) as string[];
+        const duplicated = claimed.filter((v, i) => claimed.indexOf(v) !== i);
+        if (duplicated.length) {
+          console.warn(
+            `[LivePricing] ${productType}: more than one tier maps to ` +
+              `${Array.from(new Set(duplicated)).join(', ')}. Keeping published prices.`
+          );
+          return;
+        }
+
+        const usable = (v: unknown): v is number =>
+          typeof v === 'number' && Number.isFinite(v) && v > 0;
+
         let matched = false;
         const merged = publishedPlans.map((plan) => {
           if (!plan.upstreamPlan) return plan;
@@ -73,8 +89,10 @@ export function useLivePlanPricing<T extends Mergeable>(
           // Upstream does not always sell a one-month tenure. Where it does
           // not, the monthly figure stays as published rather than silently
           // showing an annual-commitment rate as a month-to-month price.
-          const monthly = p.monthlyUsd ?? plan.usdMonthly;
-          const annualMonthly = p.annualMonthlyUsd ?? plan.usdAnnualMonthly;
+          const monthly = usable(p.monthlyUsd) ? p.monthlyUsd : plan.usdMonthly;
+          const annualMonthly = usable(p.annualMonthlyUsd)
+            ? p.annualMonthlyUsd
+            : plan.usdAnnualMonthly;
           if (monthly === plan.usdMonthly && annualMonthly === plan.usdAnnualMonthly) {
             return plan;
           }
@@ -96,13 +114,25 @@ export function useLivePlanPricing<T extends Mergeable>(
         // misconfigured, and publishing it would show visitors a mid tier
         // priced below the entry tier. Keep the published set and say so
         // rather than render a storefront that reads as broken.
-        const ordered = merged.map((p) => p.usdAnnualMonthly);
-        const inverted = ordered.some((v, i) => i > 0 && v < ordered[i - 1]);
-        if (inverted) {
+        const annual = merged.map((p) => p.usdAnnualMonthly);
+        const monthlyRates = merged.map((p) => p.usdMonthly);
+        const isInverted = (xs: number[]) => xs.some((v, i) => i > 0 && v < xs[i - 1]);
+
+        // Every figure must still be a usable number after the merge; a NaN or
+        // a zero would render as a free plan.
+        if (![...annual, ...monthlyRates].every(usable)) {
+          console.warn(
+            `[LivePricing] ${productType}: merged prices contain an unusable value. ` +
+              'Keeping published prices.'
+          );
+          return;
+        }
+
+        if (isInverted(annual) || isInverted(monthlyRates)) {
           console.warn(
             `[LivePricing] ${productType}: upstream prices are not ordered by tier ` +
-              `(${ordered.join(' -> ')}). Keeping published prices. ` +
-              `Fix the plan prices in the reseller control panel.`
+              `(annual ${annual.join(' -> ')}; monthly ${monthlyRates.join(' -> ')}). ` +
+              'Keeping published prices. Fix the plan prices in the reseller control panel.'
           );
           return;
         }

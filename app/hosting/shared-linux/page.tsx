@@ -40,7 +40,7 @@ const PUBLISHED_PLANS: PlanData[] = [
     productType: 'SHARED_LINUX',
     features: [
       '<strong>Unlimited Websites</strong>',
-      '<strong>50 GB NVMe SSD</strong> Storage',
+      '<strong>20 GB NVMe SSD</strong> Storage',
       'Unmetered Bandwidth',
       'Official <strong>cPanel Control Panel</strong>',
       'Free Lifetime SSL Certificates',

@@ -44,26 +44,36 @@ export async function provisionHosting(params: ProvisionHostingParams): Promise<
     'invoice-option': 'NoInvoice',
   };
 
+  // Upstream plan ids are numeric and reseller-specific (6305734, 7293195 ...).
+  // This used to fall back to invented strings such as 'starter_us', which no
+  // catalogue contains, so a live provisioning call could only ever fail - or,
+  // worse, succeed against something other than what the customer bought.
+  // Resolve the real id with getSellablePlan() before calling this.
+  if (!params.planId) {
+    return {
+      success: false,
+      error:
+        'No upstream plan id was supplied, so this order cannot be provisioned. ' +
+        'Resolve the plan from the live catalogue before provisioning.',
+    };
+  }
+  postData['plan-id'] = params.planId;
+
   switch (params.productType) {
     case 'SHARED_LINUX':
       endpoint = `/singledomainhosting/linux/${location}/add.json`;
-      postData['plan-id'] = params.planId || 'starter_us';
       break;
     case 'SHARED_WINDOWS':
       endpoint = `/singledomainhosting/windows/${location}/add.json`;
-      postData['plan-id'] = params.planId || 'win_starter';
       break;
     case 'WORDPRESS':
       endpoint = `/wordpresshosting/add.json`;
-      postData['plan-id'] = params.planId || 'wp_standard';
       break;
     case 'CLOUD':
       endpoint = `/cloudhosting/add.json`;
-      postData['plan-id'] = params.planId || 'cloud_starter';
       break;
     case 'VPS':
       endpoint = `/vps/linux/add.json`;
-      postData['plan-id'] = params.planId || 'vps_standard';
       break;
     default:
       endpoint = `/singledomainhosting/linux/${location}/add.json`;

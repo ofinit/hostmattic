@@ -53,6 +53,9 @@ export interface PlanPricing {
   status: string;
   /** Shortest tenure upstream will sell, in months. */
   minTenureMonths: number;
+  /** What upstream actually provisions, for checking advertised copy. */
+  webspaceMb?: number;
+  mailAccounts?: number;
   /** Per-month rate month-to-month, when upstream sells a 1-month tenure. */
   monthlyUsd?: number;
   /** Per-month rate on a 12-month tenure. */
@@ -122,6 +125,10 @@ export interface PlanDetail {
   name: string;
   status: string;
   bandId?: string;
+  /** Upstream webspace in MB; -1 means unmetered. */
+  webspaceMb?: number;
+  /** Upstream mailbox allowance; -1 means unmetered. */
+  mailAccounts?: number;
 }
 
 const planDetailCache = new Map<string, Record<string, PlanDetail>>();
@@ -145,10 +152,16 @@ export function extractPlanDetails(payload: any, productKey: string): Record<str
     if (!detail || typeof detail !== 'object') continue;
     const name = detail.plan_name ?? detail.planname ?? detail.name;
     if (typeof name !== 'string' || !name.trim()) continue;
+    const toInt = (v: any) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : undefined;
+    };
     out[planId] = {
       name: name.trim(),
       status: String(detail.status ?? 'Unknown'),
       bandId: detail.bandid != null ? String(detail.bandid) : undefined,
+      webspaceMb: toInt(detail.webspace),
+      mailAccounts: toInt(detail.no_of_mail_accounts),
     };
   }
   return out;
@@ -259,6 +272,8 @@ export async function getLiveHostingPricing(): Promise<HostingPricingMap> {
           bandId: detail.bandId,
           status: detail.status,
           minTenureMonths: tenures[0],
+          webspaceMb: detail.webspaceMb,
+          mailAccounts: detail.mailAccounts,
           monthlyUsd: monthly ? toUsd(monthly) : undefined,
           annualMonthlyUsd: annualMonthly ? toUsd(annualMonthly) : undefined,
           renewMonthlyUsd: renewMonthly ? toUsd(renewMonthly) : undefined,
@@ -291,4 +306,32 @@ export async function getLiveHostingPricing(): Promise<HostingPricingMap> {
     console.warn('[HostingPricing] Could not fetch live plan pricing:', err?.message);
     return {};
   }
+}
+
+/**
+ * The plan a purchase would actually be provisioned as, or null.
+ *
+ * Returns nothing for a plan upstream has paused, has no price for, or does
+ * not list at all. Checkout uses this to refuse an order the provider could
+ * not fulfil, rather than taking payment and failing afterwards.
+ */
+export async function getSellablePlan(
+  productType: string,
+  planName: string
+): Promise<PlanPricing | null> {
+  const all = await getLiveHostingPricing();
+  const family = all[productType];
+  if (!family) return null;
+
+  const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const hit = Object.values(family).find((p) => norm(p.planName) === norm(planName));
+  if (!hit || hit.status !== 'Active') return null;
+  return hit;
+}
+
+/** Clears the in-process caches. Used by the regression tests only. */
+export function __resetForTests(): void {
+  cache = null;
+  cacheExpiry = 0;
+  planDetailCache.clear();
 }

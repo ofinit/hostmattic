@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { registerDomain } from '@/lib/api/domains';
-import { provisionHosting } from '@/lib/api/hosting';
+import { getSellablePlan } from '@/lib/api/hostingPricing';
 import { validateCurrencyMatch, lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { requireAuth } from '@/lib/auth';
 import { sendEmail, generateOrderReceiptEmail } from '@/lib/email/resend';
@@ -72,33 +71,63 @@ export async function POST(req: NextRequest) {
     const orderNumber = 'HM-' + Date.now().toString().slice(-6) + '-' + Math.floor(100 + Math.random() * 900);
     const provisionedResults: any[] = [];
 
-    // Trigger provisioning for each item
+    // Refuse anything the provider could not deliver, before taking an order
+    // for it. A hosting plan upstream has paused, or does not price, cannot be
+    // provisioned however the payment goes.
     for (const item of items) {
-      if (item.type === 'DOMAIN') {
-        const domRes = await registerDomain({
-          domainName: item.domainName,
-          customerId: customer?.upstreamCustomerId || '1001',
-          years: item.years || 1,
-        });
-        provisionedResults.push({
-          type: 'DOMAIN',
-          domain: item.domainName,
-          result: domRes.data,
-        });
-      } else if (item.type && item.type.startsWith('HOSTING')) {
-        const hostRes = await provisionHosting({
-          productType: item.productType || 'SHARED_LINUX',
-          domainName: item.domainName || 'primary-domain.com',
-          customerId: customer?.upstreamCustomerId || '1001',
-          location: item.location || 'us',
-        });
-        provisionedResults.push({
-          type: 'HOSTING',
-          domain: item.domainName,
-          result: hostRes.data,
-        });
+      if (!item?.type || !String(item.type).startsWith('HOSTING')) continue;
+
+      const price = Number(item.price);
+      if (!Number.isFinite(price) || price <= 0) {
+        // `Number(it.price) || 0` further down would otherwise record this as
+        // a free line item rather than rejecting it.
+        return NextResponse.json(
+          {
+            success: false,
+            error: `No valid price was supplied for "${item.name || item.productType}".`,
+          },
+          { status: 400 }
+        );
+      }
+
+      const plan = await getSellablePlan(item.productType || 'SHARED_LINUX', item.name || '');
+      if (!plan) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'PLAN_UNAVAILABLE',
+            error:
+              `"${item.name}" is not currently available to order. ` +
+              'Please choose another plan or contact support.',
+          },
+          { status: 409 }
+        );
+      }
+
+      // Upstream sells hosting on a minimum tenure. Collecting one month
+      // against a twelve-month commitment is a loss on every sale.
+      const requestedMonths = item.period === 'monthly' || item.billingPeriod === 'monthly' ? 1 : 12;
+      if (requestedMonths < plan.minTenureMonths) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: 'TERM_UNAVAILABLE',
+            error:
+              `"${item.name}" is only sold on a minimum term of ` +
+              `${plan.minTenureMonths} months.`,
+          },
+          { status: 409 }
+        );
       }
     }
+
+    // NOTE: provisioning deliberately does NOT happen here.
+    //
+    // The checkout form posts paymentStatus 'PENDING' and only then opens the
+    // payment gateway, so at this point payment has definitionally not been
+    // made. Provisioning here handed over the goods before any money moved,
+    // and a customer who closed the payment window kept the service. The order
+    // is recorded PENDING and fulfilment belongs to the verified-payment path.
 
     // Attempt DB record
     try {
@@ -225,7 +254,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       orderNumber,
-      message: 'Order completed and services provisioned successfully!',
+      awaitingPayment: true,
+      message: 'Order placed. Services are activated once payment is confirmed.',
       provisioned: provisionedResults,
     });
   } catch (error: any) {

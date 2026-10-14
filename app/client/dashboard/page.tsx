@@ -149,7 +149,10 @@ export default function ClientDashboard() {
       // .in, .ai alike - fell through to a flat $12.99. That happened to equal
       // the .com retail price, which is why it looked plausible.
       const tldPricing = pricingData?.[item.tld || '.com'];
-      const renewPrice = Number(tldPricing?.renewUsd ?? tldPricing?.retailUsd ?? 0);
+      // Falling back to retailUsd here quoted the REGISTRATION price - often a
+      // heavily discounted first-year promo - as the renewal. Showing nothing
+      // is correct; inventing a renewal price is not.
+      const renewPrice = Number(tldPricing?.renewUsd ?? 0);
       if (!renewPrice) {
         setDealAddedMsg(`Renewal pricing for ${item.tld || 'this extension'} is unavailable right now. Please contact support.`);
         setSelectedRenewalModal(null);
@@ -3464,7 +3467,7 @@ export default function ClientDashboard() {
                   {selectedRenewalModal.type === 'DOMAIN'
                     ? (() => {
                         const tp = pricingData?.[selectedRenewalModal.item.tld || '.com'];
-                        const amt = Number(tp?.renewUsd ?? tp?.retailUsd ?? 0);
+                        const amt = Number(tp?.renewUsd ?? 0);
                         return amt ? formatPrice(amt) : 'Unavailable';
                       })()
                     : selectedRenewalModal.type === 'HOSTING'
