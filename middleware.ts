@@ -30,6 +30,23 @@ const PUBLIC_ROUTES = [
 // Routes that require ADMIN role
 const ADMIN_ROUTES_PREFIX = '/api/admin';
 
+/**
+ * Page routes that must not render to an unauthenticated visitor.
+ *
+ * These were previously unguarded: the matcher only covered /api/ and .php, so
+ * anyone could open /client/dashboard and get the whole portal shell rendered
+ * ("Welcome back, Valued Customer!") with the signed-out header still showing
+ * Client Login / Sign Up. The data was safe because the APIs return 401, but
+ * the console should never paint for someone who is not signed in.
+ *
+ * Guarding here rather than in the page means no flash of protected UI and no
+ * reliance on client-side JavaScript.
+ */
+const PROTECTED_PAGE_PREFIXES = ['/client', '/admin'];
+
+/** Pages under those prefixes that must stay reachable while signed out. */
+const PAGE_AUTH_EXCEPTIONS = ['/admin/login'];
+
 function getJwtSecret(): string {
   return process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || 'hostmattic_secure_jwt_prod_fallback_token_2026';
 }
@@ -109,8 +126,29 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL(target, req.nextUrl.origin), 308);
   }
 
-  // Only protect API routes
+  // ---- Protected page routes --------------------------------------------
   if (!pathname.startsWith('/api/')) {
+    const needsAuth =
+      PROTECTED_PAGE_PREFIXES.some((p) => pathname === p || pathname.startsWith(p + '/')) &&
+      !PAGE_AUTH_EXCEPTIONS.some((p) => pathname === p || pathname.startsWith(p + '/'));
+
+    if (!needsAuth) return NextResponse.next();
+
+    const isAdminArea = pathname === '/admin' || pathname.startsWith('/admin/');
+    const signInPath = isAdminArea ? '/admin/login' : '/login';
+
+    const pageToken = req.cookies.get('hm_auth_token')?.value;
+    const pageSession = pageToken ? await verifyJwtEdge(pageToken) : null;
+
+    if (!pageSession || (isAdminArea && pageSession.role !== 'ADMIN')) {
+      const url = req.nextUrl.clone();
+      url.pathname = signInPath;
+      url.search = '';
+      // Come back here once signed in.
+      url.searchParams.set('next', pathname);
+      return NextResponse.redirect(url);
+    }
+
     return NextResponse.next();
   }
 
@@ -149,5 +187,5 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // '/api/:path*' for the auth guard, plus every legacy .php path.
-  matcher: ['/api/:path*', '/(.*\.php)'],
+  matcher: ['/api/:path*', '/(.*\.php)', '/client/:path*', '/admin/:path*'],
 };
