@@ -104,8 +104,13 @@ export async function GET(req: NextRequest) {
       console.warn('[Admin Overview Notice] Database offline or unseeded, using operational preview data');
     }
 
+    // Demonstration data is preview/dev only. With upstream credentials
+    // configured the console must show real records and real empty states -
+    // inventing rows in production makes the panel disagree with itself.
+    const allowDemoData = !isLiveApiConfigured();
+
     // Supply demo fallback records if empty so the operations panel is fully demonstrable
-    if (users.length === 0) {
+    if (allowDemoData && users.length === 0) {
       users = [
         {
           id: 'usr_c1',
@@ -212,7 +217,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    if (domains.length === 0) {
+    if (allowDemoData && domains.length === 0) {
       domains = [
         {
           id: 'dom_1',
@@ -265,7 +270,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    if (hosting.length === 0) {
+    if (allowDemoData && hosting.length === 0) {
       hosting = [
         {
           id: 'host_1',
@@ -309,7 +314,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    if (orders.length === 0) {
+    if (allowDemoData && orders.length === 0) {
       orders = [
         {
           id: 'ord_1',
@@ -357,7 +362,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    if (tickets.length === 0) {
+    if (allowDemoData && tickets.length === 0) {
       tickets = [
         {
           id: 'tkt_1',
@@ -533,7 +538,7 @@ export async function GET(req: NextRequest) {
       });
     });
 
-    if (addons.length === 0) {
+    if (allowDemoData && addons.length === 0) {
       addons = [
         {
           id: 'addon_demo_1',

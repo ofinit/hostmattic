@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/auth';
 import { computeExpirationAnalytics } from '@/lib/analytics/pnl';
+import { isLiveApiConfigured } from '@/lib/api/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,8 +41,18 @@ export async function GET(req: NextRequest) {
       console.warn('[Services DB Notice] Falling back to demo data in preview');
     }
 
+    // Demonstration data is for preview/dev only.
+    //
+    // These blocks used to run purely on "the customer has no records", which in
+    // production meant a real customer with no services was shown invented
+    // domains, hosting, PAID invoices and a support ticket as if they were their
+    // own - and it contradicted the same customer's admin dossier, which
+    // correctly reported zero. Once upstream credentials are configured the
+    // portal must only ever show real records, empty state included.
+    const allowDemoData = !isLiveApiConfigured();
+
     // If no records in DB yet, provide default active service demonstrations
-    if (domains.length === 0 && hosting.length === 0) {
+    if (allowDemoData && domains.length === 0 && hosting.length === 0) {
       domains = [
         {
           id: 'dom_1',
@@ -80,7 +91,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    if (orders.length === 0) {
+    if (allowDemoData && orders.length === 0) {
       orders = [
         {
           id: 'ord_demo_1',
@@ -123,7 +134,7 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    if (tickets.length === 0) {
+    if (allowDemoData && tickets.length === 0) {
       tickets = [
         {
           id: 'tkt_demo_1',
@@ -201,7 +212,7 @@ export async function GET(req: NextRequest) {
       });
     });
 
-    if (addons.length === 0) {
+    if (allowDemoData && addons.length === 0) {
       addons = [
         {
           id: 'addon_cust_1',

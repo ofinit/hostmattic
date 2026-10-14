@@ -77,7 +77,8 @@ export async function GET(req: NextRequest) {
       // Fallback below
     }
 
-    if (records.length === 0) {
+    // Preview/dev only: never invent DNS records for a real zone.
+    if (!isLiveApiConfigured() && records.length === 0) {
       records = DEFAULT_DNS_RECORDS[domain] || [
         { id: 'rec_live_1', type: 'A', host: '@', value: '198.51.100.24', ttl: 14400 },
         { id: 'rec_live_2', type: 'CNAME', host: 'www', value: domain, ttl: 14400 },
