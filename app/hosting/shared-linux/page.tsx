@@ -15,6 +15,7 @@ import { useLivePlanPricing } from '@/components/useLivePlanPricing';
 const PUBLISHED_PLANS: PlanData[] = [
   {
     name: 'Starter',
+    upstreamPlan: 'Economy',
     desc: 'Ideal for single websites, personal blogs, and emerging projects.',
     usdMonthly: 3.99,
     usdAnnualMonthly: 2.49,
@@ -31,6 +32,7 @@ const PUBLISHED_PLANS: PlanData[] = [
   },
   {
     name: 'Performance',
+    upstreamPlan: 'Standard',
     desc: 'Our most popular tier for fast-growing businesses & e-commerce.',
     usdMonthly: 7.99,
     usdAnnualMonthly: 4.99,
@@ -49,6 +51,7 @@ const PUBLISHED_PLANS: PlanData[] = [
   },
   {
     name: 'Business Pro',
+    upstreamPlan: 'Advanced',
     desc: 'High-resource environment for agencies and high-traffic portals.',
     usdMonthly: 12.99,
     usdAnnualMonthly: 8.49,

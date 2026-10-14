@@ -5,28 +5,42 @@ import { useEffect, useState } from 'react';
 /**
  * Overlays live upstream plan pricing onto a page's published plans.
  *
- * Every product page outside domains carried its prices in the source, so a
- * cost change upstream stayed invisible until someone checked the margin by
- * hand. This hook fetches the live figures for one product family and merges
- * them in by plan name.
+ * Every product family outside domains carried its prices in the page source,
+ * so a cost change upstream stayed invisible until someone checked the margin
+ * by hand. This fetches the live figures for one family and merges them in.
  *
- * The merge is deliberately one-directional and partial: a plan with no live
- * match keeps exactly the figures the page shipped with. The page therefore
- * renders correctly before the fetch resolves, when upstream is unreachable,
- * and when a plan simply is not sold upstream - and it never shows a number
- * this app made up.
+ * The merge is partial and one-directional by design. A plan keeps exactly the
+ * figures the page shipped with unless a live price is found for the upstream
+ * plan it names. So the page renders correctly before the fetch resolves, when
+ * upstream is unreachable, and when a tier is not sold upstream at all - and it
+ * never shows a number this app invented.
+ *
+ * Matching is on `upstreamPlan`, never on position. Upstream names its tiers
+ * Economy / Standard / Advanced while the storefront sells Starter /
+ * Performance / Business Pro; lining them up by order would put the top tier's
+ * price on the entry tier.
  */
 export interface LivePlanPrice {
   monthlyUsd?: number;
   annualMonthlyUsd?: number;
-  annualUsd?: number;
+  renewMonthlyUsd?: number;
+  minTenureMonths?: number;
+  status?: string;
 }
 
-const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
+interface Mergeable {
+  name: string;
+  usdMonthly: number;
+  usdAnnualMonthly: number;
+  upstreamPlan?: string;
+  isLivePrice?: boolean;
+  minTenureMonths?: number;
+}
 
-export function useLivePlanPricing<
-  T extends { name: string; usdMonthly: number; usdAnnualMonthly: number }
->(publishedPlans: T[], productType: string): { plans: T[]; isLive: boolean } {
+export function useLivePlanPricing<T extends Mergeable>(
+  publishedPlans: T[],
+  productType: string
+): { plans: T[]; isLive: boolean } {
   const [plans, setPlans] = useState<T[]>(publishedPlans);
   const [isLive, setIsLive] = useState(false);
 
@@ -35,8 +49,8 @@ export function useLivePlanPricing<
 
     fetch(`/api/hosting/pricing?type=${encodeURIComponent(productType)}`)
       .then(async (res) => {
-        // Defensive: an upstream timeout can return an HTML error page, and
-        // res.json() on that throws "Unexpected end of JSON input".
+        // An upstream timeout can return an HTML error page, and res.json()
+        // on that throws "Unexpected end of JSON input".
         const text = await res.text();
         try {
           return JSON.parse(text);
@@ -48,27 +62,53 @@ export function useLivePlanPricing<
         if (cancelled || !json?.success || !json.plans) return;
 
         const live = json.plans as Record<string, LivePlanPrice>;
-        const entries = Object.entries(live);
-        if (!entries.length) return;
+        if (!Object.keys(live).length) return;
 
         let matched = false;
         const merged = publishedPlans.map((plan) => {
-          const hit = entries.find(([k]) => norm(k) === norm(plan.name));
-          if (!hit) return plan;
-          const p = hit[1];
-          if (p.monthlyUsd == null && p.annualMonthlyUsd == null) return plan;
+          if (!plan.upstreamPlan) return plan;
+          const p = live[plan.upstreamPlan];
+          if (!p) return plan;
+
+          // Upstream does not always sell a one-month tenure. Where it does
+          // not, the monthly figure stays as published rather than silently
+          // showing an annual-commitment rate as a month-to-month price.
+          const monthly = p.monthlyUsd ?? plan.usdMonthly;
+          const annualMonthly = p.annualMonthlyUsd ?? plan.usdAnnualMonthly;
+          if (monthly === plan.usdMonthly && annualMonthly === plan.usdAnnualMonthly) {
+            return plan;
+          }
+
           matched = true;
           return {
             ...plan,
-            usdMonthly: p.monthlyUsd ?? plan.usdMonthly,
-            usdAnnualMonthly: p.annualMonthlyUsd ?? plan.usdAnnualMonthly,
+            usdMonthly: monthly,
+            usdAnnualMonthly: annualMonthly,
+            isLivePrice: true,
+            minTenureMonths: p.minTenureMonths,
           };
         });
 
-        if (matched) {
-          setPlans(merged);
-          setIsLive(true);
+        if (!matched) return;
+
+        // The page lists tiers cheapest first. If the live figures would make a
+        // higher tier cost less than a lower one, the catalogue upstream is
+        // misconfigured, and publishing it would show visitors a mid tier
+        // priced below the entry tier. Keep the published set and say so
+        // rather than render a storefront that reads as broken.
+        const ordered = merged.map((p) => p.usdAnnualMonthly);
+        const inverted = ordered.some((v, i) => i > 0 && v < ordered[i - 1]);
+        if (inverted) {
+          console.warn(
+            `[LivePricing] ${productType}: upstream prices are not ordered by tier ` +
+              `(${ordered.join(' -> ')}). Keeping published prices. ` +
+              `Fix the plan prices in the reseller control panel.`
+          );
+          return;
         }
+
+        setPlans(merged);
+        setIsLive(true);
       })
       .catch(() => {
         // Keep the published prices; nothing to report to the visitor.

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { apiClient, isLiveApiConfigured } from '@/lib/api/client';
-import { PRODUCT_KEYS, extractPlanNames, getLiveHostingPricing } from '@/lib/api/hostingPricing';
+import { PRODUCT_KEYS, extractPlanDetails, getLiveHostingPricing } from '@/lib/api/hostingPricing';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const PLAN_DETAIL_ENDPOINTS = ['/products/plan-details.json', '/products/details.json'];
+// /products/details.json ignores product-key and returns the whole domain
+// catalogue, so only this path is worth probing.
+const PLAN_DETAIL_ENDPOINTS = ['/products/plan-details.json'];
 
 /**
  * GET /api/admin/pricing-diagnostics
@@ -54,8 +56,8 @@ export async function GET(req: NextRequest) {
           planDetailProbes[endpoint] = {
             ok: res.success,
             error: res.error ?? null,
-            namesFound: Object.keys(extractPlanNames(res.data)).length,
-            names: extractPlanNames(res.data),
+            namesFound: Object.keys(extractPlanDetails(res.data, key)).length,
+            names: extractPlanDetails(res.data, key),
             raw: res.success ? res.data : null,
           };
         } catch (e: any) {

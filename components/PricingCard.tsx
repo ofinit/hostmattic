@@ -12,6 +12,17 @@ export interface PlanData {
   popular?: boolean;
   features: string[];
   productType: string;
+  /**
+   * The plan's name in the upstream catalogue, where it differs from the name
+   * we sell it under. Live pricing is matched on this; without it a plan keeps
+   * its published price, because matching tiers by position would put the top
+   * tier's price on the entry tier.
+   */
+  upstreamPlan?: string;
+  /** Set once a live price has replaced the published one. */
+  isLivePrice?: boolean;
+  /** Shortest tenure upstream will sell, in months. */
+  minTenureMonths?: number;
 }
 
 export default function PricingCard({

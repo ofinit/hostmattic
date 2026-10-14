@@ -1,28 +1,43 @@
 /**
  * Live plan pricing for every product family that is not a domain.
  *
- * Domain pricing (lib/api/pricing.ts) has been live for a while; every other
- * family carried its prices in the page source, so a cost change upstream was
- * invisible until someone checked the margin by hand.
+ * Shapes below are confirmed against the live catalogue through
+ * /api/admin/pricing-diagnostics, not assumed. They are not uniform, and the
+ * variations are the whole difficulty:
  *
- * Shape, confirmed against the live catalogue through
- * /api/admin/pricing-diagnostics rather than assumed:
- *
+ * customer-price.json, plan ids at the top level (shared hosting):
  *   "singledomainhostinglinuxus": {
- *     "plans": {
- *       "1682": { "add": { "1": 30, "3": 30, "6": 30, "12": 30, ... } }
+ *     "7293195": { "add": { "12": 108, "24": 108 }, "renew": { "12": 228 }, "ssl": 500 }
+ *   }
+ *
+ * customer-price.json, wrapped in `plans` (acronis):
+ *   "acronisbackupasia": { "plans": { "1682": { "add": { "1": 30, ... } } } }
+ *
+ * reseller-cost-price.json, nested under the product key AGAIN and keyed by
+ * BAND id rather than plan id, with a flat price per action:
+ *   "singledomainhostinglinuxus": {
+ *     "singledomainhostinglinuxus": {
+ *       "89": { "pricing": { "add": 90, "renew": 190, "ssl": 250 },
+ *               "description": { "webspace": 20480, ... } }
  *     }
  *   }
  *
- * Two consequences drive the code below:
+ * plan-details.json, nested under the product key, carrying the name, the
+ * sellable status and the band id that joins price to cost:
+ *   "singledomainhostinglinuxus": {
+ *     "7293195": { "plan_name": "Standard", "status": "Active", "bandid": "89" }
+ *   }
  *
- *  - plans sit under a `plans` wrapper and are keyed by NUMERIC PLAN ID, not
- *    by name, so a product's plan names must be fetched separately before a
- *    price can be attached to "Starter" rather than to "1682";
- *  - the duration keys (1/3/6/12/24/36) are MONTHS, and the value is the
- *    per-month rate for that tenure slab, not the total for the term. A
- *    product priced identically at every tenure, as acronis is, only makes
- *    sense read that way.
+ * Two facts about the numbers themselves:
+ *
+ *  - duration keys are MONTHS and the value is the per-month rate for that
+ *    tenure, not the total for the term. A plan charging 108 at 12, 24 and 36
+ *    months only reads that way; as totals, three years would cost what one
+ *    does.
+ *  - `add` is the first-term rate and `renew` is the ongoing one, and they
+ *    differ sharply (108 against 228). They are kept separate here for the
+ *    same reason they are for domains: quoting a promotional rate as a
+ *    renewal once shipped renewals below wholesale.
  */
 
 import { apiClient, isLiveApiConfigured } from './client';
@@ -31,16 +46,22 @@ const USD_INR_RATE = 83.5;
 const CACHE_TTL_MS = 15 * 60 * 1000;
 
 export interface PlanPricing {
-  /** Per-month rate when billed monthly. */
-  monthlyUsd?: number;
-  /** Per-month rate when committing to a year. */
-  annualMonthlyUsd?: number;
-  /** What a year costs in total at the annual rate. */
-  annualUsd?: number;
-  /** Our own cost, for margin reporting. */
-  wholesaleMonthlyUsd?: number;
-  /** Upstream plan id, for provisioning and for tracing a price back. */
   planId: string;
+  planName: string;
+  bandId?: string;
+  /** Upstream status; only "Active" plans can actually be provisioned. */
+  status: string;
+  /** Shortest tenure upstream will sell, in months. */
+  minTenureMonths: number;
+  /** Per-month rate month-to-month, when upstream sells a 1-month tenure. */
+  monthlyUsd?: number;
+  /** Per-month rate on a 12-month tenure. */
+  annualMonthlyUsd?: number;
+  /** Per-month RENEWAL rate on a 12-month tenure - not the same as above. */
+  renewMonthlyUsd?: number;
+  /** Our own per-month cost, for margin. */
+  wholesaleMonthlyUsd?: number;
+  wholesaleRenewMonthlyUsd?: number;
   source: 'live';
 }
 
@@ -48,9 +69,8 @@ export interface PlanPricing {
 export type HostingPricingMap = Record<string, Record<string, PlanPricing>>;
 
 /**
- * Upstream product keys per product family, confirmed present in the live
- * catalogue. Listed in preference order: a reseller may carry only some
- * regions, so the first key that exists wins.
+ * Upstream product keys per family, confirmed present in the live catalogue.
+ * Preference order: a reseller may carry only some regions, first hit wins.
  */
 export const PRODUCT_KEYS: Record<string, string[]> = {
   SHARED_LINUX: [
@@ -64,11 +84,7 @@ export const PRODUCT_KEYS: Record<string, string[]> = {
     'singledomainhostingwindowsuk',
     'singledomainhostingwindowshk',
   ],
-  MULTI_DOMAIN: [
-    'multidomainhosting',
-    'multidomainhostinglinuxin',
-    'multidomainhostinglinuxhk',
-  ],
+  MULTI_DOMAIN: ['multidomainhosting', 'multidomainhostinglinuxin', 'multidomainhostinglinuxhk'],
   MULTI_DOMAIN_WINDOWS: [
     'multidomainwindowshosting',
     'multidomainwindowshostingin',
@@ -102,54 +118,55 @@ export const PRODUCT_KEYS: Record<string, string[]> = {
 let cache: HostingPricingMap | null = null;
 let cacheExpiry = 0;
 
-/** Plan-name lookups are per product key and change rarely. */
-const planNameCache = new Map<string, Record<string, string>>();
+export interface PlanDetail {
+  name: string;
+  status: string;
+  bandId?: string;
+}
+
+const planDetailCache = new Map<string, Record<string, PlanDetail>>();
 
 /**
- * Upstream exposes plan metadata under more than one path depending on the
- * product. Try each; the first that yields names wins.
+ * Only plan-details.json is useful here. /products/details.json ignores
+ * product-key and returns the entire domain catalogue instead, so it is not
+ * worth the request.
  */
-const PLAN_DETAIL_ENDPOINTS = ['/products/plan-details.json', '/products/details.json'];
+export function extractPlanDetails(payload: any, productKey: string): Record<string, PlanDetail> {
+  const out: Record<string, PlanDetail> = {};
+  if (!payload || typeof payload !== 'object') return out;
 
-export function extractPlanNames(payload: any): Record<string, string> {
-  const names: Record<string, string> = {};
-  if (!payload || typeof payload !== 'object') return names;
-
-  const root = payload.plans && typeof payload.plans === 'object' ? payload.plans : payload;
+  // Nested under the product key, with the bare object as a fallback.
+  const root =
+    (payload[productKey] && typeof payload[productKey] === 'object' && payload[productKey]) ||
+    (payload.plans && typeof payload.plans === 'object' && payload.plans) ||
+    payload;
 
   for (const [planId, detail] of Object.entries<any>(root)) {
     if (!detail || typeof detail !== 'object') continue;
-    const name =
-      detail.plan_name ??
-      detail.planname ??
-      detail.name ??
-      detail.plan_description ??
-      detail?.plan?.name;
-    if (typeof name === 'string' && name.trim()) names[planId] = name.trim();
+    const name = detail.plan_name ?? detail.planname ?? detail.name;
+    if (typeof name !== 'string' || !name.trim()) continue;
+    out[planId] = {
+      name: name.trim(),
+      status: String(detail.status ?? 'Unknown'),
+      bandId: detail.bandid != null ? String(detail.bandid) : undefined,
+    };
   }
-  return names;
+  return out;
 }
 
-export async function getPlanNames(productKey: string): Promise<Record<string, string>> {
-  const cached = planNameCache.get(productKey);
+export async function getPlanDetails(productKey: string): Promise<Record<string, PlanDetail>> {
+  const cached = planDetailCache.get(productKey);
   if (cached) return cached;
 
-  for (const endpoint of PLAN_DETAIL_ENDPOINTS) {
-    try {
-      const res = await apiClient<any>(endpoint, { 'product-key': productKey }, 'GET');
-      if (!res.success || !res.data) continue;
-      const names = extractPlanNames(res.data);
-      if (Object.keys(names).length) {
-        planNameCache.set(productKey, names);
-        return names;
-      }
-    } catch {
-      // Try the next path.
-    }
+  try {
+    const res = await apiClient<any>('/products/plan-details.json', { 'product-key': productKey }, 'GET');
+    const details = res.success ? extractPlanDetails(res.data, productKey) : {};
+    planDetailCache.set(productKey, details);
+    return details;
+  } catch {
+    planDetailCache.set(productKey, {});
+    return {};
   }
-
-  planNameCache.set(productKey, {});
-  return {};
 }
 
 function num(v: any): number | undefined {
@@ -158,6 +175,27 @@ function num(v: any): number | undefined {
 }
 
 const toUsd = (inr: number) => Number((inr / USD_INR_RATE).toFixed(2));
+
+/** Plan ids sit either directly under the product key or inside `plans`. */
+function planNodes(productNode: any): Record<string, any> {
+  if (!productNode || typeof productNode !== 'object') return {};
+  if (productNode.plans && typeof productNode.plans === 'object') return productNode.plans;
+
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries<any>(productNode)) {
+    // Skip scalar siblings such as "ssl": 500.
+    if (v && typeof v === 'object') out[k] = v;
+  }
+  return out;
+}
+
+/** Cost is nested under the product key again, and keyed by band id. */
+function costBands(costs: any, productKey: string): Record<string, any> {
+  const node = costs?.[productKey];
+  if (!node || typeof node !== 'object') return {};
+  const inner = node[productKey];
+  return inner && typeof inner === 'object' ? inner : node;
+}
 
 export async function getLiveHostingPricing(): Promise<HostingPricingMap> {
   const now = Date.now();
@@ -174,66 +212,76 @@ export async function getLiveHostingPricing(): Promise<HostingPricingMap> {
     const costs = costRes.success && costRes.data ? costRes.data : {};
 
     const result: HostingPricingMap = {};
-    const unnamed: string[] = [];
-    const missing: string[] = [];
+    const notes: string[] = [];
 
     for (const [productType, keys] of Object.entries(PRODUCT_KEYS)) {
       const productKey = keys.find((k) =>
         Object.prototype.hasOwnProperty.call(customerPrices, k)
       );
-      if (!productKey) {
-        missing.push(productType);
-        continue;
-      }
+      if (!productKey) continue;
 
-      const plans = customerPrices[productKey]?.plans;
-      if (!plans || typeof plans !== 'object') {
-        missing.push(productType);
-        continue;
-      }
+      const plans = planNodes(customerPrices[productKey]);
+      if (!Object.keys(plans).length) continue;
 
-      const costPlans = costs[productKey]?.plans || {};
-      const names = await getPlanNames(productKey);
+      const details = await getPlanDetails(productKey);
+      const bands = costBands(costs, productKey);
 
       const forType: Record<string, PlanPricing> = {};
 
       for (const [planId, node] of Object.entries<any>(plans)) {
-        const name = names[planId];
-        // Without a name there is nothing to attach the price to. Matching by
-        // position would silently put the Business Pro price on Starter.
-        if (!name) continue;
+        const detail = details[planId];
+        // With no name there is nothing to attach the price to, and matching
+        // by position would put the top tier's price on the entry tier.
+        if (!detail) continue;
 
-        const monthly = num(node?.add?.['1']);
-        const annualMonthly = num(node?.add?.['12']);
-        const costMonthly = num(costPlans?.[planId]?.add?.['1']);
+        const add = node?.add ?? {};
+        const renew = node?.renew ?? {};
+
+        const tenures = Object.keys(add)
+          .map((m) => Number(m))
+          .filter((m) => Number.isFinite(m) && m > 0)
+          .sort((a, b) => a - b);
+        if (!tenures.length) continue;
+
+        const monthly = num(add['1']);
+        const annualMonthly = num(add['12']) ?? num(add[String(tenures[0])]);
+        const renewMonthly = num(renew['12']) ?? num(renew[String(tenures[0])]);
+
+        const band = detail.bandId ? bands[detail.bandId] : undefined;
+        const costAdd = num(band?.pricing?.add);
+        const costRenew = num(band?.pricing?.renew);
 
         if (!monthly && !annualMonthly) continue;
 
-        // Per-month rates fall as tenure lengthens; they never rise. A yearly
-        // rate above the monthly one means the value is not what we think it
-        // is, so drop it rather than publish it.
-        const annualUsable =
-          annualMonthly && (!monthly || annualMonthly <= monthly) ? annualMonthly : undefined;
-
-        forType[name] = {
+        forType[detail.name] = {
           planId,
+          planName: detail.name,
+          bandId: detail.bandId,
+          status: detail.status,
+          minTenureMonths: tenures[0],
           monthlyUsd: monthly ? toUsd(monthly) : undefined,
-          annualMonthlyUsd: annualUsable ? toUsd(annualUsable) : undefined,
-          annualUsd: annualUsable ? toUsd(annualUsable * 12) : undefined,
-          wholesaleMonthlyUsd: costMonthly ? toUsd(costMonthly) : undefined,
+          annualMonthlyUsd: annualMonthly ? toUsd(annualMonthly) : undefined,
+          renewMonthlyUsd: renewMonthly ? toUsd(renewMonthly) : undefined,
+          wholesaleMonthlyUsd: costAdd ? toUsd(costAdd) : undefined,
+          wholesaleRenewMonthlyUsd: costRenew ? toUsd(costRenew) : undefined,
           source: 'live',
         };
       }
 
-      if (Object.keys(forType).length) result[productType] = forType;
-      else if (Object.keys(plans).length) unnamed.push(`${productType}(${productKey})`);
-      else missing.push(productType);
+      if (Object.keys(forType).length) {
+        result[productType] = forType;
+
+        // Worth seeing in the logs: a plan we price but cannot sell.
+        const paused = Object.values(forType)
+          .filter((p) => p.status !== 'Active')
+          .map((p) => `${p.planName}:${p.status}`);
+        if (paused.length) notes.push(`${productType} not sellable: ${paused.join(', ')}`);
+      }
     }
 
     console.log(
       `[HostingPricing] priced ${Object.keys(result).length} families` +
-        (unnamed.length ? `; plan names unavailable for: ${unnamed.join(', ')}` : '') +
-        (missing.length ? `; not in catalogue: ${missing.join(', ')}` : '')
+        (notes.length ? `; ${notes.join('; ')}` : '')
     );
 
     cache = result;
