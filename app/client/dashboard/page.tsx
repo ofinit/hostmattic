@@ -144,7 +144,18 @@ export default function ClientDashboard() {
     if (!selectedRenewalModal) return;
     const { type, item } = selectedRenewalModal;
     if (type === 'DOMAIN') {
-      const renewPrice = pricingData?.[item.tld || '.com']?.renew || 12.99;
+      // Use this TLD's own renewal price. The previous expression read a
+      // `renew` field the pricing API never returned, so every renewal - .io,
+      // .in, .ai alike - fell through to a flat $12.99. That happened to equal
+      // the .com retail price, which is why it looked plausible.
+      const tldPricing = pricingData?.[item.tld || '.com'];
+      const renewPrice = Number(tldPricing?.renewUsd ?? tldPricing?.retailUsd ?? 0);
+      if (!renewPrice) {
+        setDealAddedMsg(`Renewal pricing for ${item.tld || 'this extension'} is unavailable right now. Please contact support.`);
+        setSelectedRenewalModal(null);
+        return;
+      }
+
       addItem({
         type: 'DOMAIN',
         name: `Domain Renewal - ${item.domainName}`,
@@ -3451,7 +3462,11 @@ export default function ClientDashboard() {
                 <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#0F172A' }}>Estimated Renewal Price:</span>
                 <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--brand-action-green)' }}>
                   {selectedRenewalModal.type === 'DOMAIN'
-                    ? formatPrice(pricingData?.[selectedRenewalModal.item.tld || '.com']?.renew || 12.99)
+                    ? (() => {
+                        const tp = pricingData?.[selectedRenewalModal.item.tld || '.com'];
+                        const amt = Number(tp?.renewUsd ?? tp?.retailUsd ?? 0);
+                        return amt ? formatPrice(amt) : 'Unavailable';
+                      })()
                     : selectedRenewalModal.type === 'HOSTING'
                     ? formatPrice(119.88)
                     : formatPrice(Number(selectedRenewalModal.item.price) || 19.99)}

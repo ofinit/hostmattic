@@ -11,7 +11,15 @@ export interface TldPricingInfo {
   productKey: string;
   retailInr: number;
   retailUsd: number;
+  /**
+   * Renewal pricing, from the upstream `renewdomain` action. Registration and
+   * renewal are frequently priced differently - promotional first-year rates in
+   * particular - so renewals must never be quoted from the registration price.
+   */
+  renewInr: number;
+  renewUsd: number;
   wholesaleCostInr?: number;
+  renewWholesaleCostInr?: number;
   isPromo: boolean;
   promoEndsAt?: string;
   badge?: string;
@@ -53,16 +61,16 @@ export const TLD_TO_PRODUCT_KEY: Record<string, string> = {
 
 // Default fallback prices if live gateway is unreachable
 const STATIC_FALLBACK_PRICING: Record<string, TldPricingInfo> = {
-  '.com': { tld: '.com', productKey: 'domcno', retailInr: 1085, retailUsd: 12.99, wholesaleCostInr: 999, isPromo: false, badge: 'Most Popular', popular: true },
-  '.in': { tld: '.in', productKey: 'dotin', retailInr: 779, retailUsd: 8.99, wholesaleCostInr: 699, isPromo: false, badge: 'Best in India', popular: true },
-  '.net': { tld: '.net', productKey: 'dotnet', retailInr: 1250, retailUsd: 14.49, wholesaleCostInr: 1144, isPromo: false, badge: 'Tech Classic' },
-  '.org': { tld: '.org', productKey: 'domorg', retailInr: 1110, retailUsd: 13.29, wholesaleCostInr: 959, isPromo: true, badge: 'Special Offer' },
-  '.tech': { tld: '.tech', productKey: 'dottech', retailInr: 1022, retailUsd: 12.24, wholesaleCostInr: 879, isPromo: true, badge: '72% OFF', popular: true },
-  '.online': { tld: '.online', productKey: 'dotonline', retailInr: 736, retailUsd: 8.81, wholesaleCostInr: 619, isPromo: true, badge: '74% OFF' },
-  '.store': { tld: '.store', productKey: 'dotstore', retailInr: 879, retailUsd: 10.53, wholesaleCostInr: 749, isPromo: true, badge: '80% OFF' },
-  '.io': { tld: '.io', productKey: 'dotio', retailInr: 3365, retailUsd: 40.30, wholesaleCostInr: 3009, isPromo: true, badge: '24% OFF' },
-  '.co': { tld: '.co', productKey: 'dotco', retailInr: 1935, retailUsd: 23.17, wholesaleCostInr: 1749, isPromo: true, badge: '16% OFF' },
-  '.ai': { tld: '.ai', productKey: 'dotai', retailInr: 6679, retailUsd: 79.99, wholesaleCostInr: 5999, isPromo: false },
+  '.com': { tld: '.com', productKey: 'domcno', retailInr: 1085, retailUsd: 12.99, renewInr: 1085, renewUsd: 12.99, wholesaleCostInr: 999, isPromo: false, badge: 'Most Popular', popular: true },
+  '.in': { tld: '.in', productKey: 'dotin', retailInr: 779, retailUsd: 8.99, renewInr: 779, renewUsd: 8.99, wholesaleCostInr: 699, isPromo: false, badge: 'Best in India', popular: true },
+  '.net': { tld: '.net', productKey: 'dotnet', retailInr: 1250, retailUsd: 14.49, renewInr: 1250, renewUsd: 14.49, wholesaleCostInr: 1144, isPromo: false, badge: 'Tech Classic' },
+  '.org': { tld: '.org', productKey: 'domorg', retailInr: 1110, retailUsd: 13.29, renewInr: 1110, renewUsd: 13.29, wholesaleCostInr: 959, isPromo: true, badge: 'Special Offer' },
+  '.tech': { tld: '.tech', productKey: 'dottech', retailInr: 1022, retailUsd: 12.24, renewInr: 1022, renewUsd: 12.24, wholesaleCostInr: 879, isPromo: true, badge: '72% OFF', popular: true },
+  '.online': { tld: '.online', productKey: 'dotonline', retailInr: 736, retailUsd: 8.81, renewInr: 736, renewUsd: 8.81, wholesaleCostInr: 619, isPromo: true, badge: '74% OFF' },
+  '.store': { tld: '.store', productKey: 'dotstore', retailInr: 879, retailUsd: 10.53, renewInr: 879, renewUsd: 10.53, wholesaleCostInr: 749, isPromo: true, badge: '80% OFF' },
+  '.io': { tld: '.io', productKey: 'dotio', retailInr: 3365, retailUsd: 40.30, renewInr: 3365, renewUsd: 40.30, wholesaleCostInr: 3009, isPromo: true, badge: '24% OFF' },
+  '.co': { tld: '.co', productKey: 'dotco', retailInr: 1935, retailUsd: 23.17, renewInr: 1935, renewUsd: 23.17, wholesaleCostInr: 1749, isPromo: true, badge: '16% OFF' },
+  '.ai': { tld: '.ai', productKey: 'dotai', retailInr: 6679, retailUsd: 79.99, renewInr: 6679, renewUsd: 79.99, wholesaleCostInr: 5999, isPromo: false },
 };
 
 // In-memory cache with 1-hour TTL
@@ -116,21 +124,31 @@ export async function getLiveDomainPricing(): Promise<Record<string, TldPricingI
 
       // Find exact wholesale cost from reseller-cost-price
       let wholesaleCost: number | undefined = undefined;
+      let renewWholesaleCost: number | undefined = undefined;
       if (costs && typeof costs === 'object') {
         const costItem = costs[productKey];
         const addCost = costItem?.addnewdomain?.['1'] || costItem?.['0']?.pricing?.addnewdomain?.['1'];
         if (addCost) {
           wholesaleCost = Number(addCost);
         }
+        const rnwCost = costItem?.renewdomain?.['1'] || costItem?.['0']?.pricing?.renewdomain?.['1'];
+        if (rnwCost) {
+          renewWholesaleCost = Number(rnwCost);
+        }
       }
 
       // Find WebPro panel custom customer selling price
       let webProSellingPrice: number | undefined = undefined;
+      let webProRenewPrice: number | undefined = undefined;
       if (customerPrices && typeof customerPrices === 'object') {
         const custItem = customerPrices[productKey];
         const custPrice = custItem?.addnewdomain?.['1'] || custItem?.['0']?.pricing?.addnewdomain?.['1'];
         if (custPrice) {
           webProSellingPrice = Number(custPrice);
+        }
+        const custRenew = custItem?.renewdomain?.['1'] || custItem?.['0']?.pricing?.renewdomain?.['1'];
+        if (custRenew) {
+          webProRenewPrice = Number(custRenew);
         }
       }
 
@@ -165,6 +183,17 @@ export async function getLiveDomainPricing(): Promise<Record<string, TldPricingI
         retailInr = baseStandardInr;
       }
 
+      // Renewal retail. A promotional registration rate must never leak into
+      // the renewal quote, so this is derived only from renewal inputs, and
+      // falls back to the per-TLD static figure rather than a flat default.
+      const renewInr = Math.round(
+        webProRenewPrice
+          ? webProRenewPrice
+          : renewWholesaleCost
+          ? renewWholesaleCost + Math.max(80, renewWholesaleCost * 0.10)
+          : STATIC_FALLBACK_PRICING[tld]?.renewInr || baseStandardInr
+      );
+
       // Curated standard badges if no promo
       if (!badge) {
         if (tld === '.com') badge = 'Most Popular';
@@ -174,13 +203,17 @@ export async function getLiveDomainPricing(): Promise<Record<string, TldPricingI
       }
 
       const retailUsd = Number((retailInr / USD_INR_RATE).toFixed(2));
+      const renewUsd = Number((renewInr / USD_INR_RATE).toFixed(2));
 
       computed[tld] = {
         tld,
         productKey,
         retailInr,
         retailUsd,
+        renewInr,
+        renewUsd,
         wholesaleCostInr: wholesaleCost,
+        renewWholesaleCostInr: renewWholesaleCost,
         isPromo,
         promoEndsAt,
         badge,
