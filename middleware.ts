@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import {
+  isLegacyPhp,
+  isUpstreamCallback,
+  resolveLegacyTarget,
+} from '@/lib/legacySupersite';
 
 /**
  * Next.js Middleware — Route-Level Authentication Guard
@@ -78,7 +83,30 @@ async function verifyJwtEdge(token: string): Promise<EdgeSession | null> {
 }
 
 export async function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const { pathname, searchParams } = req.nextUrl;
+
+  // ---- Legacy SuperSite (.php) URLs -------------------------------------
+  // The upstream customer panel still links here for buy / transfer / renew
+  // flows. Those paths were removed with the old PHP storefront, so without
+  // this every one of them dead-ends on a 404.
+  if (isLegacyPhp(pathname)) {
+    const origin = (process.env.LEGACY_SUPERSITE_ORIGIN || '').trim().replace(/\/$/, '');
+
+    // A one-time token plus a validate/verify action can only be completed by
+    // the upstream platform; nothing here can honour it.
+    if (origin && isUpstreamCallback(pathname, searchParams)) {
+      const upstream = new URL(pathname + req.nextUrl.search, origin);
+      console.log('[Legacy] upstream callback ->', pathname, searchParams.toString().slice(0, 80));
+      return NextResponse.redirect(upstream, 307);
+    }
+
+    const target = resolveLegacyTarget(pathname, searchParams);
+    console.log(
+      '[Legacy] ' + pathname + ' p=' + (searchParams.get('p') || '-') +
+      ' action=' + (searchParams.get('action') || '-') + ' -> ' + target
+    );
+    return NextResponse.redirect(new URL(target, req.nextUrl.origin), 308);
+  }
 
   // Only protect API routes
   if (!pathname.startsWith('/api/')) {
@@ -119,5 +147,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/api/:path*'],
+  // '/api/:path*' for the auth guard, plus every legacy .php path.
+  matcher: ['/api/:path*', '/(.*\.php)'],
 };
