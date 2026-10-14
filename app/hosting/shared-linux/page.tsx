@@ -4,63 +4,71 @@ import React, { useState } from 'react';
 import BillingToggle from '@/components/BillingToggle';
 import PricingCard, { PlanData } from '@/components/PricingCard';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
+import { useLivePlanPricing } from '@/components/useLivePlanPricing';
+
+/**
+ * Prices published with the page. These are the floor, not the answer: live
+ * upstream figures are merged over them per plan where available, so a cost
+ * change upstream reaches the storefront without a deploy. A plan upstream has
+ * not priced keeps the figure below rather than falling back to a flat default.
+ */
+const PUBLISHED_PLANS: PlanData[] = [
+  {
+    name: 'Starter',
+    desc: 'Ideal for single websites, personal blogs, and emerging projects.',
+    usdMonthly: 3.99,
+    usdAnnualMonthly: 2.49,
+    productType: 'SHARED_LINUX',
+    features: [
+      '<strong>1 Website</strong> hosted',
+      '<strong>10 GB NVMe SSD</strong> Storage',
+      'Unmetered Bandwidth',
+      'Official <strong>cPanel Control Panel</strong>',
+      'Free Let&apos;s Encrypt SSL Certificate',
+      'Softaculous 1-Click App Installer',
+      '5 Custom Business Email Accounts',
+    ],
+  },
+  {
+    name: 'Performance',
+    desc: 'Our most popular tier for fast-growing businesses & e-commerce.',
+    usdMonthly: 7.99,
+    usdAnnualMonthly: 4.99,
+    popular: true,
+    productType: 'SHARED_LINUX',
+    features: [
+      '<strong>Unlimited Websites</strong>',
+      '<strong>50 GB NVMe SSD</strong> Storage',
+      'Unmetered Bandwidth',
+      'Official <strong>cPanel Control Panel</strong>',
+      'Free Lifetime SSL Certificates',
+      'Softaculous 400+ 1-Click Apps',
+      'Unlimited Business Email Accounts',
+      'Free Automated Daily Backups',
+    ],
+  },
+  {
+    name: 'Business Pro',
+    desc: 'High-resource environment for agencies and high-traffic portals.',
+    usdMonthly: 12.99,
+    usdAnnualMonthly: 8.49,
+    productType: 'SHARED_LINUX',
+    features: [
+      '<strong>Unlimited Websites</strong>',
+      '<strong>Unlimited NVMe SSD</strong> Storage',
+      'Unmetered Bandwidth &amp; 2x CPU',
+      'Official <strong>cPanel Control Panel</strong>',
+      'Free Premium Wildcard SSL',
+      'LiteSpeed + LSCache Turbo Boost',
+      'Free Dedicated IP Address',
+      'Priority 24/7 VIP SysAdmin Support',
+    ],
+  },
+];
 
 export default function SharedLinuxPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('annual');
-
-  const plans: PlanData[] = [
-    {
-      name: 'Starter',
-      desc: 'Ideal for single websites, personal blogs, and emerging projects.',
-      usdMonthly: 3.99,
-      usdAnnualMonthly: 2.49,
-      productType: 'SHARED_LINUX',
-      features: [
-        '<strong>1 Website</strong> hosted',
-        '<strong>10 GB NVMe SSD</strong> Storage',
-        'Unmetered Bandwidth',
-        'Official <strong>cPanel Control Panel</strong>',
-        'Free Let&apos;s Encrypt SSL Certificate',
-        'Softaculous 1-Click App Installer',
-        '5 Custom Business Email Accounts',
-      ],
-    },
-    {
-      name: 'Performance',
-      desc: 'Our most popular tier for fast-growing businesses & e-commerce.',
-      usdMonthly: 7.99,
-      usdAnnualMonthly: 4.99,
-      popular: true,
-      productType: 'SHARED_LINUX',
-      features: [
-        '<strong>Unlimited Websites</strong>',
-        '<strong>50 GB NVMe SSD</strong> Storage',
-        'Unmetered Bandwidth',
-        'Official <strong>cPanel Control Panel</strong>',
-        'Free Lifetime SSL Certificates',
-        'Softaculous 400+ 1-Click Apps',
-        'Unlimited Business Email Accounts',
-        'Free Automated Daily Backups',
-      ],
-    },
-    {
-      name: 'Business Pro',
-      desc: 'High-resource environment for agencies and high-traffic portals.',
-      usdMonthly: 12.99,
-      usdAnnualMonthly: 8.49,
-      productType: 'SHARED_LINUX',
-      features: [
-        '<strong>Unlimited Websites</strong>',
-        '<strong>Unlimited NVMe SSD</strong> Storage',
-        'Unmetered Bandwidth &amp; 2x CPU',
-        'Official <strong>cPanel Control Panel</strong>',
-        'Free Premium Wildcard SSL',
-        'LiteSpeed + LSCache Turbo Boost',
-        'Free Dedicated IP Address',
-        'Priority 24/7 VIP SysAdmin Support',
-      ],
-    },
-  ];
+  const { plans } = useLivePlanPricing(PUBLISHED_PLANS, 'SHARED_LINUX');
 
   return (
     <>
