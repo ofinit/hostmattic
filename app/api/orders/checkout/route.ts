@@ -152,13 +152,16 @@ export async function POST(req: NextRequest) {
             taxAmount: Number(taxAmount) || 0,
             totalAmount: Number(totalAmount) || 0,
             currency: currency || 'USD',
-            paymentStatus: paymentStatus || 'PAID',
+            // An order is created unpaid. Only a verified gateway callback may
+            // mark it PAID; defaulting to PAID here meant any client that
+            // omitted the field got a settled, provisioned order for free.
+            paymentStatus: paymentStatus === 'PAID' ? 'PENDING' : (paymentStatus || 'PENDING'),
             paymentMethod: paymentMethod || 'CREDIT_CARD',
             gatewayName: gatewayName || null,
             gatewayOrderId: gatewayOrderId || null,
             gatewayPaymentId: gatewayPaymentId || null,
             gatewaySignature: gatewaySignature || null,
-            status: paymentStatus === 'PENDING' ? 'PENDING' : 'COMPLETED',
+            status: 'PENDING',
             customerType: customerType || 'B2C',
             customerGstin: customerGstin ? customerGstin.trim().toUpperCase() : null,
             companyName: companyName ? companyName.trim() : null,

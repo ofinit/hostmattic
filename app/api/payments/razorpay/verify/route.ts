@@ -40,9 +40,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Find the order in Prisma
+    // Scope the lookup to the caller. Without `userId` any signed-in customer
+    // could settle somebody else's order simply by quoting its number, and
+    // order numbers are guessable.
     const order = await prisma.order.findFirst({
       where: {
+        userId: session.id,
         OR: [
           ...(orderId ? [{ id: orderId }] : []),
           ...(orderNumber ? [{ orderNumber: orderNumber }] : []),
@@ -55,6 +58,17 @@ export async function POST(req: NextRequest) {
         { error: 'Order not found in Hostmattic database' },
         { status: 404 }
       );
+    }
+
+    // Settling an already-paid order again would overwrite a real gateway
+    // reference with a later one; treat it as a no-op success instead.
+    if (order.paymentStatus === 'PAID') {
+      return NextResponse.json({
+        success: true,
+        alreadyPaid: true,
+        orderNumber: order.orderNumber,
+        message: 'This order is already marked paid.',
+      });
     }
 
     // Update order with payment details

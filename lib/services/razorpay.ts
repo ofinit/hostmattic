@@ -106,18 +106,33 @@ export class RazorpayService {
   /**
    * Verifies the cryptographic HMAC SHA-256 signature returned by Razorpay Checkout.
    */
+  /**
+   * Whether unverified "simulated" payments may be accepted at all.
+   *
+   * Only when the gateway is genuinely not configured AND we are not in
+   * production. A live deployment with missing keys must refuse payments, not
+   * wave them through.
+   */
+  public isSimulationAllowed(): boolean {
+    return !this.isConfigured() && process.env.NODE_ENV !== 'production';
+  }
+
   public verifySignature(orderId: string, paymentId: string, signature: string): boolean {
-    if (!this.isConfigured() || orderId.startsWith('order_sim_')) {
-      // In simulated / test sandbox mode, accept simulation signatures
-      return true;
+    // The caller must never be able to select simulation. This previously
+    // returned true for any orderId beginning with `order_sim_`, and that value
+    // arrives in the request body - so any signed-in customer could mark an
+    // order PAID by inventing one. Simulation is now decided solely by this
+    // server's own configuration.
+    if (this.isConfigured()) {
+      const expectedSignature = crypto
+        .createHmac('sha256', this.keySecret)
+        .update(`${orderId}|${paymentId}`)
+        .digest('hex');
+
+      return expectedSignature === signature;
     }
 
-    const expectedSignature = crypto
-      .createHmac('sha256', this.keySecret)
-      .update(`${orderId}|${paymentId}`)
-      .digest('hex');
-
-    return expectedSignature === signature;
+    return this.isSimulationAllowed();
   }
 }
 

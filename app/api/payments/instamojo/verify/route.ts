@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { instamojoService } from '@/lib/services/instamojo';
 import { lockCustomerCurrency } from '@/lib/services/currencyLock';
 
 export async function POST(req: NextRequest) {
   try {
+    const session = requireAuth(req);
+    if (session instanceof NextResponse) return session;
+
     const body = await req.json();
     const { orderNumber, paymentRequestId, paymentId } = body;
 
@@ -24,8 +28,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Scope to the caller, as on the Razorpay path: order numbers are
+    // guessable, so an unscoped lookup lets anyone settle another
+    // customer's order.
     const order = await prisma.order.findFirst({
-      where: { orderNumber },
+      where: { orderNumber, userId: session.id },
     });
 
     if (!order) {
