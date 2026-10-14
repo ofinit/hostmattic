@@ -28,7 +28,18 @@ export async function GET(req: NextRequest) {
         });
         orders = await prisma.order.findMany({
           where: { userId: session.id },
-          include: { items: true },
+          include: {
+            items: true,
+            // The GST invoice identifies the recipient from this relation.
+            // Without it `viewInvoice.user` was undefined and every invoice
+            // was billed to "Valued Customer" with no address.
+            user: {
+              select: {
+                id: true, name: true, email: true, phone: true, company: true,
+                address: true, city: true, state: true, country: true, zip: true,
+              },
+            },
+          },
           orderBy: { createdAt: 'desc' },
         });
         tickets = await prisma.supportTicket.findMany({

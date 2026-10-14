@@ -3227,10 +3227,34 @@ export default function ClientDashboard() {
                 <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#0F172A' }}>
                   {viewInvoice.companyName || viewInvoice.user?.name || 'Valued Customer'}
                 </div>
+                {viewInvoice.user?.email && (
+                  <div style={{ color: '#475569', fontSize: '0.82rem', marginTop: '2px' }}>
+                    {viewInvoice.user.email}
+                    {viewInvoice.user?.phone ? ` \u00b7 ${viewInvoice.user.phone}` : ''}
+                  </div>
+                )}
                 <div style={{ color: '#64748B', marginTop: '4px', lineHeight: 1.4 }}>
-                  {viewInvoice.billingAddress ? `${viewInvoice.billingAddress}, ` : ''}
-                  {viewInvoice.billingCity ? `${viewInvoice.billingCity}, ` : ''}
-                  {viewInvoice.billingState || 'Kerala'} &bull; Country: {viewInvoice.billingCountry || (viewInvoice.currency === 'INR' ? 'IN' : 'US')}
+                  {/* Billing details captured at checkout, falling back to the
+                      account profile so an invoice is never issued without an
+                      identifiable recipient. */}
+                  {(() => {
+                    const u = viewInvoice.user || {};
+                    const line = [
+                      viewInvoice.billingAddress || u.address,
+                      viewInvoice.billingCity || u.city,
+                    ].filter(Boolean).join(', ');
+                    const region = viewInvoice.billingState || u.state;
+                    const country =
+                      viewInvoice.billingCountry || u.country ||
+                      (viewInvoice.currency === 'INR' ? 'IN' : 'US');
+                    return (
+                      <>
+                        {line ? `${line}, ` : ''}
+                        {region ? `${region} ` : ''}
+                        &bull; Country: {country}
+                      </>
+                    );
+                  })()}
                 </div>
                 <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #CBD5E1' }}>
                   {viewInvoice.customerGstin ? (
