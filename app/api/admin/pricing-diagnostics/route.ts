@@ -1,22 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { apiClient, isLiveApiConfigured } from '@/lib/api/client';
-import { PRODUCT_KEY_CANDIDATES } from '@/lib/api/hostingPricing';
+import { PRODUCT_KEYS, extractPlanNames, getLiveHostingPricing } from '@/lib/api/hostingPricing';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+
+const PLAN_DETAIL_ENDPOINTS = ['/products/plan-details.json', '/products/details.json'];
 
 /**
  * GET /api/admin/pricing-diagnostics
  * GET /api/admin/pricing-diagnostics?key=<upstream product key>
  *
- * Shows what the upstream price catalogue actually contains.
+ * Shows what the upstream price catalogue actually contains, and what this app
+ * makes of it.
  *
- * Plan-based products (hosting, servers, email, security) are not documented
- * in a form that can be verified ahead of time, and the product keys a
- * reseller is given differ by which products they signed up for. So rather
- * than guess, this reports the real keys and the real nesting, and
- * `lib/api/hostingPricing.ts` is then made exact against it.
+ * Plan-based products are keyed by numeric plan id with no name attached, and
+ * the key set differs per reseller, so the mapping in lib/api/hostingPricing.ts
+ * is written against this output rather than against an assumption.
  *
  * Administrators only: upstream key names are not customer-facing.
  */
@@ -28,68 +29,81 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       success: false,
       configured: false,
-      error:
-        'Upstream API credentials are not set on this deployment, so no catalogue can be read.',
+      error: 'Upstream API credentials are not set on this deployment.',
     });
   }
 
   try {
-    const [customerRes, costRes] = await Promise.all([
-      apiClient<Record<string, any>>('/products/customer-price.json', {}, 'GET'),
-      apiClient<Record<string, any>>('/products/reseller-cost-price.json', {}, 'GET'),
-    ]);
-
-    const customerPrices =
-      customerRes.success && customerRes.data ? customerRes.data : {};
-    const costs = costRes.success && costRes.data ? costRes.data : {};
-    const allKeys = Object.keys(customerPrices).sort();
-
-    // One specific key: dump its shape so the parser can be written against it.
     const key = req.nextUrl.searchParams.get('key');
+
+    // One product: its prices, its cost, and whether plan names can be read.
     if (key) {
+      const [customerRes, costRes] = await Promise.all([
+        apiClient<Record<string, any>>('/products/customer-price.json', {}, 'GET'),
+        apiClient<Record<string, any>>('/products/reseller-cost-price.json', {}, 'GET'),
+      ]);
+
+      const customerPrices = customerRes.success && customerRes.data ? customerRes.data : {};
+      const costs = costRes.success && costRes.data ? costRes.data : {};
+
+      // Probe each plan-details path so we can see which one answers.
+      const planDetailProbes: Record<string, any> = {};
+      for (const endpoint of PLAN_DETAIL_ENDPOINTS) {
+        try {
+          const res = await apiClient<any>(endpoint, { 'product-key': key }, 'GET');
+          planDetailProbes[endpoint] = {
+            ok: res.success,
+            error: res.error ?? null,
+            namesFound: Object.keys(extractPlanNames(res.data)).length,
+            names: extractPlanNames(res.data),
+            raw: res.success ? res.data : null,
+          };
+        } catch (e: any) {
+          planDetailProbes[endpoint] = { ok: false, error: e?.message || 'threw' };
+        }
+      }
+
       return NextResponse.json({
         success: true,
         key,
         present: Object.prototype.hasOwnProperty.call(customerPrices, key),
         customerPrice: customerPrices[key] ?? null,
         resellerCost: costs[key] ?? null,
+        planDetailProbes,
       });
     }
 
-    // Domain keys are already mapped and understood; set them aside so what
-    // remains is the plan-based catalogue we still need to identify.
-    const domainish = allKeys.filter((k) => /^dot|^domcno$|^centralnic/i.test(k));
-    const planLike = allKeys.filter((k) => !domainish.includes(k));
+    // Overview: what the mapping currently resolves to, end to end.
+    const customerRes = await apiClient<Record<string, any>>(
+      '/products/customer-price.json',
+      {},
+      'GET'
+    );
+    const customerPrices = customerRes.success && customerRes.data ? customerRes.data : {};
+    const allKeys = Object.keys(customerPrices).sort();
 
-    // Which of the guessed candidates actually exist.
-    const candidateHits: Record<string, string | null> = {};
-    for (const [type, candidates] of Object.entries(PRODUCT_KEY_CANDIDATES)) {
-      candidateHits[type] =
-        candidates.find((c) =>
-          Object.prototype.hasOwnProperty.call(customerPrices, c)
-        ) ?? null;
+    const resolved: Record<string, any> = {};
+    for (const [type, candidates] of Object.entries(PRODUCT_KEYS)) {
+      const hit = candidates.find((c) =>
+        Object.prototype.hasOwnProperty.call(customerPrices, c)
+      );
+      resolved[type] = {
+        productKey: hit ?? null,
+        planIds: hit ? Object.keys(customerPrices[hit]?.plans || {}) : [],
+      };
     }
 
-    // A sample of the nesting under one plan-like key, so the shape is visible
-    // without having to request each key individually.
-    const sampleKey = planLike[0];
-    const sample = sampleKey
-      ? { key: sampleKey, customerPrice: customerPrices[sampleKey] }
-      : null;
+    // The real answer: what actually came out, with names attached.
+    const priced = await getLiveHostingPricing();
 
     return NextResponse.json({
       success: true,
       configured: true,
-      counts: {
-        total: allKeys.length,
-        domainLike: domainish.length,
-        planLike: planLike.length,
-      },
-      planLikeKeys: planLike,
-      candidateHits,
-      sample,
-      note:
-        'Open ?key=<one of planLikeKeys> to see that product\'s full pricing shape.',
+      totalKeys: allKeys.length,
+      resolved,
+      pricedFamilies: Object.keys(priced),
+      priced,
+      note: 'Open ?key=<product key> for one product’s full shape and plan-name probe.',
     });
   } catch (error: any) {
     console.error('Pricing diagnostics error:', error);

@@ -1,22 +1,28 @@
 /**
- * Live hosting / server / email / security plan pricing.
+ * Live plan pricing for every product family that is not a domain.
  *
  * Domain pricing (lib/api/pricing.ts) has been live for a while; every other
- * product family still carried prices hardcoded into its page, so a cost change
- * upstream was invisible until someone noticed the margin.
+ * family carried its prices in the page source, so a cost change upstream was
+ * invisible until someone checked the margin by hand.
  *
- * Unlike domains, the upstream response shape for plan-based products is not
- * documented in a form we could verify here, and the panel exposes different
- * product keys per reseller. This module therefore:
+ * Shape, confirmed against the live catalogue through
+ * /api/admin/pricing-diagnostics rather than assumed:
  *
- *   - tries several plausible key spellings per product family
- *   - parses several plausible payload shapes
- *   - LOGS what it actually received when a family cannot be matched
- *   - returns nothing rather than guessing, so each page keeps its own
- *     published price until a real one is found
+ *   "singledomainhostinglinuxus": {
+ *     "plans": {
+ *       "1682": { "add": { "1": 30, "3": 30, "6": 30, "12": 30, ... } }
+ *     }
+ *   }
  *
- * The log line is the point: run this once in production and the real keys and
- * shape appear in the Coolify logs, after which the mapping can be made exact.
+ * Two consequences drive the code below:
+ *
+ *  - plans sit under a `plans` wrapper and are keyed by NUMERIC PLAN ID, not
+ *    by name, so a product's plan names must be fetched separately before a
+ *    price can be attached to "Starter" rather than to "1682";
+ *  - the duration keys (1/3/6/12/24/36) are MONTHS, and the value is the
+ *    per-month rate for that tenure slab, not the total for the term. A
+ *    product priced identically at every tenure, as acronis is, only makes
+ *    sense read that way.
  */
 
 import { apiClient, isLiveApiConfigured } from './client';
@@ -25,81 +31,137 @@ const USD_INR_RATE = 83.5;
 const CACHE_TTL_MS = 15 * 60 * 1000;
 
 export interface PlanPricing {
-  /** Price for one month, billed monthly. */
+  /** Per-month rate when billed monthly. */
   monthlyUsd?: number;
-  /** Effective per-month price when billed annually. */
+  /** Per-month rate when committing to a year. */
   annualMonthlyUsd?: number;
-  /** Full annual charge. */
+  /** What a year costs in total at the annual rate. */
   annualUsd?: number;
-  /** What we pay upstream, for margin reporting. */
-  wholesaleAnnualUsd?: number;
-  source: 'live' | 'none';
+  /** Our own cost, for margin reporting. */
+  wholesaleMonthlyUsd?: number;
+  /** Upstream plan id, for provisioning and for tracing a price back. */
+  planId: string;
+  source: 'live';
 }
 
-/** productType -> planName -> pricing */
+/** productType -> plan name -> pricing */
 export type HostingPricingMap = Record<string, Record<string, PlanPricing>>;
 
 /**
- * Candidate upstream product keys per productType, most likely first.
- * Resellers get different keys depending on which products they signed up for,
- * so this is a search list rather than a single value.
+ * Upstream product keys per product family, confirmed present in the live
+ * catalogue. Listed in preference order: a reseller may carry only some
+ * regions, so the first key that exists wins.
  */
-export const PRODUCT_KEY_CANDIDATES: Record<string, string[]> = {
-  SHARED_LINUX: ['singledomainlinuxus', 'singledomainhosting', 'lhus', 'linuxsharedhosting', 'shus'],
-  SHARED_WINDOWS: ['singledomainwindowsus', 'whus', 'windowssharedhosting', 'swus'],
-  MULTI_DOMAIN: ['multidomainlinuxus', 'multidomainhosting', 'mdlhus'],
-  WORDPRESS: ['wordpresshosting', 'managedwordpress', 'wphosting', 'wpus'],
-  CLOUD: ['cloudhosting', 'cloudsitesus', 'chus'],
-  RESELLER: ['resellerlinuxus', 'resellerhosting', 'rhus', 'resellerwindowsus'],
-  VPS: ['vpslinuxus', 'kvmvpslinuxus', 'vps', 'vpsus'],
-  DEDICATED: ['dedicatedserverlinuxus', 'dedicatedserver', 'dsus'],
-  EMAIL_BUSINESS: ['eeliteus', 'businessemailus', 'enterpriseemail', 'businessemail'],
-  EMAIL_GOOGLE: ['gsuite', 'googleworkspace', 'gapps'],
-  SECURITY_SITELOCK: ['sitelock', 'sitelockbasic'],
-  SECURITY_CODEGUARD: ['codeguard', 'codeguardbasic'],
-  SECURITY_ACRONIS: ['acronisbackup', 'acronis'],
-  TOOLS_BUILDER: ['sitebuilder', 'websitebuilder', 'weebly'],
-  COMBO_PLANS: ['comboplan', 'combo'],
+export const PRODUCT_KEYS: Record<string, string[]> = {
+  SHARED_LINUX: [
+    'singledomainhostinglinuxus',
+    'singledomainhostinglinuxin',
+    'singledomainhostinglinuxhk',
+  ],
+  SHARED_WINDOWS: [
+    'singledomainhostingwindowsus',
+    'singledomainhostingwindowsin',
+    'singledomainhostingwindowsuk',
+    'singledomainhostingwindowshk',
+  ],
+  MULTI_DOMAIN: [
+    'multidomainhosting',
+    'multidomainhostinglinuxin',
+    'multidomainhostinglinuxhk',
+  ],
+  MULTI_DOMAIN_WINDOWS: [
+    'multidomainwindowshosting',
+    'multidomainwindowshostingin',
+    'multidomainwindowshostinghk',
+  ],
+  BUSINESS_HOSTING: ['businesshostinglinuxus', 'businesshostinglinuxin'],
+  WORDPRESS: ['wordpresshostingusa', 'wordpresshostingindia'],
+  CLOUD: ['cloudsiteslinuxus', 'cloudsiteslinuxin'],
+  RESELLER: ['resellerhosting', 'resellerhostinglinuxin', 'resellerhostinglinuxuk'],
+  RESELLER_WINDOWS: [
+    'resellerwindowshosting',
+    'resellerwindowshostingin',
+    'resellerwindowshostinguk',
+  ],
+  VPS: ['virtualserverlinuxus', 'virtualserverlinuxin'],
+  DEDICATED: [
+    'dedicatedserverlinuxus',
+    'dedicatedserverwindowsin',
+    'bluehostdedicatedserverlinuxus',
+  ],
+  EMAIL_BUSINESS: ['eeliteus', 'enterpriseemailus', 'titanmailglobal', 'titanmailindia'],
+  EMAIL_GOOGLE: ['gappsgbl', 'gappsin', 'gappsse'],
+  SECURITY_SITELOCK: ['sitelock'],
+  SECURITY_CODEGUARD: ['codeguard'],
+  SECURITY_ACRONIS: ['acronisbackupus', 'acronisbackupasia'],
+  SECURITY_SSL: ['sslcert'],
+  TOOLS_BUILDER: ['weebly'],
+  COMBO_PLANS: ['productbundle'],
 };
 
 let cache: HostingPricingMap | null = null;
 let cacheExpiry = 0;
 
-/** Pull a number out of whichever nesting the payload happens to use. */
-function readPrice(node: any, action: string, months: string): number | undefined {
-  if (!node || typeof node !== 'object') return undefined;
-
-  const candidates = [
-    node?.[action]?.[months],
-    node?.pricing?.[action]?.[months],
-    node?.['0']?.pricing?.[action]?.[months],
-    node?.plan?.[action]?.[months],
-  ];
-
-  for (const c of candidates) {
-    const n = Number(c);
-    if (Number.isFinite(n) && n > 0) return n;
-  }
-  return undefined;
-}
+/** Plan-name lookups are per product key and change rarely. */
+const planNameCache = new Map<string, Record<string, string>>();
 
 /**
- * A plan-based product nests plan names under the product key. Return those
- * child objects, skipping scalar metadata fields.
+ * Upstream exposes plan metadata under more than one path depending on the
+ * product. Try each; the first that yields names wins.
  */
-function planNodes(productNode: any): Record<string, any> {
-  if (!productNode || typeof productNode !== 'object') return {};
-  const out: Record<string, any> = {};
-  for (const [k, v] of Object.entries(productNode)) {
-    if (v && typeof v === 'object') out[k] = v;
+const PLAN_DETAIL_ENDPOINTS = ['/products/plan-details.json', '/products/details.json'];
+
+export function extractPlanNames(payload: any): Record<string, string> {
+  const names: Record<string, string> = {};
+  if (!payload || typeof payload !== 'object') return names;
+
+  const root = payload.plans && typeof payload.plans === 'object' ? payload.plans : payload;
+
+  for (const [planId, detail] of Object.entries<any>(root)) {
+    if (!detail || typeof detail !== 'object') continue;
+    const name =
+      detail.plan_name ??
+      detail.planname ??
+      detail.name ??
+      detail.plan_description ??
+      detail?.plan?.name;
+    if (typeof name === 'string' && name.trim()) names[planId] = name.trim();
   }
-  return out;
+  return names;
 }
+
+export async function getPlanNames(productKey: string): Promise<Record<string, string>> {
+  const cached = planNameCache.get(productKey);
+  if (cached) return cached;
+
+  for (const endpoint of PLAN_DETAIL_ENDPOINTS) {
+    try {
+      const res = await apiClient<any>(endpoint, { 'product-key': productKey }, 'GET');
+      if (!res.success || !res.data) continue;
+      const names = extractPlanNames(res.data);
+      if (Object.keys(names).length) {
+        planNameCache.set(productKey, names);
+        return names;
+      }
+    } catch {
+      // Try the next path.
+    }
+  }
+
+  planNameCache.set(productKey, {});
+  return {};
+}
+
+function num(v: any): number | undefined {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+const toUsd = (inr: number) => Number((inr / USD_INR_RATE).toFixed(2));
 
 export async function getLiveHostingPricing(): Promise<HostingPricingMap> {
   const now = Date.now();
   if (cache && now < cacheExpiry) return cache;
-
   if (!isLiveApiConfigured()) return {};
 
   try {
@@ -111,48 +173,67 @@ export async function getLiveHostingPricing(): Promise<HostingPricingMap> {
     const customerPrices = customerRes.success && customerRes.data ? customerRes.data : {};
     const costs = costRes.success && costRes.data ? costRes.data : {};
 
-    const available = Object.keys(customerPrices);
     const result: HostingPricingMap = {};
-    const unmatched: string[] = [];
+    const unnamed: string[] = [];
+    const missing: string[] = [];
 
-    for (const [productType, keys] of Object.entries(PRODUCT_KEY_CANDIDATES)) {
-      const key = keys.find((k) => Object.prototype.hasOwnProperty.call(customerPrices, k));
-      if (!key) {
-        unmatched.push(productType);
+    for (const [productType, keys] of Object.entries(PRODUCT_KEYS)) {
+      const productKey = keys.find((k) =>
+        Object.prototype.hasOwnProperty.call(customerPrices, k)
+      );
+      if (!productKey) {
+        missing.push(productType);
         continue;
       }
 
-      const plans = planNodes(customerPrices[key]);
-      const costPlans = planNodes(costs[key] || {});
+      const plans = customerPrices[productKey]?.plans;
+      if (!plans || typeof plans !== 'object') {
+        missing.push(productType);
+        continue;
+      }
+
+      const costPlans = costs[productKey]?.plans || {};
+      const names = await getPlanNames(productKey);
+
       const forType: Record<string, PlanPricing> = {};
 
-      for (const [planName, node] of Object.entries(plans)) {
-        const monthly = readPrice(node, 'add', '1') ?? readPrice(node, 'addnewdomain', '1');
-        const annual = readPrice(node, 'add', '12') ?? readPrice(node, 'addnewdomain', '12');
-        const costAnnual =
-          readPrice(costPlans[planName], 'add', '12') ?? readPrice(costPlans[planName], 'addnewdomain', '12');
+      for (const [planId, node] of Object.entries<any>(plans)) {
+        const name = names[planId];
+        // Without a name there is nothing to attach the price to. Matching by
+        // position would silently put the Business Pro price on Starter.
+        if (!name) continue;
 
-        if (!monthly && !annual) continue;
+        const monthly = num(node?.add?.['1']);
+        const annualMonthly = num(node?.add?.['12']);
+        const costMonthly = num(costPlans?.[planId]?.add?.['1']);
 
-        forType[planName] = {
-          monthlyUsd: monthly ? Number((monthly / USD_INR_RATE).toFixed(2)) : undefined,
-          annualUsd: annual ? Number((annual / USD_INR_RATE).toFixed(2)) : undefined,
-          annualMonthlyUsd: annual ? Number((annual / 12 / USD_INR_RATE).toFixed(2)) : undefined,
-          wholesaleAnnualUsd: costAnnual ? Number((costAnnual / USD_INR_RATE).toFixed(2)) : undefined,
+        if (!monthly && !annualMonthly) continue;
+
+        // Per-month rates fall as tenure lengthens; they never rise. A yearly
+        // rate above the monthly one means the value is not what we think it
+        // is, so drop it rather than publish it.
+        const annualUsable =
+          annualMonthly && (!monthly || annualMonthly <= monthly) ? annualMonthly : undefined;
+
+        forType[name] = {
+          planId,
+          monthlyUsd: monthly ? toUsd(monthly) : undefined,
+          annualMonthlyUsd: annualUsable ? toUsd(annualUsable) : undefined,
+          annualUsd: annualUsable ? toUsd(annualUsable * 12) : undefined,
+          wholesaleMonthlyUsd: costMonthly ? toUsd(costMonthly) : undefined,
           source: 'live',
         };
       }
 
       if (Object.keys(forType).length) result[productType] = forType;
-      else unmatched.push(productType);
+      else if (Object.keys(plans).length) unnamed.push(`${productType}(${productKey})`);
+      else missing.push(productType);
     }
 
-    // This is how the real keys and shape get discovered. Without live access we
-    // cannot confirm either, so say plainly what was and was not matched.
     console.log(
-      `[HostingPricing] matched ${Object.keys(result).length} product families` +
-        (unmatched.length ? `; no pricing for: ${unmatched.join(', ')}` : '') +
-        `; upstream keys available: ${available.slice(0, 40).join(', ')}${available.length > 40 ? ' …' : ''}`
+      `[HostingPricing] priced ${Object.keys(result).length} families` +
+        (unnamed.length ? `; plan names unavailable for: ${unnamed.join(', ')}` : '') +
+        (missing.length ? `; not in catalogue: ${missing.join(', ')}` : '')
     );
 
     cache = result;
@@ -162,32 +243,4 @@ export async function getLiveHostingPricing(): Promise<HostingPricingMap> {
     console.warn('[HostingPricing] Could not fetch live plan pricing:', err?.message);
     return {};
   }
-}
-
-/**
- * Overlay live pricing onto a page's published plans.
- * A plan with no live match keeps its own figures, so nothing is ever shown at
- * a price we invented.
- */
-export function applyLivePricing<T extends { name: string; usdMonthly: number; usdAnnualMonthly: number }>(
-  plans: T[],
-  productType: string,
-  live: HostingPricingMap
-): T[] {
-  const forType = live?.[productType];
-  if (!forType) return plans;
-
-  return plans.map((plan) => {
-    // Match on plan name, case/space-insensitively.
-    const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const hit = Object.entries(forType).find(([k]) => norm(k) === norm(plan.name));
-    if (!hit) return plan;
-
-    const p = hit[1];
-    return {
-      ...plan,
-      usdMonthly: p.monthlyUsd ?? plan.usdMonthly,
-      usdAnnualMonthly: p.annualMonthlyUsd ?? plan.usdAnnualMonthly,
-    };
-  });
 }

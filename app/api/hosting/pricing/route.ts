@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getLiveHostingPricing, PRODUCT_KEY_CANDIDATES } from '@/lib/api/hostingPricing';
+import { getLiveHostingPricing, PRODUCT_KEYS } from '@/lib/api/hostingPricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const all = await getLiveHostingPricing();
 
     if (type) {
-      const known = Object.prototype.hasOwnProperty.call(PRODUCT_KEY_CANDIDATES, type);
+      const known = Object.prototype.hasOwnProperty.call(PRODUCT_KEYS, type);
       return NextResponse.json({
         success: true,
         productType: type,
