@@ -17,6 +17,13 @@ export interface UserSession {
   email: string;
   name: string;
   role: string;
+  /**
+   * Set when an administrator is viewing the portal AS this customer.
+   * Carried in the JWT so every request can be attributed correctly and the
+   * client portal can show a persistent banner - impersonation must never be
+   * invisible to the person it affects or to the audit trail.
+   */
+  impersonatedBy?: string;
 }
 
 const BCRYPT_COST = 12;
@@ -29,17 +36,16 @@ export function comparePassword(password: string, hash: string): Promise<boolean
   return bcrypt.compare(password, hash);
 }
 
-export function signToken(user: UserSession): string {
-  return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-    },
-    getJwtSecret(),
-    { expiresIn: '24h' }
-  );
+export function signToken(user: UserSession, expiresIn: string = '24h'): string {
+  const payload: Record<string, unknown> = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+  };
+  if (user.impersonatedBy) payload.impersonatedBy = user.impersonatedBy;
+
+  return jwt.sign(payload, getJwtSecret(), { expiresIn } as jwt.SignOptions);
 }
 
 export function verifyToken(token: string): UserSession | null {

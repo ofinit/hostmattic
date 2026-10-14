@@ -302,6 +302,26 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const viewPortalAsCustomer = async (customer: any) => {
+    if (!customer?.id) return;
+    try {
+      const res = await fetch('/api/admin/impersonate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerId: customer.id }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        setSyncNotice({ type: 'error', message: json?.error || 'Could not open the portal as this customer.' });
+        return;
+      }
+      // The session cookie now belongs to the customer, so leave the console.
+      window.location.href = json.redirectTo || '/client/dashboard';
+    } catch (e: any) {
+      setSyncNotice({ type: 'error', message: e?.message || 'Could not open the portal as this customer.' });
+    }
+  };
+
   const openAccountSettings = async () => {
     setAcctMsg(null);
     setAcct({ currentPassword: '', newEmail: '', newName: '', newPassword: '', confirmPassword: '' });
@@ -3314,6 +3334,14 @@ export default function AdminDashboardPage() {
                   Close Dossier
                 </button>
                 {selectedCustomerDossier.upstreamCustomerId && selectedCustomerDossier.upstreamCustomerId !== 'Pending Sync' ? (
+                  <>
+                  <button
+                    onClick={() => viewPortalAsCustomer(selectedCustomerDossier)}
+                    title="Open the Hostmattic client portal as this customer. Your admin session is preserved."
+                    style={{ background: 'rgba(41, 180, 213, 0.15)', border: '1px solid rgba(41, 180, 213, 0.45)', color: '#29B4D5', padding: '8px 18px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', marginRight: '8px' }}
+                  >
+                    View Hostmattic Portal
+                  </button>
                   <a
                     href={`/api/client/sso?customerId=${selectedCustomerDossier.upstreamCustomerId}`}
                     target="_blank"
@@ -3322,14 +3350,24 @@ export default function AdminDashboardPage() {
                   >
                     Launch 1-Click Client SSO ↗
                   </a>
+                  </>
                 ) : (
-                  <button
-                    disabled
-                    title="No upstream customer ID linked to this account"
-                    style={{ background: 'rgba(255, 255, 255, 0.08)', color: '#64748B', padding: '8px 18px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, cursor: 'not-allowed', border: 'none' }}
-                  >
-                    SSO Unavailable (Unsynced)
-                  </button>
+                  <>
+                    <button
+                      onClick={() => viewPortalAsCustomer(selectedCustomerDossier)}
+                      title="Open the Hostmattic client portal as this customer. Your admin session is preserved."
+                      style={{ background: 'rgba(41, 180, 213, 0.15)', border: '1px solid rgba(41, 180, 213, 0.45)', color: '#29B4D5', padding: '8px 18px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', marginRight: '8px' }}
+                    >
+                      View Hostmattic Portal
+                    </button>
+                    <button
+                      disabled
+                      title="This customer has no upstream account, so upstream SSO is unavailable"
+                      style={{ background: 'rgba(255, 255, 255, 0.08)', color: '#64748B', padding: '8px 18px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 600, cursor: 'not-allowed', border: 'none' }}
+                    >
+                      Upstream SSO Unavailable
+                    </button>
+                  </>
                 )}
               </div>
             </div>

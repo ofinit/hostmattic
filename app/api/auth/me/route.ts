@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
         name: session.name,
         email: session.email,
         role: session.role,
+        impersonatedBy: session.impersonatedBy || null,
       },
     });
   } catch {

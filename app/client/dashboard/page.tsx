@@ -28,6 +28,26 @@ export default function ClientDashboard() {
     lutNumber: 'LUT/AD320324001928K',
   });
 
+  // Set when an administrator is viewing this portal as the customer.
+  const [impersonatedBy, setImpersonatedBy] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((j) => setImpersonatedBy(j?.user?.impersonatedBy || null))
+      .catch(() => setImpersonatedBy(null));
+  }, []);
+
+  const exitImpersonation = async () => {
+    try {
+      const res = await fetch('/api/auth/end-impersonation', { method: 'POST' });
+      const json = await res.json().catch(() => null);
+      window.location.href = json?.redirectTo || '/admin/dashboard';
+    } catch {
+      window.location.href = '/admin/dashboard';
+    }
+  };
+
   useEffect(() => {
     fetch('/api/domains/pricing')
       .then((r) => r.json())
@@ -824,6 +844,36 @@ export default function ClientDashboard() {
 
   return (
     <div style={{ background: 'var(--bg-canvas)', minHeight: 'calc(100vh - 180px)', padding: '36px 0 80px' }}>
+      {impersonatedBy && (
+        <div
+          role="status"
+          style={{
+            position: 'sticky', top: 0, zIndex: 500,
+            background: '#7C2D12', color: '#FFEDD5',
+            borderBottom: '2px solid #FFCD00',
+            padding: '10px 16px', marginBottom: '20px',
+            display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap',
+            fontSize: '0.88rem',
+          }}
+        >
+          <strong style={{ color: '#FFCD00' }}>Administrator view</strong>
+          <span>
+            You are viewing this portal as <strong>{data?.user?.name || 'this customer'}</strong>
+            {data?.user?.email ? ' (' + data.user.email + ')' : ''}. Signed in as {impersonatedBy}.
+            Anything you order here is placed on the customer&apos;s account.
+          </span>
+          <button
+            onClick={exitImpersonation}
+            style={{
+              marginLeft: 'auto', background: '#FFCD00', color: '#2B2200', border: 'none',
+              padding: '7px 16px', borderRadius: '8px', fontWeight: 800, fontSize: '0.84rem',
+              cursor: 'pointer', whiteSpace: 'nowrap',
+            }}
+          >
+            Return to admin console
+          </button>
+        </div>
+      )}
       <div className="container">
         {/* Top Welcome Header */}
         {data?.user?.role === 'ADMIN' && (

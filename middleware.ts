@@ -19,6 +19,7 @@ const PUBLIC_ROUTES = [
   '/api/auth/register',
   '/api/auth/logout',
   '/api/auth/forgot-password',
+  '/api/auth/end-impersonation', // caller holds a CUSTOMER session; authority is the stashed admin cookie
   '/api/health',
   '/api/domains',           // Public domain search/availability
   '/api/tax',               // Public tax rate lookup
