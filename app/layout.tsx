@@ -5,6 +5,7 @@ import { CartProvider } from '@/components/CartContext';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CheckoutDrawer from '@/components/CheckoutDrawer';
+import ImpersonationBanner from '@/components/ImpersonationBanner';
 
 export const viewport: Viewport = {
   themeColor: '#1B2228',
@@ -76,6 +77,7 @@ export default function RootLayout({
         <CurrencyProvider>
           <CartProvider>
             <Header />
+            <ImpersonationBanner />
             <main>{children}</main>
             <Footer />
             <CheckoutDrawer />

@@ -24,6 +24,28 @@ export default function CheckoutDrawer() {
   const [showPassword, setShowPassword] = useState(false);
   const [lockedCurrencyNotice, setLockedCurrencyNotice] = useState<'USD' | 'INR' | null>(null);
 
+  // Who is actually signed in. The order is always created against this
+  // account server-side, so the identity fields below are shown read-only
+  // rather than inviting someone to type a different address and have the
+  // purchase land on another account.
+  const [sessionUser, setSessionUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (!isCartOpen) return;
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((j) => {
+        if (j?.authenticated && j.user) {
+          setSessionUser(j.user);
+          setCustomerName((v) => v || j.user.name || '');
+          setCustomerEmail((v) => v || j.user.email || '');
+        } else {
+          setSessionUser(null);
+        }
+      })
+      .catch(() => setSessionUser(null));
+  }, [isCartOpen]);
+
   // Check email for existing account currency lock
   useEffect(() => {
     if (!customerEmail || !customerEmail.includes('@') || customerEmail.length < 5) {
@@ -790,6 +812,7 @@ export default function CheckoutDrawer() {
                     className="form-input"
                     placeholder="e.g. Alexander Wright"
                     value={customerName}
+                    readOnly={Boolean(sessionUser)}
                     onChange={(e) => setCustomerName(e.target.value)}
                   />
                 </div>
@@ -801,6 +824,7 @@ export default function CheckoutDrawer() {
                     className="form-input"
                     placeholder="alex@company.com"
                     value={customerEmail}
+                    readOnly={Boolean(sessionUser)}
                     onChange={(e) => setCustomerEmail(e.target.value)}
                   />
                 </div>
@@ -875,6 +899,8 @@ export default function CheckoutDrawer() {
                   />
                 </div>
 
+                {/* Only for a brand-new account: a signed-in customer already has one. */}
+                {!sessionUser && (
                 <div className="form-group" style={{ marginBottom: '12px' }}>
                   <label className="form-label" style={{ fontSize: '0.8rem' }}>Account Password (Optional)</label>
                   <div className="password-wrap">
@@ -895,6 +921,7 @@ export default function CheckoutDrawer() {
                     </button>
                   </div>
                 </div>
+                )}
               </div>
 
               {/* Payment Method Selection */}

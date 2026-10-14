@@ -102,7 +102,20 @@ export async function POST(req: NextRequest) {
 
     // Attempt DB record
     try {
-      let userId = customer?.id;
+      // The authenticated session owns this order. This route is behind
+      // requireAuth, so there is always a signed-in user, and the identity
+      // fields in the checkout form are only ever for display and invoicing.
+      //
+      // Previously the order was bound to whatever email was typed into the
+      // form, creating a second account when it did not match, and falling back
+      // to `prisma.user.findFirst()` - an arbitrary row, in practice usually the
+      // seeded administrator - when nothing resolved. That silently attached
+      // customers' orders to the wrong account, and during admin impersonation
+      // put the customer's purchase on the administrator.
+      let userId: string | undefined = session.id;
+
+      // Only when genuinely unauthenticated (not currently reachable, kept for
+      // a future guest-checkout flow) fall back to the submitted identity.
       if (!userId && customer?.email) {
         let existing = await prisma.user.findUnique({ where: { email: customer.email } });
         if (!existing && customer.password) {
@@ -121,8 +134,12 @@ export async function POST(req: NextRequest) {
       }
 
       if (!userId) {
-        const defaultUser = await prisma.user.findFirst();
-        userId = defaultUser?.id;
+        // Never attach an order to an arbitrary account.
+        console.error('[Checkout] No user could be resolved for order', orderNumber);
+        return NextResponse.json(
+          { success: false, error: 'Could not determine the account for this order. Please sign in and try again.' },
+          { status: 400 }
+        );
       }
 
       if (userId) {
