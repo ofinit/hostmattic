@@ -70,9 +70,22 @@ export function isLegacyPhp(pathname: string): boolean {
  * also puts a tid on them.
  */
 export function isUpstreamCallback(pathname: string, params: URLSearchParams): boolean {
+  // A `tid` is an upstream SuperSite session token: the visitor is already
+  // signed in over there, and the link is a handoff that carries their identity.
+  //
+  // This app cannot honour that token - there is no API to exchange a SuperSite
+  // tid for a customer, and our own session is a separate cookie. Dropping the
+  // token and landing on a public page silently attributes the visit to
+  // whoever this browser happens to be signed in as, which during admin SSO
+  // testing is the administrator rather than the customer.
+  //
+  // So anything carrying a token belongs upstream, not just validate/verify
+  // callbacks. Without an origin configured we still fall back to a local page,
+  // which is the best available answer.
+  if (params.get('tid') || params.get('token')) return true;
+
   const action = (params.get('action') || '').toLowerCase();
   if (!action) return false;
-  if (!params.get('tid') && !params.get('token')) return false;
   return /validate|verify|confirm|activate|auth|callback|response/.test(action);
 }
 
