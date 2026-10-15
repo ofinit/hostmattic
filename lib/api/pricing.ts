@@ -18,8 +18,18 @@ export interface TldPricingInfo {
    */
   renewInr: number;
   renewUsd: number;
+  /**
+   * Transfer-in pricing, from the upstream `addtransferdomain` action. A third
+   * price again: the transfer page used to charge a flat $7.99 for every
+   * extension, which was 11% margin on .co.in and a Rs2,342 loss on a .io.
+   * Zero means upstream gave us no transfer price, and the UI must say so
+   * rather than fall back to anything.
+   */
+  transferInr: number;
+  transferUsd: number;
   wholesaleCostInr?: number;
   renewWholesaleCostInr?: number;
+  transferWholesaleCostInr?: number;
   isPromo: boolean;
   promoEndsAt?: string;
   badge?: string;
@@ -61,16 +71,16 @@ export const TLD_TO_PRODUCT_KEY: Record<string, string> = {
 
 // Default fallback prices if live gateway is unreachable
 const STATIC_FALLBACK_PRICING: Record<string, TldPricingInfo> = {
-  '.com': { tld: '.com', productKey: 'domcno', retailInr: 1085, retailUsd: 12.99, renewInr: 1085, renewUsd: 12.99, wholesaleCostInr: 999, isPromo: false, badge: 'Most Popular', popular: true },
-  '.in': { tld: '.in', productKey: 'dotin', retailInr: 779, retailUsd: 8.99, renewInr: 779, renewUsd: 8.99, wholesaleCostInr: 699, isPromo: false, badge: 'Best in India', popular: true },
-  '.net': { tld: '.net', productKey: 'dotnet', retailInr: 1250, retailUsd: 14.49, renewInr: 1250, renewUsd: 14.49, wholesaleCostInr: 1144, isPromo: false, badge: 'Tech Classic' },
-  '.org': { tld: '.org', productKey: 'domorg', retailInr: 1110, retailUsd: 13.29, renewInr: 1110, renewUsd: 13.29, wholesaleCostInr: 959, isPromo: true, badge: 'Special Offer' },
-  '.tech': { tld: '.tech', productKey: 'dottech', retailInr: 1022, retailUsd: 12.24, renewInr: 1022, renewUsd: 12.24, wholesaleCostInr: 879, isPromo: true, badge: '72% OFF', popular: true },
-  '.online': { tld: '.online', productKey: 'dotonline', retailInr: 736, retailUsd: 8.81, renewInr: 736, renewUsd: 8.81, wholesaleCostInr: 619, isPromo: true, badge: '74% OFF' },
-  '.store': { tld: '.store', productKey: 'dotstore', retailInr: 879, retailUsd: 10.53, renewInr: 879, renewUsd: 10.53, wholesaleCostInr: 749, isPromo: true, badge: '80% OFF' },
-  '.io': { tld: '.io', productKey: 'dotio', retailInr: 3365, retailUsd: 40.30, renewInr: 3365, renewUsd: 40.30, wholesaleCostInr: 3009, isPromo: true, badge: '24% OFF' },
-  '.co': { tld: '.co', productKey: 'dotco', retailInr: 1935, retailUsd: 23.17, renewInr: 1935, renewUsd: 23.17, wholesaleCostInr: 1749, isPromo: true, badge: '16% OFF' },
-  '.ai': { tld: '.ai', productKey: 'dotai', retailInr: 6679, retailUsd: 79.99, renewInr: 6679, renewUsd: 79.99, wholesaleCostInr: 5999, isPromo: false },
+  '.com': { tld: '.com', productKey: 'domcno', retailInr: 1085, retailUsd: 12.99, renewInr: 1085, renewUsd: 12.99, transferInr: 0, transferUsd: 0, wholesaleCostInr: 999, isPromo: false, badge: 'Most Popular', popular: true },
+  '.in': { tld: '.in', productKey: 'dotin', retailInr: 779, retailUsd: 8.99, renewInr: 779, renewUsd: 8.99, transferInr: 0, transferUsd: 0, wholesaleCostInr: 699, isPromo: false, badge: 'Best in India', popular: true },
+  '.net': { tld: '.net', productKey: 'dotnet', retailInr: 1250, retailUsd: 14.49, renewInr: 1250, renewUsd: 14.49, transferInr: 0, transferUsd: 0, wholesaleCostInr: 1144, isPromo: false, badge: 'Tech Classic' },
+  '.org': { tld: '.org', productKey: 'domorg', retailInr: 1110, retailUsd: 13.29, renewInr: 1110, renewUsd: 13.29, transferInr: 0, transferUsd: 0, wholesaleCostInr: 959, isPromo: true, badge: 'Special Offer' },
+  '.tech': { tld: '.tech', productKey: 'dottech', retailInr: 1022, retailUsd: 12.24, renewInr: 1022, renewUsd: 12.24, transferInr: 0, transferUsd: 0, wholesaleCostInr: 879, isPromo: true, badge: '72% OFF', popular: true },
+  '.online': { tld: '.online', productKey: 'dotonline', retailInr: 736, retailUsd: 8.81, renewInr: 736, renewUsd: 8.81, transferInr: 0, transferUsd: 0, wholesaleCostInr: 619, isPromo: true, badge: '74% OFF' },
+  '.store': { tld: '.store', productKey: 'dotstore', retailInr: 879, retailUsd: 10.53, renewInr: 879, renewUsd: 10.53, transferInr: 0, transferUsd: 0, wholesaleCostInr: 749, isPromo: true, badge: '80% OFF' },
+  '.io': { tld: '.io', productKey: 'dotio', retailInr: 3365, retailUsd: 40.30, renewInr: 3365, renewUsd: 40.30, transferInr: 0, transferUsd: 0, wholesaleCostInr: 3009, isPromo: true, badge: '24% OFF' },
+  '.co': { tld: '.co', productKey: 'dotco', retailInr: 1935, retailUsd: 23.17, renewInr: 1935, renewUsd: 23.17, transferInr: 0, transferUsd: 0, wholesaleCostInr: 1749, isPromo: true, badge: '16% OFF' },
+  '.ai': { tld: '.ai', productKey: 'dotai', retailInr: 6679, retailUsd: 79.99, renewInr: 6679, renewUsd: 79.99, transferInr: 0, transferUsd: 0, wholesaleCostInr: 5999, isPromo: false },
 };
 
 // In-memory cache with 1-hour TTL
@@ -125,6 +135,7 @@ export async function getLiveDomainPricing(): Promise<Record<string, TldPricingI
       // Find exact wholesale cost from reseller-cost-price
       let wholesaleCost: number | undefined = undefined;
       let renewWholesaleCost: number | undefined = undefined;
+      let transferWholesaleCost: number | undefined = undefined;
       if (costs && typeof costs === 'object') {
         const costItem = costs[productKey];
         const addCost = costItem?.addnewdomain?.['1'] || costItem?.['0']?.pricing?.addnewdomain?.['1'];
@@ -135,11 +146,20 @@ export async function getLiveDomainPricing(): Promise<Record<string, TldPricingI
         if (rnwCost) {
           renewWholesaleCost = Number(rnwCost);
         }
+        const trfCost =
+          costItem?.addtransferdomain?.['1'] ||
+          costItem?.['0']?.pricing?.addtransferdomain?.['1'] ||
+          costItem?.transferdomain?.['1'] ||
+          costItem?.['0']?.pricing?.transferdomain?.['1'];
+        if (trfCost) {
+          transferWholesaleCost = Number(trfCost);
+        }
       }
 
       // Find WebPro panel custom customer selling price
       let webProSellingPrice: number | undefined = undefined;
       let webProRenewPrice: number | undefined = undefined;
+      let webProTransferPrice: number | undefined = undefined;
       if (customerPrices && typeof customerPrices === 'object') {
         const custItem = customerPrices[productKey];
         const custPrice = custItem?.addnewdomain?.['1'] || custItem?.['0']?.pricing?.addnewdomain?.['1'];
@@ -149,6 +169,14 @@ export async function getLiveDomainPricing(): Promise<Record<string, TldPricingI
         const custRenew = custItem?.renewdomain?.['1'] || custItem?.['0']?.pricing?.renewdomain?.['1'];
         if (custRenew) {
           webProRenewPrice = Number(custRenew);
+        }
+        const custTransfer =
+          custItem?.addtransferdomain?.['1'] ||
+          custItem?.['0']?.pricing?.addtransferdomain?.['1'] ||
+          custItem?.transferdomain?.['1'] ||
+          custItem?.['0']?.pricing?.transferdomain?.['1'];
+        if (custTransfer) {
+          webProTransferPrice = Number(custTransfer);
         }
       }
 
@@ -202,8 +230,24 @@ export async function getLiveDomainPricing(): Promise<Record<string, TldPricingI
         else if (tld === '.org') badge = 'Authority';
       }
 
+      // Transfer, like renewal, is derived only from transfer inputs. There is
+      // deliberately NO flat fallback: if upstream prices no transfer for this
+      // extension we publish zero, and the UI refuses the sale rather than
+      // guessing. A flat $7.99 here was an 11% margin on .co.in and a loss of
+      // over Rs2,000 on a .io.
+      const transferInr = Math.round(
+        webProTransferPrice
+          ? webProTransferPrice
+          : transferWholesaleCost
+          ? transferWholesaleCost + Math.max(80, transferWholesaleCost * 0.1)
+          : 0
+      );
+
       const retailUsd = Number((retailInr / USD_INR_RATE).toFixed(2));
       const renewUsd = Number((renewInr / USD_INR_RATE).toFixed(2));
+      const transferUsd = transferInr
+        ? Number((transferInr / USD_INR_RATE).toFixed(2))
+        : 0;
 
       computed[tld] = {
         tld,
@@ -212,8 +256,11 @@ export async function getLiveDomainPricing(): Promise<Record<string, TldPricingI
         retailUsd,
         renewInr,
         renewUsd,
+        transferInr,
+        transferUsd,
         wholesaleCostInr: wholesaleCost,
         renewWholesaleCostInr: renewWholesaleCost,
+        transferWholesaleCostInr: transferWholesaleCost,
         isPromo,
         promoEndsAt,
         badge,

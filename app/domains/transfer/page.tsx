@@ -5,12 +5,57 @@ import { useSearchParams } from 'next/navigation';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 import { useCart } from '@/components/CartContext';
 
+/**
+ * Longest-suffix match, so hotice.co.in prices as .co.in rather than .in.
+ * Those are different products upstream with different prices.
+ */
+function extensionOf(domain: string, known: string[]): string | null {
+  const name = domain.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0];
+  let best: string | null = null;
+  for (const tld of known) {
+    if (name.endsWith(tld) && (!best || tld.length > best.length)) best = tld;
+  }
+  return best;
+}
+
 function DomainTransferForm() {
   const searchParams = useSearchParams();
   const [domain, setDomain] = useState('');
   const [authCode, setAuthCode] = useState('');
   const { addItem } = useCart();
   const [submitting, setSubmitting] = useState(false);
+
+  // Transfer used to be a flat $7.99 for every extension. That was roughly 11%
+  // margin on a .co.in and a loss of over Rs2,000 on a .io, because upstream
+  // prices transfers per extension just as it does registrations and renewals.
+  const [pricing, setPricing] = useState<Record<string, any> | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/domains/pricing')
+      .then(async (r) => {
+        const text = await r.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
+        }
+      })
+      .then((j) => {
+        if (!cancelled && j?.success && j.pricing) setPricing(j.pricing);
+      })
+      .catch(() => {
+        if (!cancelled) setPricing({});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const matchedTld = pricing ? extensionOf(domain, Object.keys(pricing)) : null;
+  const tldPricing = matchedTld ? pricing?.[matchedTld] : null;
+  const transferUsd = Number(tldPricing?.transferUsd ?? 0);
+  const canTransfer = transferUsd > 0;
 
   useEffect(() => {
     const queryDomain = searchParams.get('domain');
@@ -24,14 +69,21 @@ function DomainTransferForm() {
     if (!domain.trim()) return;
     setSubmitting(true);
 
+    // Never add an item at a price we invented. Without a live transfer price
+    // for this extension the sale is refused rather than guessed at.
+    if (!canTransfer) {
+      setSubmitting(false);
+      return;
+    }
+
     addItem(
       {
         type: 'DOMAIN',
         name: `Domain Transfer (${domain.trim()})`,
         domainName: domain.trim(),
         billingPeriod: 'annual',
-        priceMonthly: 0.66,
-        priceAnnual: 7.99,
+        priceMonthly: Number((transferUsd / 12).toFixed(2)),
+        priceAnnual: transferUsd,
       },
       true
     );
@@ -137,13 +189,39 @@ function DomainTransferForm() {
                 </span>
               </div>
 
+              {domain.trim() && pricing && !canTransfer && (
+                <div
+                  role="status"
+                  style={{
+                    background: '#FFF7ED',
+                    border: '1px solid #FDBA74',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    marginBottom: '14px',
+                    fontSize: '0.85rem',
+                    color: '#7C2D12',
+                    lineHeight: 1.55,
+                  }}
+                >
+                  <strong style={{ display: 'block', marginBottom: '2px' }}>
+                    Transfer pricing unavailable for this extension
+                  </strong>
+                  We cannot quote a transfer for{' '}
+                  <strong>{matchedTld || domain.trim()}</strong> right now. Please contact support
+                  and we will arrange it manually.
+                </div>
+              )}
               <button
                 type="submit"
                 className="btn btn-primary"
-                disabled={submitting}
+                disabled={submitting || !canTransfer}
                 style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '1rem' }}
               >
-                {submitting ? 'Adding Transfer to Cart...' : 'Initiate Domain Transfer →'}
+                {submitting
+                  ? 'Adding Transfer to Cart...'
+                  : canTransfer
+                  ? `Transfer for $${transferUsd.toFixed(2)}/yr →`
+                  : 'Initiate Domain Transfer →'}
               </button>
             </form>
           </div>
