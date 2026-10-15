@@ -12,6 +12,12 @@ export interface CartItem {
   priceMonthly: number;
   priceAnnual: number;
   quantity?: number;
+  /**
+   * The plan's name in the upstream catalogue. The `name` above is a marketing
+   * label ("WP Starter") that upstream has never heard of, so checkout needs
+   * this to price and provision the line.
+   */
+  upstreamPlan?: string;
 }
 
 interface CartContextType {
@@ -19,6 +25,8 @@ interface CartContextType {
   addItem: (item: Omit<CartItem, 'id'> & { id?: string }, autoOpen?: boolean) => void;
   removeItem: (id: string) => void;
   updateItemCycle: (id: string, cycle: 'monthly' | 'annual') => void;
+  /** Correct a line to the authoritative price returned by checkout. */
+  updateItemPrice: (id: string, prices: { priceMonthly?: number; priceAnnual?: number }) => void;
   clearCart: () => void;
   isCartOpen: boolean;
   openCart: () => void;
@@ -85,6 +93,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
+  const updateItemPrice = (
+    id: string,
+    prices: { priceMonthly?: number; priceAnnual?: number }
+  ) => {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.id === id
+          ? {
+              ...i,
+              priceMonthly: prices.priceMonthly ?? i.priceMonthly,
+              priceAnnual: prices.priceAnnual ?? i.priceAnnual,
+            }
+          : i
+      )
+    );
+  };
+
   const updateItemCycle = (id: string, cycle: 'monthly' | 'annual') => {
     setItems((prev) =>
       prev.map((i) => (i.id === id ? { ...i, billingPeriod: cycle } : i))
@@ -116,6 +141,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         addItem,
         removeItem,
         updateItemCycle,
+        updateItemPrice,
         clearCart,
         isCartOpen,
         openCart,

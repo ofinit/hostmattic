@@ -9,7 +9,7 @@ import { COUNTRIES, getCountryStates } from '@/lib/constants/countries';
 import { loadRazorpaySdk } from '@/lib/utils/loadRazorpay';
 
 export default function CheckoutDrawer() {
-  const { items, removeItem, updateItemCycle, clearCart, isCartOpen, closeCart, totalUsd } = useCart();
+  const { items, removeItem, updateItemCycle, updateItemPrice, clearCart, isCartOpen, closeCart, totalUsd } = useCart();
   const { formatPrice, currency, setCurrency, setAccountLock, isLocked, lockedCurrency } = useCurrency();
 
   const [customerName, setCustomerName] = useState('');
@@ -292,6 +292,7 @@ export default function CheckoutDrawer() {
           name: item.name,
           sacCode: '998315',
           domainName: item.domainName || (item.type === 'DOMAIN' ? item.name : undefined),
+          upstreamPlan: item.upstreamPlan,
           price: (item.billingPeriod === 'annual' ? item.priceAnnual : item.priceMonthly) * rate,
           period: item.billingPeriod === 'annual' ? '1 Year' : '1 Month',
         })),
@@ -333,7 +334,32 @@ export default function CheckoutDrawer() {
       const data = await res.json();
 
       if (!data.success) {
-        if (res.status === 409 || data.code === 'CURRENCY_LOCKED') {
+        // Checkout returns 409 for several distinct refusals. Branching on the
+        // status alone treated a stale price, an unavailable plan and a term
+        // we cannot sell as a currency lock, and switched the customer's
+        // currency on them.
+        if (data.code === 'PRICE_CHANGED' && Array.isArray(data.lines)) {
+          // Correct the basket in place so the customer can simply try again,
+          // rather than being told the price is wrong with no way to fix it.
+          for (const line of data.lines) {
+            const item = items.find((i) => i.name === line.item);
+            if (!item || typeof line.now !== 'number') continue;
+            const inBase = line.now / rate;
+            updateItemPrice(
+              item.id,
+              item.billingPeriod === 'annual' ? { priceAnnual: inBase } : { priceMonthly: inBase }
+            );
+          }
+          setErrorMessage(
+            data.error +
+              ' ' +
+              data.lines
+                .map((l: any) => `${l.item}: ${formatPrice(l.was / rate)} to ${formatPrice(l.now / rate)}`)
+                .join('; ')
+          );
+        } else if (data.code === 'PLAN_UNAVAILABLE' || data.code === 'TERM_UNAVAILABLE') {
+          setErrorMessage(data.error || 'That plan is not available to order right now.');
+        } else if (data.code === 'CURRENCY_LOCKED') {
           const targetCurr = (data.lockedCurrency as 'USD' | 'INR') || (currency === 'USD' ? 'INR' : 'USD');
           setLockedCurrencyNotice(targetCurr);
           setAccountLock(targetCurr);

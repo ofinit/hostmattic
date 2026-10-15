@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSellablePlan } from '@/lib/api/hostingPricing';
+import { repriceCart } from '@/lib/services/cartPricing';
 import { validateCurrencyMatch, lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { requireAuth } from '@/lib/auth';
 import { sendEmail, generateOrderReceiptEmail } from '@/lib/email/resend';
@@ -90,7 +91,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const plan = await getSellablePlan(item.productType || 'SHARED_LINUX', item.name || '');
+      // `name` is the page's marketing label; upstream knows the plan by the
+      // name the cart carries in upstreamPlan.
+      const plan = await getSellablePlan(
+        item.productType || 'SHARED_LINUX',
+        item.upstreamPlan || item.name || ''
+      );
       if (!plan) {
         return NextResponse.json(
           {
@@ -119,6 +125,40 @@ export async function POST(req: NextRequest) {
           { status: 409 }
         );
       }
+    }
+
+    // Price every line again from the live catalogue. The cart lives in the
+    // browser's localStorage and stores the price as it was when the item was
+    // added, so a cart filled before a price change still quotes the old
+    // figure - and checkout used to take that figure on trust.
+    const { checks, mismatches } = await repriceCart(items, orderCurrency);
+
+    if (mismatches.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'PRICE_CHANGED',
+          error:
+            'Prices in your basket are out of date. Please review the updated ' +
+            'amounts and try again.',
+          lines: mismatches.map((m) => ({
+            item: m.name,
+            was: m.submitted,
+            now: m.expected,
+          })),
+        },
+        { status: 409 }
+      );
+    }
+
+    const unverified = checks.filter((c) => c.status === 'unverified');
+    if (unverified.length) {
+      // Not fatal - refusing everything we cannot price would block more sales
+      // than it protects - but it should be visible.
+      console.warn(
+        '[Checkout] Could not verify pricing for: ' +
+          unverified.map((u) => `${u.name} (${u.detail})`).join('; ')
+      );
     }
 
     // NOTE: provisioning deliberately does NOT happen here.

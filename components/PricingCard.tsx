@@ -75,6 +75,7 @@ export default function PricingCard({
               type: 'HOSTING',
               productType: plan.productType || 'SHARED_LINUX',
               name: plan.name,
+              upstreamPlan: plan.upstreamPlan,
               billingPeriod: billingCycle,
               priceMonthly: plan.usdMonthly,
               priceAnnual: Number((plan.usdAnnualMonthly * 12).toFixed(2)),
