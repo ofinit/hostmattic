@@ -44,6 +44,12 @@ export interface OrderItemFinancials {
   description: string;
   retailPrice: number;
   wholesaleCost: number;
+  /**
+   * GST the upstream supplier charges us on that cost (18%). For a registered
+   * business this is input tax credit, not an expense - it offsets the GST we
+   * collect - so it is tracked separately and kept out of margin.
+   */
+  inputGst: number;
   grossProfit: number;
   marginPercent: number;
   currency: string;
@@ -56,9 +62,24 @@ export interface OrderFinancialSummary {
   grossAmount: number;     // Customer payment with tax
   taxAmount: number;       // GST collected
   netSales: number;        // Turnover excluding tax
-  totalCost: number;       // Wholesale COGS
+  totalCost: number;       // Wholesale COGS, exclusive of input GST
   grossProfit: number;     // Net Sales - Total Cost
   marginPercent: number;
+  /** GST charged to us by the supplier on this order's cost. */
+  inputGstPaid: number;
+  /** What actually leaves the bank: cost plus that GST. */
+  cashCost: number;
+  /**
+   * GST collected from the customer less input credit on the same order.
+   * Negative means the credit exceeds the liability.
+   */
+  netGstPosition: number;
+  /**
+   * True when output GST is zero but input GST was paid - an LUT export. The
+   * credit cannot be offset against this sale and accumulates until it is
+   * refunded, so until that refund is claimed the input GST is a real cost.
+   */
+  itcAccumulating: boolean;
   items: OrderItemFinancials[];
 }
 
@@ -75,6 +96,8 @@ export interface FinancialAnalyticsReport {
     cgst: number;
     sgst: number;
     igst: number;
+    inputGst: number;
+    netGstPayable: number;
     cogs: number;          // Wholesale cost
     grossProfit: number;
     marginPercent: number;
@@ -87,6 +110,8 @@ export interface FinancialAnalyticsReport {
     taxCollected: number;
     lutExportSales: number;
     cogs: number;
+    inputGst: number;
+    blockedItcOnExports: number;
     grossProfit: number;
     marginPercent: number;
     aov: number;
@@ -178,6 +203,19 @@ export function estimateItemWholesaleCost(
 /**
  * Calculate line-by-line financial metrics for a single order.
  */
+/**
+ * GST the upstream supplier adds to our cost price. ResellerClub bills
+ * Rs599.00 + Rs107.82 = Rs706.82 on a .co.in, and the panel shows that split
+ * under "Cost Price Breakup".
+ *
+ * This is NOT added to COGS. A GST-registered business reclaims it as input
+ * tax credit against the GST it collects, so the economic cost of that domain
+ * is Rs599. It is tracked here so the cash outflow and the credit position are
+ * visible, and because on a zero-rated LUT export there is no output GST to
+ * offset it against - see `itcAccumulating`.
+ */
+const INPUT_GST_RATE = 0.18;
+
 export function calculateOrderFinancials(order: any): OrderFinancialSummary {
   const currency = order.currency || 'USD';
   const grossAmount = parseFloat(order.totalAmount || 0);
@@ -192,6 +230,10 @@ export function calculateOrderFinancials(order: any): OrderFinancialSummary {
       retailPrice,
       currency
     );
+    // Margin deliberately excludes input GST on both sides: the sale is
+    // measured net of the GST we collect, so the cost is measured net of the
+    // GST we pay. Adding it to cost here would understate every margin.
+    const inputGst = parseFloat((wholesaleCost * INPUT_GST_RATE).toFixed(2));
     const grossProfit = Math.max(0, parseFloat((retailPrice - wholesaleCost).toFixed(2)));
     const marginPercent = retailPrice > 0 ? parseFloat(((grossProfit / retailPrice) * 100).toFixed(1)) : 0;
 
@@ -201,6 +243,7 @@ export function calculateOrderFinancials(order: any): OrderFinancialSummary {
       description: item.description,
       retailPrice,
       wholesaleCost,
+      inputGst,
       grossProfit,
       marginPercent,
       currency,
@@ -210,6 +253,10 @@ export function calculateOrderFinancials(order: any): OrderFinancialSummary {
   const totalCost = items.reduce((acc: number, it: any) => acc + it.wholesaleCost, 0);
   const grossProfit = Math.max(0, parseFloat((netSales - totalCost).toFixed(2)));
   const marginPercent = netSales > 0 ? parseFloat(((grossProfit / netSales) * 100).toFixed(1)) : 0;
+
+  const inputGstPaid = parseFloat(
+    items.reduce((acc: number, it: any) => acc + it.inputGst, 0).toFixed(2)
+  );
 
   return {
     orderId: order.id,
@@ -221,6 +268,10 @@ export function calculateOrderFinancials(order: any): OrderFinancialSummary {
     totalCost: parseFloat(totalCost.toFixed(2)),
     grossProfit,
     marginPercent,
+    inputGstPaid,
+    cashCost: parseFloat((totalCost + inputGstPaid).toFixed(2)),
+    netGstPosition: parseFloat((taxAmount - inputGstPaid).toFixed(2)),
+    itcAccumulating: taxAmount === 0 && inputGstPaid > 0,
     items,
   };
 }
@@ -263,6 +314,7 @@ export function computeFinancialReport(
   let inrSgst = 0;
   let inrIgst = 0;
   let inrCogs = 0;
+  let inrInputGst = 0;
 
   for (const o of inrPaid) {
     const fin = calculateOrderFinancials(o);
@@ -273,6 +325,7 @@ export function computeFinancialReport(
     inrSgst += parseFloat(o.sgstAmount || 0);
     inrIgst += parseFloat(o.igstAmount || 0);
     inrCogs += fin.totalCost;
+    inrInputGst += fin.inputGstPaid;
   }
 
   const inrGrossProfit = Math.max(0, inrNetSales - inrCogs);
@@ -284,6 +337,8 @@ export function computeFinancialReport(
   let usdNetSales = 0;
   let usdTax = 0;
   let usdCogs = 0;
+  let usdInputGst = 0;
+  let usdBlockedItc = 0;
   let usdLutExport = 0;
 
   for (const o of usdPaid) {
@@ -292,8 +347,13 @@ export function computeFinancialReport(
     usdNetSales += fin.netSales;
     usdTax += fin.taxAmount;
     usdCogs += fin.totalCost;
+    usdInputGst += fin.inputGstPaid;
     if ((o.taxType || '') === 'LUT_EXPORT' || o.taxAmount === 0) {
       usdLutExport += fin.grossAmount;
+      // Zero-rated sale, but the supplier still charged us GST on the cost.
+      // That credit has no output liability on this order to offset, so it
+      // accumulates until a refund is claimed.
+      usdBlockedItc += fin.inputGstPaid;
     }
   }
 
@@ -358,6 +418,10 @@ export function computeFinancialReport(
       sgst: Math.round(inrSgst),
       igst: Math.round(inrIgst),
       cogs: Math.round(inrCogs),
+      // GST the supplier charged us, reclaimable against taxCollected. Not a
+      // cost, so it is outside cogs and outside margin.
+      inputGst: Math.round(inrInputGst),
+      netGstPayable: Math.round(inrTax - inrInputGst),
       grossProfit: Math.round(inrGrossProfit),
       marginPercent: parseFloat(inrMargin.toFixed(1)),
       aov: Math.round(inrAov),
@@ -368,6 +432,11 @@ export function computeFinancialReport(
       taxCollected: parseFloat(usdTax.toFixed(2)),
       lutExportSales: parseFloat(usdLutExport.toFixed(2)),
       cogs: parseFloat(usdCogs.toFixed(2)),
+      inputGst: parseFloat(usdInputGst.toFixed(2)),
+      // Export sales are zero-rated, so this credit cannot be set against
+      // output tax and must be refunded. Until it is, it is working capital
+      // tied up - and if it is never claimed, a real cost on export margin.
+      blockedItcOnExports: parseFloat(usdBlockedItc.toFixed(2)),
       grossProfit: parseFloat(usdGrossProfit.toFixed(2)),
       marginPercent: parseFloat(usdMargin.toFixed(1)),
       aov: parseFloat(usdAov.toFixed(2)),

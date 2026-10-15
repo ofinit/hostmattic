@@ -1351,6 +1351,34 @@ export default function AdminDashboardPage() {
                   <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '4px' }}>
                     Domain registries &amp; server licenses ({cogsPct.toFixed(1)}% of rev)
                   </div>
+                  <div style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '6px', lineHeight: 1.5 }}>
+                    Excludes {currSymbol}
+                    {(activeLedger?.inputGst || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {' '}GST charged by the supplier &mdash; reclaimable as input credit, so it is
+                    not a cost.
+                  </div>
+                </div>
+
+                <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '20px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Net GST Position</span>
+                    <span style={{ color: '#29B4D5' }}>🏛️</span>
+                  </div>
+                  <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#29B4D5', marginTop: '6px' }}>
+                    {currSymbol}
+                    {(activeLedger?.netGstPayable ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '4px' }}>
+                    GST collected less input credit &mdash; what is actually remitted.
+                  </div>
+                  {(activeLedger?.blockedItcOnExports || 0) > 0 && (
+                    <div style={{ fontSize: '0.72rem', color: '#FCD34D', marginTop: '8px', lineHeight: 1.5 }}>
+                      {currSymbol}
+                      {(activeLedger.blockedItcOnExports).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {' '}of input credit sits against zero-rated exports. There is no output tax
+                      to offset it, so it must be claimed as a refund or it becomes a real cost.
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '20px' }}>
