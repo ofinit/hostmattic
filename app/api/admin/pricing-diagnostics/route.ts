@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { apiClient, isLiveApiConfigured } from '@/lib/api/client';
 import { PRODUCT_KEYS, extractPlanDetails, getLiveHostingPricing } from '@/lib/api/hostingPricing';
+import { TLD_TO_PRODUCT_KEY } from '@/lib/api/pricing';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -72,6 +73,84 @@ export async function GET(req: NextRequest) {
         customerPrice: customerPrices[key] ?? null,
         resellerCost: costs[key] ?? null,
         planDetailProbes,
+      });
+    }
+
+    // Audit: every product key this app maps, checked against the catalogue.
+    //
+    // .co.in was mapped to `dotcoin`, which does not exist, so it matched
+    // nothing and silently fell back to the static table for over a year. The
+    // only way to catch that class of mistake is to check every mapping at
+    // once rather than wait for someone to notice a wrong price.
+    if (req.nextUrl.searchParams.get('audit')) {
+      const [customerRes, costRes] = await Promise.all([
+        apiClient<Record<string, any>>('/products/customer-price.json', {}, 'GET'),
+        apiClient<Record<string, any>>('/products/reseller-cost-price.json', {}, 'GET'),
+      ]);
+
+      const customerPrices = customerRes.success && customerRes.data ? customerRes.data : {};
+      const costs = costRes.success && costRes.data ? costRes.data : {};
+      const has = (k: string) => Object.prototype.hasOwnProperty.call(customerPrices, k);
+
+      const brokenDomains: { tld: string; productKey: string }[] = [];
+      const pricedDomains: { tld: string; productKey: string; add?: number; renew?: number; transfer?: number }[] = [];
+
+      const readAction = (node: any, action: string) => {
+        const v = node?.[action]?.['1'] ?? node?.['0']?.pricing?.[action]?.['1'];
+        const n = Number(v);
+        return Number.isFinite(n) && n > 0 ? n : undefined;
+      };
+
+      for (const [tld, key] of Object.entries(TLD_TO_PRODUCT_KEY)) {
+        if (!has(key)) {
+          brokenDomains.push({ tld, productKey: key });
+          continue;
+        }
+        const node = customerPrices[key];
+        pricedDomains.push({
+          tld,
+          productKey: key,
+          add: readAction(node, 'addnewdomain'),
+          renew: readAction(node, 'renewdomain'),
+          transfer: readAction(node, 'addtransferdomain') ?? readAction(node, 'transferdomain'),
+        });
+      }
+
+      const brokenFamilies: string[] = [];
+      const okFamilies: { family: string; productKey: string }[] = [];
+      for (const [family, candidates] of Object.entries(PRODUCT_KEYS)) {
+        const hit = candidates.find(has);
+        if (hit) okFamilies.push({ family, productKey: hit });
+        else brokenFamilies.push(family);
+      }
+
+      // Products that are priced upstream but that nothing in this app sells.
+      const claimed = new Set<string>([
+        ...Object.values(TLD_TO_PRODUCT_KEY),
+        ...okFamilies.map((f) => f.productKey),
+      ]);
+      const unsold = Object.keys(customerPrices)
+        .filter((k) => !claimed.has(k))
+        .sort();
+
+      return NextResponse.json({
+        success: true,
+        summary: {
+          upstreamProducts: Object.keys(customerPrices).length,
+          domainsMapped: Object.keys(TLD_TO_PRODUCT_KEY).length,
+          domainsBroken: brokenDomains.length,
+          familiesMapped: okFamilies.length,
+          familiesBroken: brokenFamilies.length,
+          notSold: unsold.length,
+        },
+        // Mapped to a product key the catalogue does not contain: these price
+        // from the static table and are almost certainly wrong.
+        brokenDomains,
+        brokenFamilies,
+        pricedDomains,
+        okFamilies,
+        notSold: unsold,
+        costKeysPresent: Object.keys(costs).length,
       });
     }
 
