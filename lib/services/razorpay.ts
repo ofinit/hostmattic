@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { getGatewayConfig } from './paymentConfig';
 
 export interface CreateRazorpayOrderParams {
   amount: number; // in normal currency units (e.g. 1599.00 or 19.99)
@@ -17,25 +18,28 @@ export interface RazorpayOrderResult {
 }
 
 export class RazorpayService {
-  private keyId: string;
-  private keySecret: string;
-
-  constructor() {
-    this.keyId = process.env.RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || '';
-    this.keySecret = process.env.RAZORPAY_KEY_SECRET || '';
+  // Credentials are resolved per call from paymentConfig, which reads the
+  // PaymentGateway row and falls back to the environment. They used to be read
+  // once in the constructor, so rotating a compromised key or switching the
+  // gateway off needed a redeploy.
+  private async config() {
+    return getGatewayConfig('RAZORPAY');
   }
 
-  public isConfigured(): boolean {
+  public async isConfigured(): Promise<boolean> {
+    const c = await this.config();
     return (
-      Boolean(this.keyId) &&
-      Boolean(this.keySecret) &&
-      !this.keyId.includes('placeholder') &&
-      !this.keySecret.includes('placeholder')
+      c.enabled &&
+      Boolean(c.publicKey) &&
+      Boolean(c.secret) &&
+      !c.publicKey.includes('placeholder') &&
+      !c.secret.includes('placeholder')
     );
   }
 
-  public getKeyId(): string {
-    return this.keyId || 'rzp_test_simulated_key';
+  public async getKeyId(): Promise<string> {
+    const c = await this.config();
+    return c.publicKey || 'rzp_test_simulated_key';
   }
 
   /**
@@ -46,7 +50,12 @@ export class RazorpayService {
     const subunits = Math.round(params.amount * 100);
 
     // If live/test credentials are NOT set or placeholder, return a sandbox simulation order
-    if (!this.isConfigured()) {
+    if (!(await this.isConfigured())) {
+      if (process.env.NODE_ENV === 'production') {
+        // A live deployment with no usable gateway must refuse the payment
+        // rather than hand back an order id nothing can settle.
+        throw new Error('No payment gateway is configured. Please contact support.');
+      }
       console.log('⚡ [Razorpay] Credentials not set or placeholder. Using dev sandbox order.');
       return {
         id: `order_sim_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -59,7 +68,8 @@ export class RazorpayService {
     }
 
     try {
-      const basicAuth = Buffer.from(`${this.keyId}:${this.keySecret}`).toString('base64');
+      const { publicKey, secret } = await this.config();
+      const basicAuth = Buffer.from(`${publicKey}:${secret}`).toString('base64');
       const response = await fetch('https://api.razorpay.com/v1/orders', {
         method: 'POST',
         headers: {
@@ -91,6 +101,11 @@ export class RazorpayService {
       };
     } catch (err: any) {
       console.error('❌ Razorpay Order creation exception:', err.message);
+      if (process.env.NODE_ENV === 'production') {
+        // Returning a simulated order here handed the customer an id that no
+        // gateway would ever settle.
+        throw err;
+      }
       // Fallback in dev/preview environments to prevent checkout block
       return {
         id: `order_sim_err_${Date.now()}`,
@@ -113,19 +128,24 @@ export class RazorpayService {
    * production. A live deployment with missing keys must refuse payments, not
    * wave them through.
    */
-  public isSimulationAllowed(): boolean {
-    return !this.isConfigured() && process.env.NODE_ENV !== 'production';
+  public async isSimulationAllowed(): Promise<boolean> {
+    return !(await this.isConfigured()) && process.env.NODE_ENV !== 'production';
   }
 
-  public verifySignature(orderId: string, paymentId: string, signature: string): boolean {
+  public async verifySignature(
+    orderId: string,
+    paymentId: string,
+    signature: string
+  ): Promise<boolean> {
     // The caller must never be able to select simulation. This previously
     // returned true for any orderId beginning with `order_sim_`, and that value
     // arrives in the request body - so any signed-in customer could mark an
     // order PAID by inventing one. Simulation is now decided solely by this
     // server's own configuration.
-    if (this.isConfigured()) {
+    if (await this.isConfigured()) {
+      const { secret } = await this.config();
       const expectedSignature = crypto
-        .createHmac('sha256', this.keySecret)
+        .createHmac('sha256', secret)
         .update(`${orderId}|${paymentId}`)
         .digest('hex');
 

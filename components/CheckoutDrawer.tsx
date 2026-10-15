@@ -17,6 +17,16 @@ export default function CheckoutDrawer() {
   const [password, setPassword] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'razorpay' | 'instamojo' | 'razorpay_card'>('upi');
   const [upiGateway, setUpiGateway] = useState<'razorpay' | 'instamojo'>('razorpay');
+
+  // Which gateways the server will actually accept for this currency. The tabs
+  // used to be hardcoded, so a gateway switched off in the admin console still
+  // appeared and failed only after the customer had filled the form in.
+  // Starts as null (unknown) so nothing is offered until the server answers.
+  const [methods, setMethods] = useState<{
+    razorpay: boolean;
+    instamojo: boolean;
+    anyAvailable: boolean;
+  } | null>(null);
   const [cardNumber, setCardNumber] = useState('4242 •••• •••• 4242');
   const [cardExp, setCardExp] = useState('12/28');
   const [cardCvc, setCardCvc] = useState('888');
@@ -45,6 +55,53 @@ export default function CheckoutDrawer() {
       })
       .catch(() => setSessionUser(null));
   }, [isCartOpen]);
+
+  // Ask the server which gateways it will accept for this currency.
+  useEffect(() => {
+    if (!isCartOpen) return;
+    let cancelled = false;
+
+    fetch(`/api/payments/methods?currency=${encodeURIComponent(currency)}`)
+      .then(async (r) => {
+        const text = await r.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return null;
+        }
+      })
+      .then((j) => {
+        if (cancelled) return;
+        const next = {
+          razorpay: Boolean(j?.razorpay),
+          instamojo: Boolean(j?.instamojo),
+          anyAvailable: Boolean(j?.anyAvailable),
+        };
+        setMethods(next);
+
+        // Move off a method the server will not accept, so the customer is
+        // never left on a tab that cannot complete.
+        setPaymentMethod((current) => {
+          if ((current === 'razorpay' || current === 'razorpay_card') && !next.razorpay) {
+            return next.instamojo ? 'instamojo' : current;
+          }
+          if (current === 'instamojo' && !next.instamojo) {
+            return next.razorpay ? 'razorpay' : current;
+          }
+          return current;
+        });
+        if (!next.razorpay && next.instamojo) setUpiGateway('instamojo');
+        if (!next.instamojo && next.razorpay) setUpiGateway('razorpay');
+      })
+      .catch(() => {
+        // Fail closed: offer nothing rather than a gateway that may be off.
+        if (!cancelled) setMethods({ razorpay: false, instamojo: false, anyAvailable: false });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isCartOpen, currency]);
 
   // Check email for existing account currency lock
   useEffect(() => {
@@ -929,7 +986,23 @@ export default function CheckoutDrawer() {
                 <span>3. Payment Method ({currency === 'INR' ? 'INR ₹' : 'USD $'})</span>
               </div>
 
-              {currency === 'INR' ? (
+              {methods === null ? (
+                <div className="payment-card-box" style={{ padding: '14px', background: '#F8FAFC', borderRadius: '10px', fontSize: '0.82rem', color: '#475569' }}>
+                  Checking available payment methods...
+                </div>
+              ) : !methods.anyAvailable ? (
+                <div
+                  role="alert"
+                  className="payment-card-box"
+                  style={{ padding: '14px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '10px', fontSize: '0.82rem', color: '#7F1D1D' }}
+                >
+                  <strong style={{ display: 'block', marginBottom: '4px' }}>
+                    Online payment is unavailable
+                  </strong>
+                  We cannot take {currency === 'INR' ? 'rupee' : 'dollar'} payments at the moment.
+                  Please contact support to complete this order.
+                </div>
+              ) : currency === 'INR' ? (
                 <>
                   <div className="payment-method-tabs" style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
                     <button
@@ -942,22 +1015,26 @@ export default function CheckoutDrawer() {
                       <span>UPI (Default)</span>
                       <span style={{ fontSize: '0.65rem', background: '#9BCB44', color: '#1B2228', padding: '1px 4px', borderRadius: '3px', fontWeight: 800 }}>0%</span>
                     </button>
-                    <button
-                      type="button"
-                      className={`payment-tab ${paymentMethod === 'razorpay' ? 'active' : ''}`}
-                      onClick={() => setPaymentMethod('razorpay')}
-                      style={{ fontSize: '0.8rem', padding: '8px 10px' }}
-                    >
-                      Razorpay
-                    </button>
-                    <button
-                      type="button"
-                      className={`payment-tab ${paymentMethod === 'instamojo' ? 'active' : ''}`}
-                      onClick={() => setPaymentMethod('instamojo')}
-                      style={{ fontSize: '0.8rem', padding: '8px 10px' }}
-                    >
-                      Instamojo
-                    </button>
+                    {methods.razorpay && (
+                      <button
+                        type="button"
+                        className={`payment-tab ${paymentMethod === 'razorpay' ? 'active' : ''}`}
+                        onClick={() => setPaymentMethod('razorpay')}
+                        style={{ fontSize: '0.8rem', padding: '8px 10px' }}
+                      >
+                        Razorpay
+                      </button>
+                    )}
+                    {methods.instamojo && (
+                      <button
+                        type="button"
+                        className={`payment-tab ${paymentMethod === 'instamojo' ? 'active' : ''}`}
+                        onClick={() => setPaymentMethod('instamojo')}
+                        style={{ fontSize: '0.8rem', padding: '8px 10px' }}
+                      >
+                        Instamojo
+                      </button>
+                    )}
                   </div>
 
                   {paymentMethod === 'upi' && (
@@ -965,26 +1042,30 @@ export default function CheckoutDrawer() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', fontSize: '0.8rem' }}>
                         <span style={{ fontWeight: 600, color: '#0F172A' }}>Gateway:</span>
                         <div style={{ display: 'flex', gap: '10px' }}>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.78rem' }}>
-                            <input
-                              type="radio"
-                              name="drawerUpiGateway"
-                              value="razorpay"
-                              checked={upiGateway === 'razorpay'}
-                              onChange={() => setUpiGateway('razorpay')}
-                            />
-                            Razorpay
-                          </label>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.78rem' }}>
-                            <input
-                              type="radio"
-                              name="drawerUpiGateway"
-                              value="instamojo"
-                              checked={upiGateway === 'instamojo'}
-                              onChange={() => setUpiGateway('instamojo')}
-                            />
-                            Instamojo
-                          </label>
+                          {methods?.razorpay && (
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.78rem' }}>
+                              <input
+                                type="radio"
+                                name="drawerUpiGateway"
+                                value="razorpay"
+                                checked={upiGateway === 'razorpay'}
+                                onChange={() => setUpiGateway('razorpay')}
+                              />
+                              Razorpay
+                            </label>
+                          )}
+                          {methods?.instamojo && (
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontSize: '0.78rem' }}>
+                              <input
+                                type="radio"
+                                name="drawerUpiGateway"
+                                value="instamojo"
+                                checked={upiGateway === 'instamojo'}
+                                onChange={() => setUpiGateway('instamojo')}
+                              />
+                              Instamojo
+                            </label>
+                          )}
                         </div>
                       </div>
 

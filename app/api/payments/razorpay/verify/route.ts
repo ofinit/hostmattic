@@ -27,7 +27,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isValid = razorpayService.verifySignature(
+    // Annotated deliberately: verifySignature is async, and a Promise is always
+    // truthy, so dropping the await would make every payment verify as valid.
+    // The explicit boolean makes that a compile error rather than a silent hole.
+    const isValid: boolean = await razorpayService.verifySignature(
       razorpayOrderId,
       razorpayPaymentId,
       razorpaySignature || ''

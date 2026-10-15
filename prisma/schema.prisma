@@ -79,6 +79,26 @@ model HostingAccount {
   @@index([domainName])
 }
 
+model PaymentGateway {
+  // "RAZORPAY" | "INSTAMOJO"
+  id            String   @id
+  // Off until an administrator deliberately turns it on. A gateway that has
+  // never been configured must not be offered at checkout.
+  enabled       Boolean  @default(false)
+  sandbox       Boolean  @default(true)
+  // Key id / API key. Safe to hand to the browser; Razorpay Checkout needs it.
+  publicKey     String   @default("")
+  // AES-256-GCM under SETTINGS_ENCRYPTION_KEY. Never plaintext, never returned
+  // by the API.
+  secretCipher  String   @default("")
+  // So the console can show which key is installed without revealing it.
+  secretLast4   String   @default("")
+  // Comma-separated currencies this gateway may settle, e.g. "INR,USD".
+  currencies    String   @default("INR")
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
+}
+
 model TaxSetting {
   id                   String   @id @default("default_tax_settings")
   gstRate              Float    @default(18.0)

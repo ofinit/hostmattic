@@ -11,9 +11,10 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "test:pricing": "tsc lib/api/hostingPricing.ts lib/api/client.ts --outDir .test-build --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop && node --test \"tests/*.test.js\"",
+    "test:pricing": "tsc lib/api/hostingPricing.ts lib/api/client.ts lib/crypto/secrets.ts --rootDir lib --outDir .test-build --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop && node --test \"tests/*.test.js\"",
     "orders": "node scripts/orders.js",
-    "orders:audit": "node scripts/orders.js"
+    "orders:audit": "node scripts/orders.js",
+    "test": "npm run test:pricing"
   },
   "dependencies": {
     "@prisma/client": "^5.21.1",

@@ -1,3 +1,5 @@
+import { getGatewayConfig } from './paymentConfig';
+
 export interface CreateInstamojoRequestParams {
   amount: number;
   currency: string;
@@ -16,27 +18,36 @@ export interface InstamojoRequestResult {
 }
 
 export class InstamojoService {
-  private apiKey: string;
-  private authToken: string;
-  private isSandbox: boolean;
-
-  constructor() {
-    this.apiKey = process.env.INSTAMOJO_API_KEY || '';
-    this.authToken = process.env.INSTAMOJO_AUTH_TOKEN || '';
-    this.isSandbox = process.env.INSTAMOJO_SANDBOX === 'true';
+  // Resolved per call from paymentConfig rather than once at import, so a key
+  // can be rotated or the gateway switched off without a redeploy.
+  private async config() {
+    return getGatewayConfig('INSTAMOJO');
   }
 
-  public isConfigured(): boolean {
+  public async isConfigured(): Promise<boolean> {
+    const c = await this.config();
     return (
-      Boolean(this.apiKey) &&
-      Boolean(this.authToken) &&
-      !this.apiKey.includes('placeholder') &&
-      !this.authToken.includes('placeholder')
+      c.enabled &&
+      Boolean(c.publicKey) &&
+      Boolean(c.secret) &&
+      !c.publicKey.includes('placeholder') &&
+      !c.secret.includes('placeholder')
     );
   }
 
-  private getBaseUrl(): string {
-    return this.isSandbox
+  /**
+   * Whether an unverified "simulated" payment may be treated as settled.
+   *
+   * Decided solely by this server's own configuration, never by anything in
+   * the request. A live deployment with no gateway refuses the payment.
+   */
+  public async isSimulationAllowed(): Promise<boolean> {
+    return !(await this.isConfigured()) && process.env.NODE_ENV !== 'production';
+  }
+
+  private async getBaseUrl(): Promise<string> {
+    const c = await this.config();
+    return c.sandbox
       ? 'https://test.instamojo.com/api/1.1'
       : 'https://www.instamojo.com/api/1.1';
   }
@@ -54,7 +65,10 @@ export class InstamojoService {
     const redirectUrl = params.redirectUrl || `${appUrl}/api/payments/instamojo/callback?orderNumber=${encodeURIComponent(params.orderNumber)}`;
 
     // In sandbox simulation mode when keys are placeholder
-    if (!this.isConfigured()) {
+    if (!(await this.isConfigured())) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('No payment gateway is configured. Please contact support.');
+      }
       console.log('⚡ [Instamojo] Credentials not set or placeholder. Using dev sandbox payment request.');
       const simulatedId = `imojo_req_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       return {
@@ -77,11 +91,12 @@ export class InstamojoService {
       formData.append('send_sms', 'False');
       formData.append('allow_repeated_payments', 'False');
 
-      const response = await fetch(`${this.getBaseUrl()}/payment-requests/`, {
+      const { publicKey, secret } = await this.config();
+      const response = await fetch(`${await this.getBaseUrl()}/payment-requests/`, {
         method: 'POST',
         headers: {
-          'X-Api-Key': this.apiKey,
-          'X-Auth-Token': this.authToken,
+          'X-Api-Key': publicKey,
+          'X-Auth-Token': secret,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: formData.toString(),
@@ -117,21 +132,30 @@ export class InstamojoService {
    * Verifies payment status with Instamojo API.
    */
   public async verifyPaymentStatus(paymentRequestId: string, paymentId?: string): Promise<{ isPaid: boolean; status: string }> {
-    if (!this.isConfigured() || paymentRequestId.startsWith('imojo_req_')) {
-      // Sandbox simulated verification
-      return { isPaid: true, status: 'Credit' };
+    // This previously returned a settled payment for any paymentRequestId
+    // beginning with `imojo_req_`, and that value arrives in the request body -
+    // so any signed-in customer could mark their own order paid by inventing
+    // one. It is the same hole that was closed in Razorpay. Simulation is now
+    // decided solely by this server's configuration.
+    if (!(await this.isConfigured())) {
+      if (await this.isSimulationAllowed()) {
+        return { isPaid: true, status: 'Credit' };
+      }
+      return { isPaid: false, status: 'GatewayUnavailable' };
     }
 
     try {
+      const baseUrl = await this.getBaseUrl();
+      const { publicKey, secret } = await this.config();
       const endpoint = paymentId
-        ? `${this.getBaseUrl()}/payments/${paymentId}/`
-        : `${this.getBaseUrl()}/payment-requests/${paymentRequestId}/`;
+        ? `${baseUrl}/payments/${paymentId}/`
+        : `${baseUrl}/payment-requests/${paymentRequestId}/`;
 
       const response = await fetch(endpoint, {
         method: 'GET',
         headers: {
-          'X-Api-Key': this.apiKey,
-          'X-Auth-Token': this.authToken,
+          'X-Api-Key': publicKey,
+          'X-Auth-Token': secret,
         },
       });
 

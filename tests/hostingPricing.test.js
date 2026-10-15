@@ -15,7 +15,7 @@ const path = require('path');
 const fs = require('fs');
 
 const BUILD = path.join(__dirname, '..', '.test-build');
-const client = require(path.join(BUILD, 'client.js'));
+const client = require(path.join(BUILD, 'api', 'client.js'));
 
 // ---------------------------------------------------------------------------
 // Fixtures: live catalogue, 2026-10-14
@@ -80,7 +80,7 @@ client.apiClient = async (endpoint, params) => {
   return { success: false };
 };
 
-const hp = require(path.join(BUILD, 'hostingPricing.js'));
+const hp = require(path.join(BUILD, 'api', 'hostingPricing.js'));
 
 const INR = 83.5;
 const usd = (inr) => Number((inr / INR).toFixed(2));

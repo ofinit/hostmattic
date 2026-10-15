@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       orderId: order.id,
       amount: order.amount,
       currency: order.currency,
-      keyId: razorpayService.getKeyId(),
+      keyId: await razorpayService.getKeyId(),
       isSimulated: order.isSimulated || false,
     });
   } catch (err: any) {

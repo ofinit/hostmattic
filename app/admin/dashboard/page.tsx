@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import PaymentGatewaySettings from '@/components/admin/PaymentGatewaySettings';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GST_STATES } from '@/lib/constants/gstStates';
@@ -9,7 +10,7 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'orders' | 'domains' | 'hosting' | 'addons' | 'customers' | 'tickets' | 'taxes' | 'gateway'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'orders' | 'domains' | 'hosting' | 'addons' | 'customers' | 'tickets' | 'taxes' | 'gateway' | 'payments'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Bulk customer selection / deletion
@@ -959,6 +960,7 @@ export default function AdminDashboardPage() {
               { id: 'customers', label: `Customers (${customers.length})`, icon: '👥' },
               { id: 'tickets', label: `Support Queue (${tickets.length})`, icon: '🎫' },
               { id: 'taxes', label: 'Tax & GST Settings', icon: '🏛️' },
+              { id: 'payments', label: 'Payment Gateways', icon: '💳' },
               { id: 'gateway', label: 'API Gateway', icon: '⚙️' },
             ].map((tab) => (
               <button
@@ -986,7 +988,7 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          {activeTab !== 'overview' && activeTab !== 'gateway' && activeTab !== 'taxes' && (
+          {activeTab !== 'overview' && activeTab !== 'gateway' && activeTab !== 'taxes' && activeTab !== 'payments' && (
             <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
               <input
                 type="text"
@@ -2423,6 +2425,8 @@ export default function AdminDashboardPage() {
         )}
 
         {/* 7. GATEWAY SETTINGS */}
+        {activeTab === 'payments' && <PaymentGatewaySettings />}
+
         {activeTab === 'gateway' && (
           <div style={{ maxWidth: '800px', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '32px' }}>
             <h3 style={{ fontSize: '1.25rem', color: '#FFFFFF', marginBottom: '8px' }}>Upstream Provisioning Gateway Configuration</h3>
