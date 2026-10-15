@@ -1172,23 +1172,36 @@ export default function CheckoutDrawer() {
                 </div>
 
                 {isIndianBuyer && !billingStateCode ? (
-                  // Without a place of supply the split is unknowable. Showing
-                  // IGST by default would state a tax treatment nobody chose.
-                  <div
-                    style={{
-                      margin: '6px 0',
-                      padding: '8px 10px',
-                      background: '#FFF7ED',
-                      border: '1px solid #FDBA74',
-                      borderRadius: '6px',
-                      fontSize: '0.74rem',
-                      color: '#7C2D12',
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    Select your state above to calculate GST. Within Kerala it is charged as
-                    CGST + SGST; elsewhere in India as IGST.
-                  </div>
+                  // The amount is already known - CGST+SGST and IGST both come
+                  // to the same 18% - so it is shown. Only the split depends on
+                  // the state, and claiming GST is uncalculated while the total
+                  // already includes it would be the misleading half.
+                  <>
+                    <div className="checkout-summary-row">
+                      <span>GST ({gstRate}%):</span>
+                      <span style={{ color: '#0F172A', fontWeight: 600 }}>
+                        +₹{taxAmount.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </span>
+                    </div>
+                    <div
+                      style={{
+                        margin: '6px 0',
+                        padding: '8px 10px',
+                        background: '#FFF7ED',
+                        border: '1px solid #FDBA74',
+                        borderRadius: '6px',
+                        fontSize: '0.74rem',
+                        color: '#7C2D12',
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      Select your state to complete the invoice. The total is unchanged either
+                      way; your state decides whether this is billed as CGST + SGST or as IGST.
+                    </div>
+                  </>
                 ) : isIndianBuyer ? (
                   isSameState ? (
                     <>
