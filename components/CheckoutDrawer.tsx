@@ -133,7 +133,10 @@ export default function CheckoutDrawer() {
 
   // Billing Profile States & Country-State Mapping
   const [billingCountry, setBillingCountry] = useState(currency === 'INR' ? 'IN' : 'US');
-  const [billingStateCode, setBillingStateCode] = useState(currency === 'INR' ? '32' : 'CA');
+  // No state is preselected. Place of supply decides whether GST is charged as
+  // CGST+SGST or as IGST, so defaulting to the seller's own state silently
+  // billed an out-of-state customer the wrong tax on a compliant invoice.
+  const [billingStateCode, setBillingStateCode] = useState('');
   const [customStateText, setCustomStateText] = useState('');
 
   // Automatically enforce payment method and default country according to currency
@@ -188,7 +191,9 @@ export default function CheckoutDrawer() {
 
   let selectedState = { code: billingStateCode, name: billingStateCode };
   if (isIndianBuyer) {
-    selectedState = GST_STATES.find((s) => s.code === billingStateCode) || { code: '32', name: 'Kerala' };
+    // No match means nothing has been chosen yet. Falling back to the seller's
+    // state here is what produced Kerala invoices for Delhi customers.
+    selectedState = GST_STATES.find((s) => s.code === billingStateCode) || { code: '', name: '' };
   } else if (countryStates.length > 0) {
     const matched = countryStates.find((s) => s.code === billingStateCode);
     selectedState = matched || { code: billingStateCode, name: billingStateCode };
@@ -266,6 +271,16 @@ export default function CheckoutDrawer() {
 
     if (!customerName || !customerEmail) {
       setErrorMessage('Please provide your name and email address for order provisioning.');
+      return;
+    }
+
+    // Place of supply decides CGST+SGST against IGST, so it cannot be guessed.
+    if (countryStates.length > 0 && !billingStateCode) {
+      setErrorMessage(
+        isIndianBuyer
+          ? 'Please select your state. It determines how GST is applied to this invoice.'
+          : 'Please select your state or region.'
+      );
       return;
     }
 
@@ -951,6 +966,9 @@ export default function CheckoutDrawer() {
                       onChange={(e) => setBillingStateCode(e.target.value)}
                       style={{ fontSize: '0.82rem', padding: '6px 10px' }}
                     >
+                      <option value="">
+                        {isIndianBuyer ? 'Select your state' : 'Select your state / region'}
+                      </option>
                       {countryStates.map((st) => (
                         <option key={st.code} value={st.code}>
                           {st.name}
@@ -1153,7 +1171,25 @@ export default function CheckoutDrawer() {
                   </span>
                 </div>
 
-                {isIndianBuyer ? (
+                {isIndianBuyer && !billingStateCode ? (
+                  // Without a place of supply the split is unknowable. Showing
+                  // IGST by default would state a tax treatment nobody chose.
+                  <div
+                    style={{
+                      margin: '6px 0',
+                      padding: '8px 10px',
+                      background: '#FFF7ED',
+                      border: '1px solid #FDBA74',
+                      borderRadius: '6px',
+                      fontSize: '0.74rem',
+                      color: '#7C2D12',
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    Select your state above to calculate GST. Within Kerala it is charged as
+                    CGST + SGST; elsewhere in India as IGST.
+                  </div>
+                ) : isIndianBuyer ? (
                   isSameState ? (
                     <>
                       <div className="checkout-summary-row">
@@ -1203,7 +1239,12 @@ export default function CheckoutDrawer() {
                 <div className="checkout-summary-row total-row">
                   <span>Total Amount Payable:</span>
                   <span style={{ color: 'var(--brand-action-green)', fontSize: '1.25rem', fontWeight: 800 }}>
-                    {currency === 'INR' ? `₹${totalAmount.toLocaleString()}` : `$${totalAmount.toFixed(2)}`}
+                    {currency === 'INR'
+                      ? `₹${totalAmount.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}`
+                      : `$${totalAmount.toFixed(2)}`}
                   </span>
                 </div>
               </div>
@@ -1217,7 +1258,7 @@ export default function CheckoutDrawer() {
               {/* Submit CTA */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (countryStates.length > 0 && !billingStateCode)}
                 className="btn btn-primary"
                 style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '1rem', marginTop: '20px' }}
               >
@@ -1226,7 +1267,14 @@ export default function CheckoutDrawer() {
                     <span className="spinner-inline" /> Provisioning Order with Cloud Engine...
                   </span>
                 ) : (
-                  `Pay ${currency === 'INR' ? `₹${totalAmount.toLocaleString()}` : `$${totalAmount.toFixed(2)}`} & Provision Services →`
+                  `Pay ${
+                    currency === 'INR'
+                      ? `₹${totalAmount.toLocaleString(undefined, {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}`
+                      : `$${totalAmount.toFixed(2)}`
+                  } & Provision Services →`
                 )}
               </button>
 

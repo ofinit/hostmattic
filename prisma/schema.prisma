@@ -138,9 +138,11 @@ model Order {
   companyName        String?
   billingAddress     String?
   billingCity        String?
-  billingState       String?     @default("Kerala")
+  billingState       String?
   billingCountry     String?     @default("IN")
-  placeOfSupply      String?     @default("32-Kerala")
+  // No default: an unset place of supply must stay unset rather than
+  // silently become the seller's own state on the invoice.
+  placeOfSupply      String?
   taxType            String?     @default("CGST_SGST") // "CGST_SGST", "IGST", "LUT_EXPORT", "NONE"
   cgstAmount         Float       @default(0.0)
   sgstAmount         Float       @default(0.0)

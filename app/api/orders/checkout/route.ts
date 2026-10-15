@@ -127,6 +127,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Place of supply decides CGST+SGST against IGST. Defaulting it to the
+    // seller's own state produced Kerala invoices for out-of-state customers,
+    // which is the wrong tax on a document that has to be filed.
+    if ((billingCountry || 'IN') === 'IN' && !String(placeOfSupply || '').trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'PLACE_OF_SUPPLY_REQUIRED',
+          error: 'Please select your state so GST can be applied correctly.',
+        },
+        { status: 400 }
+      );
+    }
+
     // Price every line again from the live catalogue. The cart lives in the
     // browser's localStorage and stores the price as it was when the item was
     // added, so a cart filled before a price change still quotes the old
@@ -236,9 +250,9 @@ export async function POST(req: NextRequest) {
             companyName: companyName ? companyName.trim() : null,
             billingAddress: billingAddress ? billingAddress.trim() : null,
             billingCity: billingCity ? billingCity.trim() : null,
-            billingState: billingState || 'Kerala',
+            billingState: billingState || null,
             billingCountry: billingCountry || (currency === 'INR' ? 'IN' : 'US'),
-            placeOfSupply: placeOfSupply || '32-Kerala',
+            placeOfSupply: placeOfSupply || null,
             taxType: taxType || (currency === 'INR' ? 'CGST_SGST' : 'LUT_EXPORT'),
             cgstAmount: Number(cgstAmount) || 0,
             sgstAmount: Number(sgstAmount) || 0,
