@@ -105,9 +105,12 @@ model Order {
   taxAmount          Float       @default(0.0)
   totalAmount        Float
   currency           String      @default("USD")
-  paymentStatus      String      @default("PAID") // PAID, PENDING, FAILED
+  // An order defaults to unpaid. These defaulted to PAID/COMPLETED, so any
+  // insert that omitted them produced a settled, fulfilled order that nobody
+  // had paid for - which is how HM-002574-943 came to be invoiced.
+  paymentStatus      String      @default("PENDING") // PAID, PENDING, FAILED
   paymentMethod      String      @default("CREDIT_CARD")
-  status             String      @default("COMPLETED")
+  status             String      @default("PENDING")
 
   // Statutory GST Compliance Fields
   customerType       String      @default("B2C") // "B2C" | "B2B"
