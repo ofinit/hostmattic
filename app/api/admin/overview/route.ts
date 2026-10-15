@@ -608,6 +608,14 @@ export async function GET(req: NextRequest) {
           upstreamConnected: true,
           resellerBalance,
           lastPing: new Date().toISOString(),
+          // The console reads these three. They were never emitted, so they
+          // arrived undefined and the panel reported "Not Set - Operating in
+          // Staging Sandbox mode" on a deployment that was plainly live,
+          // inviting someone to re-enter credentials that were already right.
+          // Booleans only: the key itself must never reach the browser.
+          targetEndpoint: process.env.RESELLER_API_BASE_URL || 'https://httpapi.com/api',
+          authUserIdConfigured: Boolean(process.env.RESELLER_AUTH_USERID?.trim()),
+          apiKeyConfigured: Boolean(process.env.RESELLER_API_KEY?.trim()),
         },
       },
       financials,
