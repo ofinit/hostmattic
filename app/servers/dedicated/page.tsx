@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import BillingToggle from '@/components/BillingToggle';
 import PricingCard, { PlanData } from '@/components/PricingCard';
+import { useLivePlanPricing } from '@/components/useLivePlanPricing';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 
 export default function DedicatedServerPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('annual');
 
-  const plans: PlanData[] = [
+  const publishedPlans: PlanData[] = [
     {
       name: 'Xeon E-2276G',
+      upstreamPlan: 'Mach-1',
       desc: 'High-clock frequency dedicated server for demanding business workloads.',
       usdMonthly: 119.00,
       usdAnnualMonthly: 89.00,
@@ -26,6 +28,7 @@ export default function DedicatedServerPage() {
     },
     {
       name: 'Dual Xeon Silver',
+      upstreamPlan: 'Mach-2',
       desc: 'Dual-socket compute powerhouse for virtualization and large databases.',
       usdMonthly: 199.00,
       usdAnnualMonthly: 159.00,
@@ -42,6 +45,7 @@ export default function DedicatedServerPage() {
     },
     {
       name: 'AMD EPYC 7543',
+      upstreamPlan: 'Mach-4',
       desc: 'Extreme enterprise density for heavy SaaS clusters & private cloud.',
       usdMonthly: 349.00,
       usdAnnualMonthly: 289.00,
@@ -56,6 +60,10 @@ export default function DedicatedServerPage() {
       ],
     },
   ];
+
+  // Live upstream figures are merged over the published ones by
+  // upstreamPlan. A tier upstream does not price keeps its own.
+  const { plans } = useLivePlanPricing(publishedPlans, 'DEDICATED');
 
   return (
     <>

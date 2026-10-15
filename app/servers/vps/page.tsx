@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import BillingToggle from '@/components/BillingToggle';
 import PricingCard, { PlanData } from '@/components/PricingCard';
+import { useLivePlanPricing } from '@/components/useLivePlanPricing';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 
 export default function VpsPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('annual');
 
-  const plans: PlanData[] = [
+  const publishedPlans: PlanData[] = [
     {
       name: 'Standard VPS',
+      upstreamPlan: 'NVMe 2',
       desc: 'Entry-level dedicated virtual server with full root access.',
       usdMonthly: 11.99,
       usdAnnualMonthly: 8.99,
@@ -27,6 +29,7 @@ export default function VpsPage() {
     },
     {
       name: 'Business VPS',
+      upstreamPlan: 'NVMe 4',
       desc: 'For production web servers, Docker containers, and microservices.',
       usdMonthly: 21.99,
       usdAnnualMonthly: 16.99,
@@ -44,6 +47,7 @@ export default function VpsPage() {
     },
     {
       name: 'Pro VPS',
+      upstreamPlan: 'NVMe 8',
       desc: 'High-RAM and CPU configuration for busy databases and APIs.',
       usdMonthly: 39.99,
       usdAnnualMonthly: 29.99,
@@ -59,6 +63,10 @@ export default function VpsPage() {
       ],
     },
   ];
+
+  // Live upstream figures are merged over the published ones by
+  // upstreamPlan. A tier upstream does not price keeps its own.
+  const { plans } = useLivePlanPricing(publishedPlans, 'VPS');
 
   return (
     <>

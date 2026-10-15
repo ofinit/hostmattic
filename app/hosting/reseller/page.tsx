@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import BillingToggle from '@/components/BillingToggle';
 import PricingCard, { PlanData } from '@/components/PricingCard';
+import { useLivePlanPricing } from '@/components/useLivePlanPricing';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 
 export default function ResellerHostingPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('annual');
 
-  const plans: PlanData[] = [
+  const publishedPlans: PlanData[] = [
     {
       name: 'Reseller Essential',
+      upstreamPlan: 'Essential',
       desc: 'Launch your web hosting brand with WHM and isolated cPanel accounts.',
       usdMonthly: 24.99,
       usdAnnualMonthly: 16.99,
@@ -26,6 +28,7 @@ export default function ResellerHostingPage() {
     },
     {
       name: 'Reseller Advanced',
+      upstreamPlan: 'Pro',
       desc: 'Our most popular reseller tier for active agencies and web studios.',
       usdMonthly: 38.99,
       usdAnnualMonthly: 26.99,
@@ -43,6 +46,7 @@ export default function ResellerHostingPage() {
     },
     {
       name: 'Reseller Master',
+      upstreamPlan: 'Ultimate',
       desc: 'High-capacity environment for established hosting resellers and IT shops.',
       usdMonthly: 59.99,
       usdAnnualMonthly: 42.99,
@@ -57,6 +61,10 @@ export default function ResellerHostingPage() {
       ],
     },
   ];
+
+  // Live upstream figures are merged over the published ones by
+  // upstreamPlan. A tier upstream does not price keeps its own.
+  const { plans } = useLivePlanPricing(publishedPlans, 'RESELLER');
 
   return (
     <>

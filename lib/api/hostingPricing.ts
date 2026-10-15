@@ -65,7 +65,19 @@ export interface PlanPricing {
   /** Our own per-month cost, for margin. */
   wholesaleMonthlyUsd?: number;
   wholesaleRenewMonthlyUsd?: number;
+  /**
+   * A superseded generation that upstream still prices, e.g. "Classic 2026
+   * Starter" alongside the current "Starter", often at a different price.
+   * Kept in the map so the admin console can see it, but withheld from the
+   * storefront: selling last year's plan by accident is a silent margin leak.
+   */
+  isLegacy: boolean;
   source: 'live';
+}
+
+/** "Classic 2025", "Classic 2026" and the like mark a superseded generation. */
+export function isLegacyPlanName(name: string): boolean {
+  return /\bclassic\s*20\d{2}\b/i.test(name);
 }
 
 /** productType -> plan name -> pricing */
@@ -278,6 +290,7 @@ export async function getLiveHostingPricing(): Promise<HostingPricingMap> {
         forType[detail.name] = {
           planId,
           planName: detail.name,
+          isLegacy: isLegacyPlanName(detail.name),
           bandId: detail.bandId,
           status: detail.status,
           minTenureMonths: tenures[0],

@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import BillingToggle from '@/components/BillingToggle';
 import PricingCard, { PlanData } from '@/components/PricingCard';
+import { useLivePlanPricing } from '@/components/useLivePlanPricing';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 
 export default function CloudHostingPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('annual');
 
-  const plans: PlanData[] = [
+  const publishedPlans: PlanData[] = [
     {
       name: 'Cloud 2 Core',
+      upstreamPlan: 'Personal Cloud SSD',
       desc: 'Dedicated cloud resources on redundant Ceph storage with auto-failover.',
       usdMonthly: 9.99,
       usdAnnualMonthly: 6.99,
@@ -26,6 +28,7 @@ export default function CloudHostingPage() {
     },
     {
       name: 'Cloud 4 Core',
+      upstreamPlan: 'Business Cloud SSD',
       desc: 'Our most popular cloud instance for high-concurrency apps & stores.',
       usdMonthly: 15.99,
       usdAnnualMonthly: 10.99,
@@ -42,6 +45,7 @@ export default function CloudHostingPage() {
     },
     {
       name: 'Cloud 8 Core',
+      upstreamPlan: 'Pro Cloud SSD',
       desc: 'Maximum compute and memory allocations for heavy traffic portals.',
       usdMonthly: 28.99,
       usdAnnualMonthly: 19.99,
@@ -56,6 +60,10 @@ export default function CloudHostingPage() {
       ],
     },
   ];
+
+  // Live upstream figures are merged over the published ones by
+  // upstreamPlan. A tier upstream does not price keeps its own.
+  const { plans } = useLivePlanPricing(publishedPlans, 'CLOUD');
 
   return (
     <>

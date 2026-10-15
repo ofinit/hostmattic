@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import BillingToggle from '@/components/BillingToggle';
 import PricingCard, { PlanData } from '@/components/PricingCard';
+import { useLivePlanPricing } from '@/components/useLivePlanPricing';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 
 export default function WebsiteBuilderPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('annual');
 
-  const plans: PlanData[] = [
+  const publishedPlans: PlanData[] = [
     {
       name: 'Builder Personal',
+      upstreamPlan: 'Starter',
       desc: 'Create beautiful personal portfolios, event pages, and resumes.',
       usdMonthly: 4.49,
       usdAnnualMonthly: 2.99,
@@ -25,6 +27,7 @@ export default function WebsiteBuilderPage() {
     },
     {
       name: 'Builder Business',
+      upstreamPlan: 'Pro',
       desc: 'Our premier builder package with unlimited pages and lead tools.',
       usdMonthly: 7.99,
       usdAnnualMonthly: 4.99,
@@ -41,6 +44,7 @@ export default function WebsiteBuilderPage() {
     },
     {
       name: 'Builder E-Commerce',
+      upstreamPlan: 'Business',
       desc: 'Complete online storefront builder with shopping cart & payment gateways.',
       usdMonthly: 15.99,
       usdAnnualMonthly: 10.99,
@@ -54,6 +58,10 @@ export default function WebsiteBuilderPage() {
       ],
     },
   ];
+
+  // Live upstream figures are merged over the published ones by
+  // upstreamPlan. A tier upstream does not price keeps its own.
+  const { plans } = useLivePlanPricing(publishedPlans, 'TOOLS_BUILDER');
 
   return (
     <>

@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import BillingToggle from '@/components/BillingToggle';
 import PricingCard, { PlanData } from '@/components/PricingCard';
+import { useLivePlanPricing } from '@/components/useLivePlanPricing';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 
 export default function CodeGuardPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('annual');
 
-  const plans: PlanData[] = [
+  const publishedPlans: PlanData[] = [
     {
       name: 'CodeGuard Starter',
+      upstreamPlan: 'Basic',
       desc: 'Automated daily cloud backups for small websites and blogs.',
       usdMonthly: 2.99,
       usdAnnualMonthly: 1.99,
@@ -25,6 +27,7 @@ export default function CodeGuardPage() {
     },
     {
       name: 'CodeGuard Professional',
+      upstreamPlan: 'Professional',
       desc: 'Our most popular backup plan for business websites and stores.',
       usdMonthly: 4.99,
       usdAnnualMonthly: 3.49,
@@ -40,6 +43,7 @@ export default function CodeGuardPage() {
     },
     {
       name: 'CodeGuard Enterprise',
+      upstreamPlan: 'Enterprise',
       desc: 'Generous storage allocation for agencies and multi-site networks.',
       usdMonthly: 9.99,
       usdAnnualMonthly: 6.99,
@@ -53,6 +57,10 @@ export default function CodeGuardPage() {
       ],
     },
   ];
+
+  // Live upstream figures are merged over the published ones by
+  // upstreamPlan. A tier upstream does not price keeps its own.
+  const { plans } = useLivePlanPricing(publishedPlans, 'SECURITY_CODEGUARD');
 
   return (
     <>

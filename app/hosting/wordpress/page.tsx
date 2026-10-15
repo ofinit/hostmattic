@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import BillingToggle from '@/components/BillingToggle';
 import PricingCard, { PlanData } from '@/components/PricingCard';
+import { useLivePlanPricing } from '@/components/useLivePlanPricing';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 
 export default function WordPressPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('annual');
 
-  const plans: PlanData[] = [
+  const publishedPlans: PlanData[] = [
     {
       name: 'WP Starter',
+      upstreamPlan: 'Starter',
       desc: 'Built specifically for high-speed WordPress blogs and landing pages.',
       usdMonthly: 5.99,
       usdAnnualMonthly: 3.99,
@@ -26,6 +28,7 @@ export default function WordPressPage() {
     },
     {
       name: 'WP Business',
+      upstreamPlan: 'Business',
       desc: 'Our premier WordPress tier for WooCommerce and multi-site networks.',
       usdMonthly: 9.99,
       usdAnnualMonthly: 6.99,
@@ -42,6 +45,7 @@ export default function WordPressPage() {
     },
     {
       name: 'WP Scale',
+      upstreamPlan: 'Professional',
       desc: 'High-concurrency cluster for media agencies and viral online stores.',
       usdMonthly: 19.99,
       usdAnnualMonthly: 14.99,
@@ -56,6 +60,10 @@ export default function WordPressPage() {
       ],
     },
   ];
+
+  // Live upstream figures are merged over the published ones by
+  // upstreamPlan. A tier upstream does not price keeps its own.
+  const { plans } = useLivePlanPricing(publishedPlans, 'WORDPRESS');
 
   return (
     <>

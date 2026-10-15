@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import BillingToggle from '@/components/BillingToggle';
 import PricingCard, { PlanData } from '@/components/PricingCard';
+import { useLivePlanPricing } from '@/components/useLivePlanPricing';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 
 export default function GoogleWorkspacePage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('annual');
 
-  const plans: PlanData[] = [
+  const publishedPlans: PlanData[] = [
     {
       name: 'Business Starter',
+      upstreamPlan: 'Business Starter',
       desc: 'Official Google collaboration suite for growing modern businesses.',
       usdMonthly: 7.20,
       usdAnnualMonthly: 6.00,
@@ -25,6 +27,7 @@ export default function GoogleWorkspacePage() {
     },
     {
       name: 'Business Standard',
+      upstreamPlan: 'Business Standard',
       desc: 'Enhanced storage and video meeting recording for collaborative teams.',
       usdMonthly: 14.40,
       usdAnnualMonthly: 12.00,
@@ -40,6 +43,7 @@ export default function GoogleWorkspacePage() {
     },
     {
       name: 'Business Plus',
+      upstreamPlan: 'Business Plus',
       desc: 'Advanced security, vault e-discovery, and expanded cloud storage.',
       usdMonthly: 21.60,
       usdAnnualMonthly: 18.00,
@@ -53,6 +57,10 @@ export default function GoogleWorkspacePage() {
       ],
     },
   ];
+
+  // Live upstream figures are merged over the published ones by
+  // upstreamPlan. A tier upstream does not price keeps its own.
+  const { plans } = useLivePlanPricing(publishedPlans, 'EMAIL_GOOGLE');
 
   return (
     <>

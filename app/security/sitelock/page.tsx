@@ -3,14 +3,16 @@
 import React, { useState } from 'react';
 import BillingToggle from '@/components/BillingToggle';
 import PricingCard, { PlanData } from '@/components/PricingCard';
+import { useLivePlanPricing } from '@/components/useLivePlanPricing';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 
 export default function SiteLockPage() {
   const [cycle, setCycle] = useState<'monthly' | 'annual'>('annual');
 
-  const plans: PlanData[] = [
+  const publishedPlans: PlanData[] = [
     {
       name: 'SiteLock Find',
+      upstreamPlan: 'Basic',
       desc: 'Daily automated scanning for malware, blacklists, and security holes.',
       usdMonthly: 3.49,
       usdAnnualMonthly: 2.49,
@@ -24,6 +26,7 @@ export default function SiteLockPage() {
     },
     {
       name: 'SiteLock Fix',
+      upstreamPlan: 'Professional',
       desc: 'Automatic detection AND instant removal of malicious injected scripts.',
       usdMonthly: 7.99,
       usdAnnualMonthly: 5.99,
@@ -38,6 +41,7 @@ export default function SiteLockPage() {
     },
     {
       name: 'SiteLock Defend',
+      upstreamPlan: 'Premium',
       desc: 'Enterprise Web Application Firewall (WAF) to block bad bots & DDoS.',
       usdMonthly: 19.99,
       usdAnnualMonthly: 14.99,
@@ -51,6 +55,10 @@ export default function SiteLockPage() {
       ],
     },
   ];
+
+  // Live upstream figures are merged over the published ones by
+  // upstreamPlan. A tier upstream does not price keeps its own.
+  const { plans } = useLivePlanPricing(publishedPlans, 'SECURITY_SITELOCK');
 
   return (
     <>

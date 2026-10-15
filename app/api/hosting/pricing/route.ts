@@ -18,6 +18,9 @@ function sellableOnly(plans: Record<string, PlanPricing> | undefined) {
   const out: Record<string, PlanPricing> = {};
   if (!plans) return out;
   for (const [name, plan] of Object.entries(plans)) {
+    // Superseded generations sit beside the current ones at different prices;
+    // matching one by accident would quietly sell last year's plan.
+    if (plan.isLegacy) continue;
     if (!UNSELLABLE_STATUSES.includes(String(plan.status).toLowerCase())) out[name] = plan;
   }
   return out;
