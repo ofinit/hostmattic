@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { fulfilOrder } from '@/lib/services/fulfilment';
 import { razorpayService } from '@/lib/services/razorpay';
 import { lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { requireAuth } from '@/lib/auth';
@@ -79,7 +80,9 @@ export async function POST(req: NextRequest) {
       where: { id: order.id },
       data: {
         paymentStatus: 'PAID',
-        status: 'COMPLETED',
+        // Delivered, not merely paid. fulfilOrder below promotes this to
+        // COMPLETED only when every line is actually provisioned.
+        status: 'AWAITING_FULFILMENT',
         gatewayName: 'RAZORPAY',
         gatewayOrderId: razorpayOrderId,
         gatewayPaymentId: razorpayPaymentId,
@@ -95,9 +98,32 @@ export async function POST(req: NextRequest) {
       await lockCustomerCurrency(order.userId, order.currency as 'USD' | 'INR');
     }
 
+    // Payment is confirmed, so the services are now owed. Provisioning happens
+    // here and nowhere earlier: checkout runs before the payment window even
+    // opens, so anything provisioned there was given away on trust.
+    //
+    // A failure must not fail the payment - the money is taken and the order
+    // is real. The lines are marked FAILED, the order becomes
+    // AWAITING_FULFILMENT and an administrator can retry.
+    let fulfilment = null;
+    try {
+      fulfilment = await fulfilOrder(order.id);
+    } catch (fulfilErr: any) {
+      console.error(
+        `[Fulfilment] ${order.orderNumber} could not be fulfilled after payment: ${fulfilErr?.message}`
+      );
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { status: 'AWAITING_FULFILMENT' },
+      });
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Razorpay payment verified and order activated',
+      fulfilment,
+      message: fulfilment && fulfilment.failed > 0
+        ? 'Payment verified. Some services need a moment to activate and our team has been notified.'
+        : 'Razorpay payment verified and order activated',
       order: updatedOrder,
     });
   } catch (err: any) {

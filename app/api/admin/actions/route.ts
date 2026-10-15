@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { isLiveApiConfigured, apiClient } from '@/lib/api/client';
+import { fulfilOrder } from '@/lib/services/fulfilment';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +78,40 @@ export async function POST(req: NextRequest) {
     //
     // Guards: never an ADMIN, never yourself, and never an account that still
     // holds services or billing history unless the caller explicitly forces it.
+    // Retry a paid order whose provisioning failed. The money is already
+    // taken, so the service is owed; this is the path that settles it rather
+    // than leaving the customer waiting on a line nobody can see.
+    if (action === 'retry-fulfilment') {
+      const orderId = (body?.orderId || targetId || '').toString().trim();
+      if (!orderId) {
+        return NextResponse.json(
+          { success: false, error: 'No order specified.' },
+          { status: 400 }
+        );
+      }
+
+      try {
+        const result = await fulfilOrder(orderId);
+        console.log(
+          `[Hostmattic] FULFILMENT RETRY by ${session.email} on ${result.orderNumber}: ` +
+            `${result.provisioned} provisioned, ${result.failed} failed`
+        );
+        return NextResponse.json({
+          success: true,
+          result,
+          message:
+            result.failed > 0
+              ? `${result.provisioned} line(s) provisioned, ${result.failed} still failing.`
+              : `Order ${result.orderNumber} is fully provisioned.`,
+        });
+      } catch (err: any) {
+        return NextResponse.json(
+          { success: false, error: err?.message || 'Could not fulfil the order.' },
+          { status: 400 }
+        );
+      }
+    }
+
     if (action === 'delete-customers') {
       const ids: string[] = Array.isArray(body?.customerIds)
         ? body.customerIds.filter((x: unknown) => typeof x === 'string' && x)

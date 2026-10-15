@@ -496,6 +496,35 @@ export default function AdminDashboardPage() {
     return true;
   });
 
+  const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null);
+
+  /**
+   * Retry a paid order whose provisioning failed. Payment has been taken, so
+   * the service is owed; this is how it gets delivered rather than sitting
+   * unnoticed.
+   */
+  const retryFulfilment = async (orderId: string) => {
+    setRetryingOrderId(orderId);
+    try {
+      const res = await fetch('/api/admin/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'retry-fulfilment', orderId }),
+      });
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : null;
+      setSyncNotice({
+        type: json?.success ? 'success' : 'error',
+        message: json?.message || json?.error || 'Could not retry fulfilment.',
+      });
+      if (json?.success) fetchAdminData();
+    } catch {
+      setSyncNotice({ type: 'error', message: 'Could not retry fulfilment.' });
+    } finally {
+      setRetryingOrderId(null);
+    }
+  };
+
   const orders = (data?.orders || []).filter((o: any) => {
     const matchesSearch =
       (o.orderNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -2093,6 +2122,86 @@ export default function AdminDashboardPage() {
         {/* 5. ORDERS & BILLING LEDGER */}
         {activeTab === 'orders' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {(() => {
+              // Paid, but something upstream did not deliver. These are the
+              // orders where money has been taken and the customer is owed a
+              // service, so they belong at the top of the screen.
+              const owed = (data?.orders || []).filter(
+                (o: any) =>
+                  o.paymentStatus === 'PAID' &&
+                  (o.status === 'AWAITING_FULFILMENT' ||
+                    (o.items || []).some((i: any) => i.provisionStatus === 'FAILED'))
+              );
+              if (!owed.length) return null;
+
+              return (
+                <div
+                  role="alert"
+                  style={{
+                    background: 'rgba(127, 29, 29, 0.35)',
+                    border: '1px solid #DC2626',
+                    borderRadius: '14px',
+                    padding: '18px 20px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#FECACA', marginBottom: '4px' }}>
+                    {owed.length} paid order{owed.length === 1 ? '' : 's'} not yet delivered
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#FCA5A5', marginBottom: '14px', lineHeight: 1.5 }}>
+                    Payment was taken but provisioning did not complete. The customer is owed
+                    these services.
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {owed.map((o: any) => (
+                      <div
+                        key={o.id}
+                        style={{
+                          background: 'rgba(2, 6, 23, 0.5)',
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: '12px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.85rem', color: '#F8FAFC' }}>
+                            {o.orderNumber}
+                          </div>
+                          <div style={{ fontSize: '0.74rem', color: '#94A3B8', marginTop: '2px', overflowWrap: 'anywhere' }}>
+                            {(o.items || [])
+                              .filter((i: any) => i.provisionStatus !== 'PROVISIONED')
+                              .map((i: any) => `${i.description}${i.provisionError ? ` — ${i.provisionError}` : ''}`)
+                              .join(' · ') || 'Awaiting provisioning'}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => retryFulfilment(o.id)}
+                          disabled={retryingOrderId === o.id}
+                          style={{
+                            background: '#FFCD00',
+                            color: '#2B2200',
+                            border: 'none',
+                            borderRadius: '8px',
+                            padding: '8px 16px',
+                            fontWeight: 800,
+                            fontSize: '0.8rem',
+                            cursor: retryingOrderId === o.id ? 'wait' : 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {retryingOrderId === o.id ? 'Retrying…' : 'Retry provisioning'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Orders Filter Toolbar */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {/* Product Category Filter Pills */}

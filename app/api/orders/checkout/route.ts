@@ -72,6 +72,9 @@ export async function POST(req: NextRequest) {
     const orderNumber = 'HM-' + Date.now().toString().slice(-6) + '-' + Math.floor(100 + Math.random() * 900);
     const provisionedResults: any[] = [];
 
+    // Plan details resolved during the guard below, kept for the order lines.
+    const resolvedPlans = new Map<any, any>();
+
     // Refuse anything the provider could not deliver, before taking an order
     // for it. A hosting plan upstream has paused, or does not price, cannot be
     // provisioned however the payment goes.
@@ -97,6 +100,10 @@ export async function POST(req: NextRequest) {
         item.productType || 'SHARED_LINUX',
         item.upstreamPlan || item.name || ''
       );
+      // Keep the resolved plan on the line. It used to be looked up, used for
+      // the guard and thrown away, so by the time payment was confirmed there
+      // was no way to know what to provision.
+      if (plan) resolvedPlans.set(item, plan);
       if (!plan) {
         return NextResponse.json(
           {
@@ -258,13 +265,23 @@ export async function POST(req: NextRequest) {
             sgstAmount: Number(sgstAmount) || 0,
             igstAmount: Number(igstAmount) || 0,
             items: {
-              create: items.map((it: any) => ({
-                productType: it.type || 'SERVICE',
-                description: it.name || it.domainName || 'Hostmattic Cloud Service',
-                sacCode: it.sacCode || '998315',
-                price: Number(it.price) || 0,
-                billingPeriod: it.period || 'ANNUAL',
-              })),
+              create: items.map((it: any) => {
+                const plan = resolvedPlans.get(it);
+                const monthly = String(it.period || '').toLowerCase().includes('month');
+                return {
+                  productType: it.type || 'SERVICE',
+                  description: it.name || it.domainName || 'Hostmattic Cloud Service',
+                  sacCode: it.sacCode || '998315',
+                  price: Number(it.price) || 0,
+                  billingPeriod: it.period || 'ANNUAL',
+                  // Everything fulfilment needs once payment is confirmed.
+                  domainName: it.domainName || null,
+                  planId: plan?.planId || null,
+                  authCode: it.authCode || null,
+                  months: plan ? (monthly ? 1 : 12) : null,
+                  years: it.type === 'DOMAIN' ? Number(it.years) || 1 : null,
+                };
+              }),
             },
           },
         });

@@ -200,3 +200,54 @@ export async function registerDomain(params: {
 
   return apiClient('/domains/register.json', postData, 'POST');
 }
+
+/**
+ * Transfer a domain in from another registrar.
+ *
+ * Distinct from registration: upstream charges a different price for it and
+ * requires the EPP / authorisation code the customer obtains from their
+ * current registrar. Without that code the registry will reject the request,
+ * so this refuses rather than sending one it knows will fail.
+ */
+export async function transferDomain(params: {
+  domainName: string;
+  customerId: string;
+  authCode: string;
+  years?: number;
+  nameservers?: string[];
+  privacyProtection?: boolean;
+}): Promise<ApiResponse> {
+  if (!params.authCode?.trim()) {
+    return {
+      success: false,
+      error:
+        'This transfer has no authorisation code. Ask the customer for the EPP code ' +
+        'from their current registrar, then retry.',
+    };
+  }
+
+  if (!isLiveApiConfigured()) {
+    return {
+      success: true,
+      data: {
+        entityid: Math.floor(10000000 + Math.random() * 90000000),
+        status: 'Success',
+        description: `Domain transfer for ${params.domainName} initiated successfully.`,
+      },
+      isMock: true,
+    };
+  }
+
+  const ns = params.nameservers || ['ns1.hostmattic.com', 'ns2.hostmattic.com'];
+
+  const postData: Record<string, any> = {
+    'domain-name': params.domainName,
+    'auth-code': params.authCode.trim(),
+    'customer-id': params.customerId,
+    'invoice-option': 'NoInvoice',
+    'protect-privacy': params.privacyProtection ? 'true' : 'false',
+    ns: ns.join(','),
+  };
+
+  return apiClient('/domains/transfer.json', postData, 'POST');
+}

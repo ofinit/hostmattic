@@ -308,6 +308,8 @@ export default function CheckoutDrawer() {
           sacCode: '998315',
           domainName: item.domainName || (item.type === 'DOMAIN' ? item.name : undefined),
           upstreamPlan: item.upstreamPlan,
+          authCode: item.authCode,
+          years: item.years,
           price: (item.billingPeriod === 'annual' ? item.priceAnnual : item.priceMonthly) * rate,
           period: item.billingPeriod === 'annual' ? '1 Year' : '1 Month',
         })),

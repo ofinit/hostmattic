@@ -81,6 +81,10 @@ function DomainTransferForm() {
         type: 'DOMAIN',
         name: `Domain Transfer (${domain.trim()})`,
         domainName: domain.trim(),
+        // The registry rejects a transfer without this, so it has to travel
+        // with the order rather than being collected and thrown away.
+        authCode: authCode.trim(),
+        years: 1,
         billingPeriod: 'annual',
         priceMonthly: Number((transferUsd / 12).toFixed(2)),
         priceAnnual: transferUsd,

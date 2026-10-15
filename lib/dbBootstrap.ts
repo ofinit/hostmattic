@@ -8,6 +8,22 @@ import bcrypt from 'bcryptjs';
 const MIGRATION_STATEMENTS = [
   `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailCanonical" TEXT`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "User_emailCanonical_key" ON "User" ("emailCanonical")`,
+
+  // Fulfilment fields on OrderItem. `prisma db push` runs at build time but
+  // swallows a failure when the database is unreachable then, so these are
+  // applied again on first connection; CREATE TABLE IF NOT EXISTS is a no-op
+  // on a table that already exists and would never add them.
+  `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "domainName" TEXT`,
+  `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "planId" TEXT`,
+  `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "authCode" TEXT`,
+  `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "months" INTEGER`,
+  `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "years" INTEGER`,
+  `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "provisionStatus" TEXT NOT NULL DEFAULT 'PENDING'`,
+  `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "upstreamOrderId" TEXT`,
+  `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "provisionError" TEXT`,
+  `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "provisionedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "provisionAttempts" INTEGER NOT NULL DEFAULT 0`,
+  `CREATE INDEX IF NOT EXISTS "OrderItem_provisionStatus_idx" ON "OrderItem" ("provisionStatus")`,
 ];
 
 let isBootstrapping = false;

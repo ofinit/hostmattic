@@ -170,7 +170,33 @@ model OrderItem {
   price              Float
   billingPeriod      String
 
+  // What it takes to actually provision this line.
+  //
+  // None of this used to be stored. Checkout provisioned immediately - before
+  // payment - and then discarded the details, so by the time a gateway
+  // confirmed the money the information needed to deliver the service was
+  // gone.
+  domainName         String?
+  /// Upstream numeric plan id, resolved from the live catalogue at checkout.
+  planId             String?
+  /// EPP authorisation code, required to transfer a domain in. Collected on
+  /// the transfer page and previously discarded, which made the transfer
+  /// unfulfillable once payment had been taken.
+  authCode           String?
+  months             Int?
+  years              Int?
+
+  // PENDING -> PROVISIONED | FAILED | NOT_REQUIRED
+  //
+  // Defaults to PENDING: a line is undelivered until something says otherwise.
+  provisionStatus    String    @default("PENDING")
+  upstreamOrderId    String?
+  provisionError     String?
+  provisionedAt      DateTime?
+  provisionAttempts  Int       @default(0)
+
   @@index([orderId])
+  @@index([provisionStatus])
 }
 
 model SupportTicket {

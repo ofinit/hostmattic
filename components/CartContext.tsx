@@ -18,6 +18,10 @@ export interface CartItem {
    * this to price and provision the line.
    */
   upstreamPlan?: string;
+  /** EPP authorisation code for a domain transfer. */
+  authCode?: string;
+  /** Registration or transfer term, in years. */
+  years?: number;
 }
 
 interface CartContextType {
