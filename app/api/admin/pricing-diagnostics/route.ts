@@ -168,9 +168,19 @@ export async function GET(req: NextRequest) {
       const hit = candidates.find((c) =>
         Object.prototype.hasOwnProperty.call(customerPrices, c)
       );
+      // Plan ids sit under `plans` for some products and at the top level for
+      // others; reading only the wrapper reported an empty list for half the
+      // catalogue and made working families look broken.
+      const node = hit ? customerPrices[hit] : null;
+      const planSource =
+        node?.plans && typeof node.plans === 'object'
+          ? node.plans
+          : node && typeof node === 'object'
+          ? Object.fromEntries(Object.entries(node).filter(([, v]) => v && typeof v === 'object'))
+          : {};
       resolved[type] = {
         productKey: hit ?? null,
-        planIds: hit ? Object.keys(customerPrices[hit]?.plans || {}) : [],
+        planIds: Object.keys(planSource),
       };
     }
 

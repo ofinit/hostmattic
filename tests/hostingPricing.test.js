@@ -215,3 +215,52 @@ test('advertised storage matches the mapped upstream plan', async () => {
 
   assert.strictEqual(checked, 3, 'all three tiers should declare an upstream plan');
 });
+
+// ---------------------------------------------------------------------------
+// Regressions from the full-catalogue audit (19 families, 2026-10-15)
+// ---------------------------------------------------------------------------
+
+test('a candidate key that exists but carries no plans is skipped', async () => {
+  // `eeliteus` is in the catalogue but empty; `enterpriseemailus` has the
+  // plans. Stopping at the first key that merely exists left business email
+  // unsellable.
+  CUSTOMER_PRICE.eeliteus = {};
+  CUSTOMER_PRICE.enterpriseemailus = {
+    '900': { add: { '1': 150, '12': 120 }, renew: { '12': 150 } },
+  };
+  PLAN_DETAILS.enterpriseemailus = {
+    enterpriseemailus: { '900': { plan_name: 'Business Email', status: 'Active' } },
+  };
+  hp.__resetForTests();
+  try {
+    const r = await hp.getLiveHostingPricing();
+    assert.ok(r.EMAIL_BUSINESS, 'should fall through to the key that has plans');
+    assert.ok(r.EMAIL_BUSINESS['Business Email']);
+  } finally {
+    delete CUSTOMER_PRICE.eeliteus;
+    delete CUSTOMER_PRICE.enterpriseemailus;
+    delete PLAN_DETAILS.enterpriseemailus;
+    hp.__resetForTests();
+  }
+});
+
+test('a plan with no reported status is still sellable', async () => {
+  // Of nineteen families only shared Linux and Windows report a status at all.
+  // Requiring "Active" withheld the other sixteen.
+  CUSTOMER_PRICE.sitelock = { plans: { '178': { add: { '12': 170 } } } };
+  PLAN_DETAILS.sitelock = { sitelock: { '178': { plan_name: 'Basic' } } };
+  hp.__resetForTests();
+  try {
+    const plan = await hp.getSellablePlan('SECURITY_SITELOCK', 'Basic');
+    assert.ok(plan, 'an unreported status must not block the sale');
+    assert.strictEqual(plan.status, 'Unknown');
+  } finally {
+    delete CUSTOMER_PRICE.sitelock;
+    delete PLAN_DETAILS.sitelock;
+    hp.__resetForTests();
+  }
+});
+
+test('a paused plan is still refused', async () => {
+  assert.strictEqual(await hp.getSellablePlan('SHARED_LINUX', 'Advanced'), null);
+});

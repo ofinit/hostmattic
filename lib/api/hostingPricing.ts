@@ -228,13 +228,22 @@ export async function getLiveHostingPricing(): Promise<HostingPricingMap> {
     const notes: string[] = [];
 
     for (const [productType, keys] of Object.entries(PRODUCT_KEYS)) {
-      const productKey = keys.find((k) =>
-        Object.prototype.hasOwnProperty.call(customerPrices, k)
-      );
+      // Take the first candidate that actually carries plans, not merely the
+      // first that exists. `eeliteus` is present in the catalogue but empty,
+      // and stopping there left business email unsellable while
+      // `enterpriseemailus` sat behind it with real plans.
+      let productKey: string | undefined;
+      let plans: Record<string, any> = {};
+      for (const candidate of keys) {
+        if (!Object.prototype.hasOwnProperty.call(customerPrices, candidate)) continue;
+        const found = planNodes(customerPrices[candidate]);
+        if (Object.keys(found).length) {
+          productKey = candidate;
+          plans = found;
+          break;
+        }
+      }
       if (!productKey) continue;
-
-      const plans = planNodes(customerPrices[productKey]);
-      if (!Object.keys(plans).length) continue;
 
       const details = await getPlanDetails(productKey);
       const bands = costBands(costs, productKey);
@@ -325,7 +334,11 @@ export async function getSellablePlan(
 
   const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
   const hit = Object.values(family).find((p) => norm(p.planName) === norm(planName));
-  if (!hit || hit.status !== 'Active') return null;
+  if (!hit) return null;
+  // Same rule as /api/hosting/pricing: orderable unless upstream says it is
+  // not. Most products report no status at all.
+  const unsellable = ['paused', 'deleted', 'inactive', 'discontinued', 'suspended'];
+  if (unsellable.includes(String(hit.status).toLowerCase())) return null;
   return hit;
 }
 
