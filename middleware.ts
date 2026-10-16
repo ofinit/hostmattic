@@ -25,6 +25,19 @@ const PUBLIC_ROUTES = [
   '/api/tax',               // Public tax rate lookup
   '/api/og',                // Open Graph image generation
   '/api/payments/instamojo/callback', // Instamojo redirect callback (no cookie on redirect)
+
+  // Storefront pricing. Both are read by public product pages before anyone
+  // signs in, and both were returning 401 to every anonymous visitor - which
+  // is nearly all of them. The plan-pricing hook treated that as "no live
+  // data" and silently kept the published figures, so live hosting prices
+  // never reached the storefront at all.
+  //
+  // Neither exposes anything private: /api/hosting/pricing returns sellable
+  // plan prices, already public on the page, and /api/payments/methods
+  // returns only which gateways are enabled. Cost and credentials stay in
+  // the admin-only diagnostics route.
+  '/api/hosting/pricing',
+  '/api/payments/methods',
 ];
 
 // Routes that require ADMIN role

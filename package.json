@@ -14,7 +14,8 @@
     "test:pricing": "tsc lib/api/hostingPricing.ts lib/api/client.ts lib/crypto/secrets.ts --rootDir lib --outDir .test-build --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop && node --test \"tests/*.test.js\"",
     "orders": "node scripts/orders.js",
     "orders:audit": "node scripts/orders.js",
-    "test": "npm run test:pricing"
+    "test": "npm run test:pricing",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@prisma/client": "^5.21.1",
@@ -26,6 +27,7 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^20.17.0",
