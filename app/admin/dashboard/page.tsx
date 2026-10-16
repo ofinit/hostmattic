@@ -72,6 +72,10 @@ export default function AdminDashboardPage() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [syncingUpstream, setSyncingUpstream] = useState(false);
   const [syncNotice, setSyncNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  // Must sit with the other hooks: there is an `if (loading) return` further
+  // down, so a useState below it runs on some renders and not others, which
+  // is React error #310.
+  const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null);
 
   // Pagination states
   const [customerPage, setCustomerPage] = useState(1);
@@ -496,7 +500,6 @@ export default function AdminDashboardPage() {
     return true;
   });
 
-  const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null);
 
   /**
    * Retry a paid order whose provisioning failed. Payment has been taken, so
