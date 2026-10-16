@@ -47,3 +47,5 @@ yarn-error.log*
 .test-build/
 test-results/
 playwright-report/
+dbg.mjs
+debug_*.mjs
