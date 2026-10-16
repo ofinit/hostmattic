@@ -139,13 +139,22 @@ export default function CheckoutDrawer() {
   const [billingStateCode, setBillingStateCode] = useState('');
   const [customStateText, setCustomStateText] = useState('');
 
-  // Automatically enforce payment method and default country according to currency
+  // Enforce the payment method and default country for the chosen currency.
+  //
+  // The state is deliberately CLEARED rather than defaulted. This used to set
+  // Kerala ('32') on INR and California ('CA') on USD, which put the default
+  // straight back after it was removed from the initial state - so a customer
+  // switching to rupees was silently assigned the seller's own state, and
+  // billed CGST+SGST on what may be an inter-state supply.
+  //
+  // Clearing is also the only correct answer when the country changes: an
+  // Indian state code is meaningless for a US address.
   useEffect(() => {
     if (currency === 'USD') {
       setPaymentMethod('razorpay_card');
       if (billingCountry === 'IN') {
         setBillingCountry('US');
-        setBillingStateCode('CA');
+        setBillingStateCode('');
       }
     } else {
       if (paymentMethod === 'razorpay_card') {
@@ -153,7 +162,7 @@ export default function CheckoutDrawer() {
       }
       if (billingCountry !== 'IN') {
         setBillingCountry('IN');
-        setBillingStateCode('32');
+        setBillingStateCode('');
       }
     }
   }, [currency]);

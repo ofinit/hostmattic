@@ -14,6 +14,11 @@ async function openDrawerWithItem(page: Page) {
   // Both fields are required. The EPP authorisation code is not optional:
   // the registry rejects a transfer without it, so the form will not submit
   // until it is supplied.
+  // A fresh visitor starts in USD, where the sale is zero-rated under LUT and
+  // no GST applies. The GST assertions below are about the rupee path, so the
+  // currency is chosen explicitly rather than assumed.
+  await page.getByRole('button', { name: /INR \(₹\)/ }).click();
+
   const inputs = page.getByRole('textbox');
   await inputs.nth(0).fill('hotice.co.in');
   await inputs.nth(1).fill('TEST-EPP-CODE-0000');
@@ -63,7 +68,9 @@ test('the total renders to two decimal places', async ({ page }) => {
   const label = await pay.innerText();
 
   // Rs1,769.6 was being shown for Rs1,769.60.
-  expect(label, `pay button reads "${label.trim()}"`).toMatch(/₹[\d,]+\.\d{2}/);
+  // Rs1,769.6 was being shown for Rs1,769.60; the point is two decimal places
+  // in whichever currency is active.
+  expect(label, `pay button reads "${label.trim()}"`).toMatch(/[₹$][\d,]+\.\d{2}/);
 });
 
 test('the basket shows the live transfer price, not a stale one', async ({ page }) => {
