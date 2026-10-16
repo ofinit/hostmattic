@@ -7,18 +7,25 @@ import { test, expect, Page } from '@playwright/test';
  * button is never pressed.
  */
 
-/** Puts one domain transfer in the basket and opens the drawer. */
+/** Puts one domain transfer in the basket and opens the drawer, in rupees. */
 async function openDrawerWithItem(page: Page) {
-  await page.goto('/domains/transfer', { waitUntil: 'domcontentloaded' });
+  // networkidle, not domcontentloaded: the currency control is a React button,
+  // and clicking it before hydration lands on inert markup and does nothing -
+  // which left the drawer in USD and looked like a missing GST section.
+  await page.goto('/domains/transfer', { waitUntil: 'networkidle' });
 
-  // Both fields are required. The EPP authorisation code is not optional:
-  // the registry rejects a transfer without it, so the form will not submit
-  // until it is supplied.
   // A fresh visitor starts in USD, where the sale is zero-rated under LUT and
-  // no GST applies. The GST assertions below are about the rupee path, so the
-  // currency is chosen explicitly rather than assumed.
-  await page.getByRole('button', { name: /INR \(₹\)/ }).click();
+  // no GST applies at all. The assertions below are about the rupee path, so
+  // the currency is chosen explicitly - and confirmed, so a click that
+  // silently failed cannot be mistaken for a defect in the page.
+  await page.getByRole('button', { name: /INR/ }).click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('hm_currency')), { timeout: 15_000 })
+    .toBe('INR');
 
+  // Both fields are required. The EPP authorisation code is not optional: the
+  // registry rejects a transfer without it, so the form will not submit until
+  // it is supplied.
   const inputs = page.getByRole('textbox');
   await inputs.nth(0).fill('hotice.co.in');
   await inputs.nth(1).fill('TEST-EPP-CODE-0000');
