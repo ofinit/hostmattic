@@ -184,10 +184,12 @@ export default function CheckoutDrawer() {
       .then((r) => r.json())
       .then((d) => {
         if (d?.success && d.settings) {
+          // Only the seller's own details. `settings.stateCode` is OUR state,
+          // used to decide intra-state against inter-state; assigning it as
+          // the customer's billing state asserted that every Indian customer
+          // is in Kerala and forced CGST+SGST on every order. It also ran on
+          // mount, so it overwrote the place of supply the customer chose.
           setTaxSettings(d.settings);
-          if (d.settings.stateCode && billingCountry === 'IN') {
-            setBillingStateCode(d.settings.stateCode);
-          }
         }
       })
       .catch(() => {});
@@ -947,11 +949,15 @@ export default function CheckoutDrawer() {
                       const newCountry = e.target.value;
                       setBillingCountry(newCountry);
                       const states = getCountryStates(newCountry);
-                      if (newCountry === 'IN') {
-                        setBillingStateCode('32');
-                      } else if (states.length > 0) {
-                        setBillingStateCode(states[0].code);
+                      if (states.length > 0) {
+                        // Cleared, never defaulted. This picked Kerala for
+                        // India and the alphabetically first region
+                        // elsewhere, so a place of supply was asserted that
+                        // the customer had not chosen.
+                        setBillingStateCode('');
                       } else {
+                        // No region list for this country: the field becomes
+                        // free text, which 'OTHER' selects.
                         setBillingStateCode('OTHER');
                         setCustomStateText('');
                       }
