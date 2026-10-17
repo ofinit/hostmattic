@@ -77,6 +77,10 @@ export default function AdminDashboardPage() {
   // is React error #310.
   const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null);
   const [refreshingPricing, setRefreshingPricing] = useState(false);
+  // Set while the portal is open as a customer in another tab. The session
+  // cookie is shared across tabs, so this console is holding the customer's
+  // session too and cannot act as an administrator until it is handed back.
+  const [viewingAs, setViewingAs] = useState<{ name: string; email: string } | null>(null);
 
   // Pagination states
   const [customerPage, setCustomerPage] = useState(1);
@@ -321,11 +325,29 @@ export default function AdminDashboardPage() {
         setSyncNotice({ type: 'error', message: json?.error || 'Could not open the portal as this customer.' });
         return;
       }
-      // The session cookie now belongs to the customer, so leave the console.
-      window.location.href = json.redirectTo || '/client/dashboard';
+      // Opened in a new tab so the console stays put. The session cookie is
+      // per-browser, not per-tab, so this console now holds the customer's
+      // session as well and will be refused by the admin API until the
+      // impersonation ends. That is what `viewingAs` announces.
+      window.open(json.redirectTo || '/client/dashboard', '_blank', 'noopener,noreferrer');
+      setViewingAs({
+        name: customer.name || 'this customer',
+        email: customer.email || '',
+      });
+      setSelectedCustomerDossier(null);
     } catch (e: any) {
       setSyncNotice({ type: 'error', message: e?.message || 'Could not open the portal as this customer.' });
     }
+  };
+
+  /** Hands the administrator session back and reloads the console. */
+  const endViewingAs = async () => {
+    try {
+      await fetch('/api/auth/end-impersonation', { method: 'POST' });
+    } catch {
+      // Reload regardless: the cookie may already have been restored.
+    }
+    window.location.reload();
   };
 
   const openAccountSettings = async () => {
@@ -2616,6 +2638,52 @@ export default function AdminDashboardPage() {
         )}
 
         {/* 7. GATEWAY SETTINGS */}
+        {viewingAs && (
+          <div
+            role="alert"
+            style={{
+              background: 'rgba(124, 45, 18, 0.5)',
+              border: '1px solid #F59E0B',
+              borderRadius: '14px',
+              padding: '16px 20px',
+              marginBottom: '20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '14px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#FDE68A', marginBottom: '2px' }}>
+                Viewing the portal as {viewingAs.name}
+                {viewingAs.email ? ` (${viewingAs.email})` : ''}
+              </div>
+              <div style={{ fontSize: '0.79rem', color: '#FCD34D', lineHeight: 1.5 }}>
+                It is open in another tab. The session is shared across tabs, so this console is
+                signed in as that customer too and cannot make administrator changes until you
+                hand the session back.
+              </div>
+            </div>
+            <button
+              onClick={endViewingAs}
+              style={{
+                background: '#FFCD00',
+                color: '#2B2200',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '9px 18px',
+                fontWeight: 800,
+                fontSize: '0.82rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Return to admin console
+            </button>
+          </div>
+        )}
+
         {activeTab === 'payments' && <PaymentGatewaySettings />}
 
         {activeTab === 'gateway' && (
