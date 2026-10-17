@@ -100,7 +100,7 @@ export default function AdminDashboardPage() {
   // Tax & GST Engine Settings state
   const [taxSettings, setTaxSettings] = useState<any>({
     gstRate: 18.0,
-    legalBusinessName: 'Hostmattic Technologies / OfinIT Solutions',
+    legalBusinessName: '',
     sellerGstin: '',
     registeredAddress: 'Building 4B, Infopark Technology Hub',
     city: 'Kochi',
@@ -3387,7 +3387,15 @@ export default function AdminDashboardPage() {
                 <div>Computer generated official statutory tax invoice. No physical signature required.</div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontWeight: 700, color: '#0F172A' }}>For Hostmattic Technologies</div>
+                {/*
+                  * The signatory block binds the document to the entity that
+                  * issued it, so it must name the registered company and not
+                  * the brand. "Hostmattic Technologies" is neither - it is a
+                  * name that appears on no registration.
+                  */}
+                <div style={{ fontWeight: 700, color: '#0F172A' }}>
+                  For {taxSettings.legalBusinessName || <NotConfigured label="legal business name" />}
+                </div>
                 <div style={{ marginTop: '20px', fontStyle: 'italic' }}>Authorized Signatory</div>
               </div>
             </div>

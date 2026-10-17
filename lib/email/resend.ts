@@ -119,7 +119,7 @@ const getEmailBaseWrapper = (content: string, preheader: string = '') => `
       ${content}
     </div>
     <div class="footer">
-      <p style="margin: 0 0 6px;">Hostmattic Technologies &bull; Fast, Resilient Cloud Infrastructure</p>
+      <p style="margin: 0 0 6px;">Hostmattic &bull; Fast, Resilient Cloud Infrastructure</p>
       <p style="margin: 0; color: #94A3B8;">For support inquiries, reach us at <a href="mailto:support@hostmattic.com" style="color: #0284C7; text-decoration: underline;">support@hostmattic.com</a></p>
     </div>
   </div>

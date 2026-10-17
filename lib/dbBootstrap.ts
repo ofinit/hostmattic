@@ -91,7 +91,7 @@ const DDL_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "TaxSetting" (
     "id" TEXT PRIMARY KEY DEFAULT 'default_tax_settings',
     "gstRate" DOUBLE PRECISION NOT NULL DEFAULT 18.0,
-    "legalBusinessName" TEXT NOT NULL DEFAULT 'Hostmattic Technologies / OfinIT Solutions',
+    "legalBusinessName" TEXT NOT NULL DEFAULT '',
     "sellerGstin" TEXT NOT NULL DEFAULT '',
     "registeredAddress" TEXT NOT NULL DEFAULT '',
     "city" TEXT NOT NULL DEFAULT '',
@@ -294,7 +294,7 @@ export async function ensureDatabaseBootstrap() {
         data: {
           id: 'default_tax_settings',
           gstRate: 18.0,
-          legalBusinessName: 'Hostmattic Technologies / OfinIT Solutions',
+          legalBusinessName: '',
           // Statutory identity is never seeded. A fresh database used to be
           // given Kerala as the seller's state and an LUT reference that
           // exists nowhere, which then appeared on invoices.

@@ -65,7 +65,7 @@ function InstamojoSandboxContent() {
         <div style={{ backgroundColor: '#0F172A', borderRadius: '10px', padding: '16px', marginBottom: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#94A3B8' }}>
             <span>Merchant:</span>
-            <strong style={{ color: '#F8FAFC' }}>Hostmattic Technologies</strong>
+            <strong style={{ color: '#F8FAFC' }}>Hostmattic</strong>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '0.9rem', color: '#94A3B8' }}>
             <span>Order Number:</span>

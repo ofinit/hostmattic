@@ -490,7 +490,7 @@ export default function CheckoutDrawer() {
           key: rzpData.keyId,
           amount: rzpData.amount,
           currency: rzpData.currency,
-          name: 'Hostmattic Technologies',
+          name: taxSettings?.legalBusinessName || 'Hostmattic',
           description: `Order #${data.orderNumber}`,
           image: '/assets/img/hostmattic-logo-icon.png',
           order_id: rzpData.orderId,
