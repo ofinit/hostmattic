@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSellablePlan } from '@/lib/api/hostingPricing';
 import { repriceCart } from '@/lib/services/cartPricing';
+import { nextInvoiceNumber } from '@/lib/services/invoiceNumber';
 import { validateCurrencyMatch, lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { requireAuth } from '@/lib/auth';
 import { sendEmail, generateOrderReceiptEmail } from '@/lib/email/resend';
@@ -69,7 +70,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const orderNumber = 'HM-' + Date.now().toString().slice(-6) + '-' + Math.floor(100 + Math.random() * 900);
+    // Rule 46(b): a consecutive serial, unique for the financial year. The
+    // previous scheme was a timestamp fragment plus a random three-digit
+    // number - not consecutive, and able to collide. No fallback here: an
+    // order that cannot be given a lawful invoice number is not recorded.
+    let orderNumber: string;
+    try {
+      orderNumber = await nextInvoiceNumber();
+    } catch (numErr: any) {
+      console.error('[Checkout] Could not allocate an invoice number:', numErr?.message);
+      return NextResponse.json(
+        { success: false, error: 'Could not start this order. Please try again in a moment.' },
+        { status: 503 }
+      );
+    }
     const provisionedResults: any[] = [];
 
     // Plan details resolved during the guard below, kept for the order lines.

@@ -99,6 +99,16 @@ model PaymentGateway {
   updatedBy     String?
 }
 
+/// One row per financial year, holding the last invoice serial issued.
+/// Rule 46(b) requires invoice numbers to be consecutive and unique within a
+/// financial year; this is what makes them so.
+model InvoiceSeries {
+  /// The financial year, e.g. "2026-27".
+  id         String   @id
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+}
+
 model TaxSetting {
   id                   String   @id @default("default_tax_settings")
   gstRate              Float    @default(18.0)

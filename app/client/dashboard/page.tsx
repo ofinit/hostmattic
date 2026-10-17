@@ -3324,6 +3324,31 @@ export default function ClientDashboard() {
               </div>
             </div>
 
+            {/*
+              * Rule 46 requires an export invoice to carry this endorsement.
+              * Without it the document does not evidence a zero-rated supply,
+              * however the tax is computed.
+              */}
+            {viewInvoice.currency !== 'INR' && (
+              <div
+                style={{
+                  border: '1px solid #0F172A',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  color: '#0F172A',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {taxSettings.lutNumber
+                  ? `Supply meant for export under Letter of Undertaking without payment of integrated tax — LUT ARN ${taxSettings.lutNumber}`
+                  : 'EXPORT ENDORSEMENT INCOMPLETE — no Letter of Undertaking is recorded, so this supply cannot be zero-rated'}
+              </div>
+            )}
+
             {/* Line Items Table */}
             <div className="table-responsive" style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem', minWidth: '460px' }}>

@@ -3287,6 +3287,31 @@ export default function AdminDashboardPage() {
               </div>
             </div>
 
+            {/*
+              * Rule 46 requires an export invoice to carry this endorsement.
+              * Without it the document does not evidence a zero-rated supply,
+              * however the tax is computed.
+              */}
+            {selectedAdminInvoice.currency !== 'INR' && (
+              <div
+                style={{
+                  border: '1px solid #0F172A',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  color: '#0F172A',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {taxSettings.lutNumber
+                  ? `Supply meant for export under Letter of Undertaking without payment of integrated tax — LUT ARN ${taxSettings.lutNumber}`
+                  : 'EXPORT ENDORSEMENT INCOMPLETE — no Letter of Undertaking is recorded, so this supply cannot be zero-rated'}
+              </div>
+            )}
+
             {/* Line Items Table */}
             <div className="table-responsive" style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem', minWidth: '500px' }}>
@@ -3314,12 +3339,15 @@ export default function AdminDashboardPage() {
                     ))
                   ) : (
                     <tr>
-                      <td style={{ padding: '10px 14px', color: '#64748B' }}>1</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 600 }}>Hostmattic Cloud &amp; Domain Services</td>
-                      <td style={{ padding: '10px 14px', fontFamily: 'monospace' }}>998315</td>
-                      <td style={{ padding: '10px 14px', color: '#64748B' }}>1 Year</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700 }}>
-                        {selectedAdminInvoice.currency === 'INR' ? `₹${selectedAdminInvoice.totalAmount.toLocaleString()}` : `$${selectedAdminInvoice.totalAmount.toFixed(2)}`}
+                      {/*
+                        * An order with no line items used to render an invented
+                        * one - "Hostmattic Cloud & Domain Services" for the whole
+                        * total - which describes a supply nobody recorded. An
+                        * invoice must list what was actually sold.
+                        */}
+                      <td colSpan={5} style={{ padding: '14px', color: '#DC2626', fontWeight: 700 }}>
+                        This order has no line items recorded. The invoice cannot be issued until
+                        the supply is described.
                       </td>
                     </tr>
                   )}

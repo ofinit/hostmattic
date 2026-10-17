@@ -24,6 +24,13 @@ const MIGRATION_STATEMENTS = [
   `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "provisionedAt" TIMESTAMP(3)`,
   `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "provisionAttempts" INTEGER NOT NULL DEFAULT 0`,
   `CREATE INDEX IF NOT EXISTS "OrderItem_provisionStatus_idx" ON "OrderItem" ("provisionStatus")`,
+
+  // Consecutive invoice numbering, per financial year.
+  `CREATE TABLE IF NOT EXISTS "InvoiceSeries" (
+    "id" TEXT PRIMARY KEY,
+    "lastNumber" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
 ];
 
 let isBootstrapping = false;
