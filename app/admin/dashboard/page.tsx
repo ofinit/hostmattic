@@ -2750,6 +2750,20 @@ export default function AdminDashboardPage() {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ padding: '16px', background: 'rgba(15, 23, 42, 0.8)', borderRadius: '12px', border: `1px solid ${metrics.emailStatus?.configured ? 'rgba(255, 255, 255, 0.08)' : '#DC2626'}` }}>
+                <div style={{ fontSize: '0.85rem', color: '#94A3B8', marginBottom: '4px' }}>Transactional Email ({metrics.emailStatus?.transport || 'Resend API'})</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', color: metrics.emailStatus?.configured ? '#9BCB44' : '#FCA5A5' }}>
+                  {metrics.emailStatus?.configured
+                    ? `Active - sending as ${metrics.emailStatus.fromEmail}`
+                    : 'NOT CONFIGURED - receipts, password resets and ticket replies are not being delivered'}
+                </div>
+                {!metrics.emailStatus?.configured && (
+                  <div style={{ fontSize: '0.74rem', color: '#FCD34D', marginTop: '6px', lineHeight: 1.5 }}>
+                    Set RESEND_API_KEY in the deployment environment. There is no SMTP fallback.
+                  </div>
+                )}
+              </div>
+
               <div style={{ padding: '16px', background: 'rgba(15, 23, 42, 0.8)', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
                 <div style={{ fontSize: '0.85rem', color: '#94A3B8', marginBottom: '4px' }}>Upstream Base URL</div>
                 <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.9rem', color: '#FFFFFF' }}>{metrics.gatewayStatus?.targetEndpoint}</div>

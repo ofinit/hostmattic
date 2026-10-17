@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { isLiveApiConfigured } from '@/lib/api/client';
+import { getResendConfig } from '@/lib/email/resend';
 import {
   computeFinancialReport,
   computeExpirationAnalytics,
@@ -617,6 +618,13 @@ export async function GET(req: NextRequest) {
           authUserIdConfigured: Boolean(process.env.RESELLER_AUTH_USERID?.trim()),
           apiKeyConfigured: Boolean(process.env.RESELLER_API_KEY?.trim()),
         },
+        // Transactional email. There is no SMTP: delivery is the Resend REST
+        // API, and an unset key means receipts, password resets and ticket
+        // replies are not being delivered at all.
+        emailStatus: (() => {
+          const { isConfigured, fromEmail } = getResendConfig();
+          return { configured: isConfigured, fromEmail, transport: 'Resend API' };
+        })(),
       },
       financials,
       expirations,

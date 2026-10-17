@@ -34,8 +34,26 @@ export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
   const { apiKey, fromEmail, isConfigured } = getResendConfig();
   const recipientList = Array.isArray(payload.to) ? payload.to : [payload.to];
 
-  // In sandbox/preview or when API key is unset, provide simulation
+  // Unconfigured means nothing was sent. In development that is fine and the
+  // message is logged instead; in production it is a failure and must be
+  // reported as one.
+  //
+  // This used to return success: true in every environment, so a live
+  // deployment with no API key told checkout the receipt had gone out while
+  // the customer received nothing and no error was raised anywhere. Same rule
+  // as the payment gateway: simulation is only allowed outside production.
   if (!isConfigured) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(
+        `[Email] RESEND_API_KEY is not set, so "${payload.subject}" was NOT sent to ` +
+          `${recipientList.join(', ')}. Transactional email is down.`
+      );
+      return {
+        success: false,
+        error: 'Email delivery is not configured on this deployment.',
+      };
+    }
+
     const simId = 'sim_' + Math.random().toString(36).substring(2, 11);
     console.log(`[Resend Notice: Simulated Email] To: ${recipientList.join(', ')} | Subject: "${payload.subject}" | ID: ${simId}`);
     return {
