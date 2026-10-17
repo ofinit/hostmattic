@@ -3376,12 +3376,16 @@ export default function ClientDashboard() {
                     ))
                   ) : (
                     <tr>
-                      <td style={{ padding: '10px 14px', color: '#64748B' }}>1</td>
-                      <td style={{ padding: '10px 14px', fontWeight: 600 }}>Hostmattic Cloud &amp; Domain Services</td>
-                      <td style={{ padding: '10px 14px', fontFamily: 'monospace' }}>998315</td>
-                      <td style={{ padding: '10px 14px', color: '#64748B' }}>1 Year</td>
-                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700 }}>
-                        {viewInvoice.currency === 'INR' ? `₹${Math.round(viewInvoice.totalAmount).toLocaleString()}` : `$${viewInvoice.totalAmount.toFixed(2)}`}
+                      {/*
+                        * An order with no line items used to render an invented
+                        * one - "Hostmattic Cloud & Domain Services" for the whole
+                        * total - describing a supply nobody recorded. Rule 46
+                        * requires the invoice to describe what was actually
+                        * supplied, so it refuses instead.
+                        */}
+                      <td colSpan={5} style={{ padding: '14px', color: '#DC2626', fontWeight: 700 }}>
+                        This order has no line items recorded. Please contact support — an invoice
+                        cannot be issued until the supply is described.
                       </td>
                     </tr>
                   )}
