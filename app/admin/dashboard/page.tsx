@@ -13,6 +13,47 @@ import { GST_STATES } from '@/lib/constants/gstStates';
  * placeholder is far more dangerous than an obviously missing one. The GSTIN
  * here used to default to a fabricated number.
  */
+/**
+ * A specimen order for previewing the invoice template.
+ *
+ * It exists so the statutory layout can be checked - GSTIN, place of supply,
+ * the CGST/SGST split - before a real order arrives. Everything about it is
+ * obviously not a real transaction, and the viewer stamps it SPECIMEN, so it
+ * cannot be mistaken for a document that records a sale.
+ */
+const SPECIMEN_INVOICE = {
+  __specimen: true,
+  orderNumber: 'HM-SPECIMEN-0000',
+  createdAt: new Date().toISOString(),
+  currency: 'INR',
+  customerType: 'B2C',
+  companyName: '',
+  user: { name: 'Specimen Customer', email: 'specimen@example.invalid' },
+  billingAddress: '1 Example Street',
+  billingCity: 'Panaji',
+  billingState: 'Goa',
+  billingCountry: 'IN',
+  placeOfSupply: '30-Goa',
+  customerGstin: '',
+  paymentStatus: 'PAID',
+  paymentMethod: 'UPI',
+  subtotalAmount: 800,
+  taxAmount: 144,
+  cgstAmount: 72,
+  sgstAmount: 72,
+  igstAmount: 0,
+  taxType: 'CGST_SGST',
+  totalAmount: 944,
+  items: [
+    {
+      description: 'Domain Registration (example.co.in) - 1 Year',
+      sacCode: '998315',
+      price: 800,
+      billingPeriod: '1 Year',
+    },
+  ],
+};
+
 function NotConfigured({ label }: { label: string }) {
   return (
     <span style={{ color: '#DC2626', fontWeight: 700 }} title={`No ${label} is configured`}>
@@ -2806,6 +2847,31 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Configuration Form */}
+            <div style={{ marginBottom: '18px' }}>
+              <button
+                type="button"
+                onClick={() => setSelectedAdminInvoice(SPECIMEN_INVOICE)}
+                title="Render the invoice template with specimen data, to check the statutory details"
+                style={{
+                  background: 'rgba(41, 180, 213, 0.15)',
+                  border: '1px solid rgba(41, 180, 213, 0.35)',
+                  color: '#29B4D5',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                👁 Preview invoice layout
+              </button>
+              <div style={{ fontSize: '0.74rem', color: '#64748B', marginTop: '6px', lineHeight: 1.5 }}>
+                Opens the real invoice template with specimen customer details and your actual
+                statutory settings, so you can confirm the GSTIN, address and tax split before a
+                customer ever sees one. Anything unconfigured shows in red.
+              </div>
+            </div>
+
             <form onSubmit={handleSaveTaxSettings} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={{ background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '28px' }}>
                 <h3 style={{ fontSize: '1.15rem', color: '#FFFFFF', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3107,6 +3173,23 @@ export default function AdminDashboardPage() {
                 <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '2px' }}>
                   Original for Recipient &bull; Section 31 of CGST Act, 2017
                 </div>
+                {selectedAdminInvoice.__specimen && (
+                  <div
+                    style={{
+                      marginTop: '8px',
+                      display: 'inline-block',
+                      background: '#DC2626',
+                      color: '#FFFFFF',
+                      fontWeight: 800,
+                      fontSize: '0.72rem',
+                      letterSpacing: '0.08em',
+                      padding: '4px 10px',
+                      borderRadius: '4px',
+                    }}
+                  >
+                    SPECIMEN — LAYOUT PREVIEW, NOT A VALID TAX INVOICE
+                  </div>
+                )}
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={() => window.print()} className="btn btn-sm btn-outline" style={{ borderColor: '#CBD5E1', fontSize: '0.78rem' }}>
@@ -3191,7 +3274,12 @@ export default function AdminDashboardPage() {
               </div>
               <div>
                 <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Payment Status:</span>
-                <strong style={{ color: '#9BCB44' }}>{selectedAdminInvoice.paymentStatus || 'PAID'}</strong>
+                {/* Never defaulted to PAID: an invoice stating a payment that
+                    did not happen is the whole class of fault this codebase
+                    keeps correcting. */}
+                <strong style={{ color: selectedAdminInvoice.paymentStatus === 'PAID' ? '#9BCB44' : '#F59E0B' }}>
+                  {selectedAdminInvoice.paymentStatus || 'UNPAID'}
+                </strong>
               </div>
               <div>
                 <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Mode:</span>
