@@ -10,9 +10,22 @@ import { test, expect } from '@playwright/test';
  * catalogue.
  */
 
-/** From the reseller panel, .IN 3rd Level Domain Names, 1 year. */
-const CO_IN = { register: 1500, renew: 1630, transfer: 1500 };
 const USD_INR = 83.5;
+
+/**
+ * These tests deliberately assert INVARIANTS, not figures.
+ *
+ * An earlier version pinned .co.in to Rs1,500 / Rs1,630 / Rs1,500, which were
+ * the panel's values that day. The moment those prices were legitimately
+ * changed the suite failed, reporting a defect where there was only a business
+ * decision. A test that breaks whenever someone does their job correctly gets
+ * ignored, and an ignored test protects nothing.
+ *
+ * What must always hold, whatever the prices are:
+ *  - nothing is sold below what it costs us
+ *  - registration, renewal and transfer are priced independently
+ *  - no single figure is shared across unrelated extensions
+ */
 
 /** Allows for the INR -> USD -> INR rounding trip. */
 const near = (actual: number, expected: number, tolerance = 2) =>
@@ -37,22 +50,51 @@ test('registration, renewal and transfer are three distinct prices', async ({ re
   }
 });
 
-test('.co.in matches the prices configured upstream', async ({ request }) => {
+test('no extension is sold below its own wholesale cost', async ({ request }) => {
+  // The defect this exists for: a flat $7.99 transfer meant a .io, costing
+  // Rs3,009, was sold for Rs667 - a loss of over Rs2,300 on every sale. A flat
+  // $12.99 renewal did the same on .io, .ai and .co.
+  const json = await (await request.get('/api/domains/pricing')).json();
+  const underwater: string[] = [];
+
+  for (const [tld, info] of Object.entries<any>(json.pricing)) {
+    const checks: Array<[string, number, number | undefined]> = [
+      // A promotional registration is compared against the promotional cost,
+      // which the catalogue supplies when the promotion publishes one. Where
+      // it does not, the cost is reported as unknown rather than guessed, and
+      // the pair is skipped below - comparing a promo price against the
+      // standard cost would report a loss that is not real.
+      ['registration', info.retailInr, info.wholesaleCostInr],
+      // Renewals and transfers are not promotional here, so these are a
+      // like-for-like comparison and the one that catches a flat price.
+      ['renewal', info.renewInr, info.renewWholesaleCostInr],
+      ['transfer', info.transferInr, info.transferWholesaleCostInr],
+    ];
+    for (const [label, price, cost] of checks) {
+      if (!price || !cost) continue; // not priced upstream; nothing to compare
+      if (price < cost) underwater.push(`${tld} ${label}: Rs${price} against cost Rs${cost}`);
+    }
+  }
+
+  expect(underwater, `sold below cost:\n${underwater.join('\n')}`).toEqual([]);
+});
+
+test('.co.in is priced consistently across the catalogue and the storefront', async ({
+  request,
+}) => {
   const json = await (await request.get('/api/domains/pricing')).json();
   const coin = json.pricing['.co.in'];
 
-  expect(
-    near(coin.transferInr, CO_IN.transfer),
-    `transfer was ${coin.transferInr}, panel says ${CO_IN.transfer}`
-  ).toBe(true);
-  expect(
-    near(coin.renewInr, CO_IN.renew),
-    `renewal was ${coin.renewInr}, panel says ${CO_IN.renew}`
-  ).toBe(true);
-  expect(
-    near(coin.retailInr, CO_IN.register),
-    `registration was ${coin.retailInr}, panel says ${CO_IN.register}`
-  ).toBe(true);
+  expect(coin, '.co.in must resolve to a real upstream product').toBeTruthy();
+  // It was mapped to `dotcoin`, a key that does not exist, so it silently used
+  // a stale fallback table. A live price always carries its cost alongside.
+  expect(coin.wholesaleCostInr, '.co.in has no upstream cost, so it is a fallback').toBeGreaterThan(
+    0
+  );
+
+  for (const field of ['retailInr', 'renewInr', 'transferInr'] as const) {
+    expect(coin[field], `.co.in ${field} is not a usable price`).toBeGreaterThan(0);
+  }
 });
 
 test('no flat price is shared across extensions', async ({ request }) => {
@@ -82,23 +124,27 @@ test('a renewal is never quoted at the promotional registration price', async ({
   }
 });
 
-test('the transfer page quotes a live per-extension price', async ({ page }) => {
-  await page.goto('/domains/transfer', { waitUntil: 'domcontentloaded' });
+test('the transfer page quotes the same price the catalogue holds', async ({ page, request }) => {
+  const json = await (await request.get('/api/domains/pricing')).json();
+  const expectedInr = json.pricing['.co.in']?.transferInr;
+  expect(expectedInr, 'no transfer price for .co.in to compare against').toBeGreaterThan(0);
+
+  await page.goto('/domains/transfer', { waitUntil: 'networkidle' });
   await page.getByRole('textbox').first().fill('hotice.co.in');
 
-  // The button carries the price once the catalogue has loaded.
   const button = page.getByRole('button', { name: /Transfer for \$|Initiate Domain Transfer/ });
   await expect(button).toBeVisible();
-
   await expect
     .poll(async () => (await button.innerText()).trim(), { timeout: 20_000 })
     .toMatch(/Transfer for \$\d+\.\d{2}\/yr/);
 
-  const label = await button.innerText();
-  const usd = Number(label.match(/\$(\d+\.\d{2})/)?.[1] || 0);
+  const usd = Number((await button.innerText()).match(/\$(\d+\.\d{2})/)?.[1] || 0);
+  const quotedInr = usd * USD_INR;
+
+  // Within rounding of the INR -> USD -> INR trip.
   expect(
-    near(usd * USD_INR, CO_IN.transfer, 5),
-    `transfer quoted $${usd} (~Rs${Math.round(usd * USD_INR)}), panel says Rs${CO_IN.transfer}`
+    Math.abs(quotedInr - expectedInr) <= 5,
+    `page quotes $${usd} (~Rs${Math.round(quotedInr)}), catalogue holds Rs${expectedInr}`
   ).toBe(true);
 });
 

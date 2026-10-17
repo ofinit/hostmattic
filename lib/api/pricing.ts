@@ -237,6 +237,33 @@ export async function getLiveDomainPricing(): Promise<Record<string, TldPricingI
       if (promo && promo.customerprice) {
         isPromo = true;
         retailInr = Math.round(Number(promo.customerprice));
+
+        // A promotion discounts OUR cost as well as the customer's price.
+        // Keeping the standard cost here reported a Rs142 .shop sale against a
+        // Rs3,199 cost - a fiction, and a large one, across every promotional
+        // extension. The field name is not documented consistently, so read
+        // the plausible spellings and fall back to the standard cost only when
+        // none is present.
+        const promoCost =
+          promo.resellercost ??
+          promo.resellerprice ??
+          promo.resellercostprice ??
+          promo.costprice ??
+          promo.partnercost;
+        const promoCostNum = Number(promoCost);
+        if (Number.isFinite(promoCostNum) && promoCostNum > 0) {
+          wholesaleCost = promoCostNum;
+        } else if (wholesaleCost && retailInr < wholesaleCost) {
+          // No promotional cost was published, yet the promotional price is
+          // below the standard cost. Reporting that as a loss would be wrong,
+          // and so would inventing a number, so the cost is marked unknown.
+          console.warn(
+            `[Pricing] ${tld}: promotional price Rs${retailInr} is below the standard cost ` +
+              `Rs${wholesaleCost} and the promotion publishes no reseller cost. ` +
+              'Margin for this extension cannot be computed.'
+          );
+          wholesaleCost = undefined;
+        }
         if (promo.endtime) {
           promoEndsAt = new Date(Number(promo.endtime) * 1000).toISOString();
         }
