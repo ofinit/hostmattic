@@ -44,5 +44,14 @@ export const GST_STATES: GstState[] = [
   { code: '97', name: 'Other Territory' },
 ];
 
-export const DEFAULT_SELLER_STATE_CODE = '32'; // Kerala
+/**
+ * Deliberately empty. The seller's state comes from the tax settings, and
+ * guessing it decides whether GST is charged as CGST+SGST or as IGST - the
+ * hardcoded '32' was Kerala while the registered company is in Goa, so every
+ * comparison made before the settings loaded was against the wrong state.
+ *
+ * An empty value means "not yet known", which the checkout handles by showing
+ * the GST amount without claiming a split.
+ */
+export const DEFAULT_SELLER_STATE_CODE = '';
 export const DEFAULT_SAC_CODE = '998315'; // Hosting, domain management & IT infrastructure

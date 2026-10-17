@@ -213,7 +213,10 @@ export default function CheckoutDrawer() {
   }
 
   const sellerStateCode = taxSettings?.stateCode || DEFAULT_SELLER_STATE_CODE;
-  const isSameState = isIndianBuyer && selectedState.code === sellerStateCode;
+  // Both sides must be known. Without the seller's state there is nothing to
+  // compare the place of supply against.
+  const sellerStateKnown = Boolean(sellerStateCode);
+  const isSameState = isIndianBuyer && sellerStateKnown && selectedState.code === sellerStateCode;
   const gstRate = typeof taxSettings?.gstRate === 'number' ? taxSettings.gstRate : 18;
 
   let subtotalAmount = 0;

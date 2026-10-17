@@ -6,6 +6,21 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GST_STATES } from '@/lib/constants/gstStates';
 
+/**
+ * Marks a statutory field that nobody has configured.
+ *
+ * Deliberately loud: an invoice is a legal document, and a plausible-looking
+ * placeholder is far more dangerous than an obviously missing one. The GSTIN
+ * here used to default to a fabricated number.
+ */
+function NotConfigured({ label }: { label: string }) {
+  return (
+    <span style={{ color: '#DC2626', fontWeight: 700 }} title={`No ${label} is configured`}>
+      [{label.toUpperCase()} NOT SET]
+    </span>
+  );
+}
+
 export default function AdminDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
@@ -3022,7 +3037,13 @@ export default function AdminDashboardPage() {
                     <div style={{ color: '#CBD5E1' }}>Overseas Buyer paying in USD:</div>
                     <div style={{ color: '#94A3B8', marginTop: '4px' }}>
                       &bull; Tax Rate: <strong>0% (Zero-Rated Export)</strong><br />
-                      &bull; Condition: <strong>Under LUT ARN: {taxSettings.lutNumber || 'On file'}</strong><br />
+                      &bull; Condition:{' '}
+                      <strong>
+                        {taxSettings.lutNumber
+                          ? `Under LUT ARN: ${taxSettings.lutNumber}`
+                          : 'NO LUT RECORDED - zero-rating cannot be claimed'}
+                      </strong>
+                      <br />
                       &bull; Statutory Section: <strong>16(3) IGST Act</strong>
                     </div>
                   </div>
@@ -3104,14 +3125,29 @@ export default function AdminDashboardPage() {
                 <div style={{ fontWeight: 800, color: '#0F172A', marginBottom: '6px', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.05em' }}>
                   Supplier / Service Provider
                 </div>
-                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0F172A' }}>{taxSettings.legalBusinessName || 'Hostmattic Technologies'}</div>
+                {/*
+                  * Statutory identity. These fell back to an invented legal
+                  * name, a Kochi address and the GSTIN 32AABCO1234F1Z5 - a
+                  * number belonging to nobody, printed on a tax invoice. A
+                  * missing field is now obvious rather than plausible.
+                  */}
+                <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0F172A' }}>
+                  {taxSettings.legalBusinessName || <NotConfigured label="legal business name" />}
+                </div>
                 <div style={{ color: '#64748B', marginTop: '4px', lineHeight: 1.4 }}>
-                  {taxSettings.registeredAddress || 'Building 4B, Infopark Technology Hub'}<br />
-                  {taxSettings.city || 'Kochi'}, {taxSettings.state || 'Kerala'} - State Code: <strong>{taxSettings.stateCode || '32'}</strong>
+                  {taxSettings.registeredAddress || <NotConfigured label="registered address" />}<br />
+                  {taxSettings.city}
+                  {taxSettings.city && taxSettings.state ? ', ' : ''}
+                  {taxSettings.state}
+                  {taxSettings.stateCode ? (
+                    <> - State Code: <strong>{taxSettings.stateCode}</strong></>
+                  ) : (
+                    <> <NotConfigured label="state" /></>
+                  )}
                 </div>
                 <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #CBD5E1' }}>
-                  <div><strong>GSTIN:</strong> <span style={{ fontFamily: 'monospace' }}>{taxSettings.sellerGstin || '32AABCO1234F1Z5'}</span></div>
-                  <div><strong>PAN:</strong> <span style={{ fontFamily: 'monospace' }}>{taxSettings.panNumber || 'AABCO1234F'}</span></div>
+                  <div><strong>GSTIN:</strong> <span style={{ fontFamily: 'monospace' }}>{taxSettings.sellerGstin || <NotConfigured label="GSTIN" />}</span></div>
+                  <div><strong>PAN:</strong> <span style={{ fontFamily: 'monospace' }}>{taxSettings.panNumber || <NotConfigured label="PAN" />}</span></div>
                 </div>
               </div>
 
@@ -3126,7 +3162,7 @@ export default function AdminDashboardPage() {
                 <div style={{ color: '#64748B', marginTop: '4px', lineHeight: 1.4 }}>
                   {selectedAdminInvoice.billingAddress ? `${selectedAdminInvoice.billingAddress}, ` : ''}
                   {selectedAdminInvoice.billingCity ? `${selectedAdminInvoice.billingCity}, ` : ''}
-                  {selectedAdminInvoice.billingState || 'Kerala'} - Country: {selectedAdminInvoice.billingCountry || (selectedAdminInvoice.currency === 'INR' ? 'IN' : 'US')}
+                  {selectedAdminInvoice.billingState || <NotConfigured label="billing state" />} - Country: {selectedAdminInvoice.billingCountry || (selectedAdminInvoice.currency === 'INR' ? 'IN' : 'US')}
                 </div>
                 <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #CBD5E1' }}>
                   {selectedAdminInvoice.customerGstin ? (
@@ -3138,7 +3174,7 @@ export default function AdminDashboardPage() {
                       <strong>Status:</strong> Unregistered Buyer (B2C)
                     </div>
                   )}
-                  <div><strong>Place of Supply:</strong> {selectedAdminInvoice.placeOfSupply || `${taxSettings.stateCode || '32'}-${taxSettings.state || 'Kerala'}`}</div>
+                  <div><strong>Place of Supply:</strong> {selectedAdminInvoice.placeOfSupply || <NotConfigured label="place of supply" />}</div>
                 </div>
               </div>
             </div>
