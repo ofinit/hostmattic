@@ -22,6 +22,13 @@
 import { prisma } from '@/lib/prisma';
 import { registerDomain, transferDomain } from '@/lib/api/domains';
 import { provisionHosting } from '@/lib/api/hosting';
+import { sendEmail } from '@/lib/email/resend';
+import { notifyAdmins } from '@/lib/email/notify';
+import {
+  generateServiceActivatedEmail,
+  generateActivationDelayedEmail,
+  generateAdminFulfilmentFailedEmail,
+} from '@/lib/email/lifecycle';
 
 export interface FulfilmentResult {
   orderNumber: string;
@@ -51,7 +58,7 @@ async function upstreamCustomerId(userId: string): Promise<string | null> {
 export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true },
+    include: { items: true, user: { select: { name: true, email: true } } },
   });
 
   if (!order) throw new Error('Order not found.');
@@ -166,6 +173,21 @@ export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
         status: 'PROVISIONED',
         upstreamOrderId: upstreamId || undefined,
       });
+
+      // What the customer needs next differs by product, so this is sent per
+      // line rather than once per order.
+      if (order.user?.email) {
+        const mail = generateServiceActivatedEmail({
+          customerName: order.user.name || 'there',
+          productType: item.productType || '',
+          description: item.description,
+          domainName: item.domainName || undefined,
+          orderNumber: order.orderNumber,
+        });
+        sendEmail({ to: order.user.email, subject: mail.subject, html: mail.html }).catch((e) =>
+          console.warn('[Fulfilment] activation email failed:', e?.message)
+        );
+      }
     } catch (err: any) {
       const message = err?.message || 'Provisioning threw an unexpected error.';
       await markFailed(item.id, message);
@@ -190,6 +212,31 @@ export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
     console.error(
       `[Fulfilment] ${order.orderNumber}: ${result.failed} line(s) failed after payment was taken. ` +
         'These are owed to the customer and need an administrator.'
+    );
+
+    const failures = result.lines.filter((l) => l.status === 'FAILED');
+
+    // The customer has paid for something they have not received. Silence is
+    // the worst of the options available.
+    if (order.user?.email) {
+      const mail = generateActivationDelayedEmail({
+        customerName: order.user.name || 'there',
+        orderNumber: order.orderNumber,
+        descriptions: failures.map((f) => f.description),
+      });
+      sendEmail({ to: order.user.email, subject: mail.subject, html: mail.html }).catch((e) =>
+        console.warn('[Fulfilment] delay email failed:', e?.message)
+      );
+    }
+
+    await notifyAdmins(
+      generateAdminFulfilmentFailedEmail({
+        orderNumber: order.orderNumber,
+        customerEmail: order.user?.email || 'unknown',
+        failures: failures.map((f) => ({ description: f.description, error: f.error })),
+        amount: order.totalAmount,
+        currency: order.currency,
+      })
     );
   }
 

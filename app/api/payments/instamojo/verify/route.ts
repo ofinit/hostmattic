@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendEmail } from '@/lib/email/resend';
+import { generatePaymentReceivedEmail } from '@/lib/email/lifecycle';
 import { instamojoService } from '@/lib/services/instamojo';
 import { lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { fulfilOrder } from '@/lib/services/fulfilment';
@@ -69,6 +71,7 @@ export async function POST(req: NextRequest) {
       },
       include: {
         items: true,
+        user: { select: { name: true, email: true } },
       },
     });
 
@@ -79,6 +82,28 @@ export async function POST(req: NextRequest) {
     // Payment confirmed, so the services are now owed. A provisioning failure
     // must not fail the payment: the lines are marked FAILED and the order
     // stays AWAITING_FULFILMENT for an administrator to retry.
+
+    // Sent here, not at checkout. The original receipt went out before the
+    // payment window had even opened, so it confirmed a payment that had not
+    // happened.
+    try {
+      const recipient = updatedOrder.user?.email;
+      if (recipient) {
+        const mail = generatePaymentReceivedEmail({
+          orderNumber: updatedOrder.orderNumber,
+          customerName: updatedOrder.user?.name || 'there',
+          totalAmount: updatedOrder.totalAmount,
+          currency: updatedOrder.currency,
+          paymentMethod: updatedOrder.paymentMethod || undefined,
+          gatewayPaymentId: updatedOrder.gatewayPaymentId || undefined,
+        });
+        sendEmail({ to: recipient, subject: mail.subject, html: mail.html }).catch((e) =>
+          console.warn('[Payment] receipt email failed:', e?.message)
+        );
+      }
+    } catch (mailErr: any) {
+      console.warn('[Payment] receipt email error:', mailErr?.message);
+    }
     let fulfilment = null;
     try {
       fulfilment = await fulfilOrder(order.id);

@@ -5,7 +5,6 @@ import { repriceCart } from '@/lib/services/cartPricing';
 import { nextInvoiceNumber } from '@/lib/services/invoiceNumber';
 import { validateCurrencyMatch, lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { requireAuth } from '@/lib/auth';
-import { sendEmail, generateOrderReceiptEmail } from '@/lib/email/resend';
 
 export const dynamic = 'force-dynamic';
 
@@ -309,32 +308,9 @@ export async function POST(req: NextRequest) {
       console.warn('[Checkout DB Notice] DB logging bypassed in preview:', dbErr);
     }
 
-    // Send Transactional Order Confirmation Email via Resend
-    const recipientEmail = customer?.email || session?.email;
-    if (recipientEmail) {
-      try {
-        const emailContent = generateOrderReceiptEmail({
-          orderNumber,
-          customerName: customer?.name || session?.name || 'Valued Customer',
-          items: items.map((it: any) => ({
-            description: it.name || it.domainName || 'Hostmattic Cloud Service',
-            price: Number(it.price) || 0,
-            billingPeriod: it.period || 'ANNUAL',
-          })),
-          totalAmount: Number(totalAmount) || 0,
-          currency: currency || 'USD',
-          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://hostmattic.com'}/client/dashboard`,
-        });
-
-        sendEmail({
-          to: recipientEmail,
-          subject: emailContent.subject,
-          html: emailContent.html,
-        }).catch((e) => console.warn('[Order Email Dispatch Warning]', e));
-      } catch (mailErr) {
-        console.warn('[Order Mail Notice]', mailErr);
-      }
-    }
+    // No email is sent here. The order is unpaid at this point - the payment
+    // window has not even opened - so a "receipt" would confirm a payment that
+    // has not happened. The verified-payment path sends it instead.
 
     return NextResponse.json({
       success: true,

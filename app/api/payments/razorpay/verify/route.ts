@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendEmail } from '@/lib/email/resend';
+import { generatePaymentReceivedEmail } from '@/lib/email/lifecycle';
 import { fulfilOrder } from '@/lib/services/fulfilment';
 import { razorpayService } from '@/lib/services/razorpay';
 import { lockCustomerCurrency } from '@/lib/services/currencyLock';
@@ -91,6 +93,7 @@ export async function POST(req: NextRequest) {
       },
       include: {
         items: true,
+        user: { select: { name: true, email: true } },
       },
     });
 
@@ -105,6 +108,28 @@ export async function POST(req: NextRequest) {
     // A failure must not fail the payment - the money is taken and the order
     // is real. The lines are marked FAILED, the order becomes
     // AWAITING_FULFILMENT and an administrator can retry.
+
+    // Sent here, not at checkout. The original receipt went out before the
+    // payment window had even opened, so it confirmed a payment that had not
+    // happened.
+    try {
+      const recipient = updatedOrder.user?.email;
+      if (recipient) {
+        const mail = generatePaymentReceivedEmail({
+          orderNumber: updatedOrder.orderNumber,
+          customerName: updatedOrder.user?.name || 'there',
+          totalAmount: updatedOrder.totalAmount,
+          currency: updatedOrder.currency,
+          paymentMethod: updatedOrder.paymentMethod || undefined,
+          gatewayPaymentId: updatedOrder.gatewayPaymentId || undefined,
+        });
+        sendEmail({ to: recipient, subject: mail.subject, html: mail.html }).catch((e) =>
+          console.warn('[Payment] receipt email failed:', e?.message)
+        );
+      }
+    } catch (mailErr: any) {
+      console.warn('[Payment] receipt email error:', mailErr?.message);
+    }
     let fulfilment = null;
     try {
       fulfilment = await fulfilOrder(order.id);

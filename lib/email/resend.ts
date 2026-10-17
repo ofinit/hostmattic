@@ -107,6 +107,13 @@ export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
 // BRANDED EMAIL TEMPLATES
 // ============================================================================
 
+/**
+ * The shared branded shell. Exported so lifecycle.ts renders inside the same
+ * wrapper rather than growing a second, slightly different house style.
+ */
+export const renderEmail = (content: string, preheader: string = '') =>
+  getEmailBaseWrapper(content, preheader);
+
 const getEmailBaseWrapper = (content: string, preheader: string = '') => `
 <!DOCTYPE html>
 <html>

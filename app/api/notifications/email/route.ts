@@ -7,7 +7,7 @@ import {
   generateTicketReplyEmail,
   generatePasswordResetEmail,
 } from '@/lib/email/resend';
-import { requireAuth } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +15,15 @@ export const dynamic = 'force-dynamic';
  * GET /api/notifications/email
  * Check email dispatch configuration & telemetry
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // The import was present but the guard was never called, so this route was
+  // protected only by middleware - which requires a session, not an
+  // administrator. Any signed-in customer could read the mail configuration
+  // and, through POST below, send arbitrary HTML from this domain to any
+  // address: an open relay backed by our sending reputation.
+  const session = requireAdmin(req);
+  if (session instanceof NextResponse) return session;
+
   const { isConfigured, fromEmail } = getResendConfig();
 
   return NextResponse.json({
@@ -39,6 +47,9 @@ export async function GET() {
  * Send transactional email notification
  */
 export async function POST(req: NextRequest) {
+  const session = requireAdmin(req);
+  if (session instanceof NextResponse) return session;
+
   try {
     const body = await req.json();
     const { type = 'CUSTOM', to, ...data } = body;
