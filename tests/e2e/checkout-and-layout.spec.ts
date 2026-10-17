@@ -30,9 +30,9 @@ async function openDrawerWithItem(page: Page) {
   await inputs.nth(0).fill('hotice.co.in');
   await inputs.nth(1).fill('TEST-EPP-CODE-0000');
 
-  const button = page.getByRole('button', { name: /Transfer for \$|Initiate Domain Transfer/ });
+  const button = page.getByRole('button', { name: /Transfer for [₹$]|Initiate Domain Transfer/ });
   await expect
-    .poll(async () => (await button.innerText()).includes('Transfer for $'), { timeout: 20_000 })
+    .poll(async () => /Transfer for [₹$]/.test(await button.innerText()), { timeout: 20_000 })
     .toBe(true);
 
   await button.click();

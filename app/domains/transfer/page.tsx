@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import EnterpriseGuarantee from '@/components/EnterpriseGuarantee';
 import { useCart } from '@/components/CartContext';
+import { useCurrency } from '@/components/CurrencyContext';
 
 /**
  * Longest-suffix match, so hotice.co.in prices as .co.in rather than .in.
@@ -23,6 +24,9 @@ function DomainTransferForm() {
   const [domain, setDomain] = useState('');
   const [authCode, setAuthCode] = useState('');
   const { addItem } = useCart();
+  // The rest of the storefront prices through this; the transfer button was
+  // formatting a dollar sign by hand and ignoring the selected currency.
+  const { formatPrice } = useCurrency();
   const [submitting, setSubmitting] = useState(false);
 
   // Transfer used to be a flat $7.99 for every extension. That was roughly 11%
@@ -224,7 +228,7 @@ function DomainTransferForm() {
                 {submitting
                   ? 'Adding Transfer to Cart...'
                   : canTransfer
-                  ? `Transfer for $${transferUsd.toFixed(2)}/yr →`
+                  ? `Transfer for ${formatPrice(transferUsd)}/yr →`
                   : 'Initiate Domain Transfer →'}
               </button>
             </form>

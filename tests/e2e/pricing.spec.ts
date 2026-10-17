@@ -132,19 +132,25 @@ test('the transfer page quotes the same price the catalogue holds', async ({ pag
   await page.goto('/domains/transfer', { waitUntil: 'networkidle' });
   await page.getByRole('textbox').first().fill('hotice.co.in');
 
-  const button = page.getByRole('button', { name: /Transfer for \$|Initiate Domain Transfer/ });
+  const button = page.getByRole('button', { name: /Transfer for [₹$]|Initiate Domain Transfer/ });
   await expect(button).toBeVisible();
   await expect
     .poll(async () => (await button.innerText()).trim(), { timeout: 20_000 })
-    .toMatch(/Transfer for \$\d+\.\d{2}\/yr/);
+    // USD renders two decimals, INR whole rupees - the button follows whichever
+    // currency the visitor has chosen, so neither is assumed here.
+    .toMatch(/Transfer for [₹$][\d,]+(\.\d{2})?\/yr/);
 
-  const usd = Number((await button.innerText()).match(/\$(\d+\.\d{2})/)?.[1] || 0);
-  const quotedInr = usd * USD_INR;
+  const label = await button.innerText();
+  const inrMatch = label.match(/₹([\d,]+)/);
+  const usdMatch = label.match(/\$(\d+\.\d{2})/);
+  const quotedInr = inrMatch
+    ? Number(inrMatch[1].replace(/,/g, ''))
+    : Number(usdMatch?.[1] || 0) * USD_INR;
 
   // Within rounding of the INR -> USD -> INR trip.
   expect(
     Math.abs(quotedInr - expectedInr) <= 5,
-    `page quotes $${usd} (~Rs${Math.round(quotedInr)}), catalogue holds Rs${expectedInr}`
+    `page quotes ${label.trim()} (~Rs${Math.round(quotedInr)}), catalogue holds Rs${expectedInr}`
   ).toBe(true);
 });
 
