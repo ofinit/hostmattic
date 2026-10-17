@@ -26,6 +26,16 @@ const MIGRATION_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS "OrderItem_provisionStatus_idx" ON "OrderItem" ("provisionStatus")`,
 
   // Consecutive invoice numbering, per financial year.
+  `CREATE TABLE IF NOT EXISTS "ReminderSent" (
+    "id" TEXT PRIMARY KEY,
+    "entityType" TEXT NOT NULL,
+    "entityId" TEXT NOT NULL,
+    "dayBucket" INTEGER NOT NULL,
+    "recipient" TEXT NOT NULL,
+    "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ReminderSent_unique" ON "ReminderSent" ("entityType", "entityId", "dayBucket")`,
+
   `CREATE TABLE IF NOT EXISTS "InvoiceSeries" (
     "id" TEXT PRIMARY KEY,
     "lastNumber" INTEGER NOT NULL DEFAULT 0,

@@ -102,6 +102,23 @@ model PaymentGateway {
 /// One row per financial year, holding the last invoice serial issued.
 /// Rule 46(b) requires invoice numbers to be consecutive and unique within a
 /// financial year; this is what makes them so.
+/// One row per reminder actually sent, so a cron that runs more than once a
+/// day - or is retried after a partial failure - cannot email the same
+/// customer about the same service twice.
+model ReminderSent {
+  id          String   @id @default(cuid())
+  /// "DOMAIN" | "HOSTING"
+  entityType  String
+  entityId    String
+  /// The reminder bucket in days before expiry: 30, 14, 7, 1, or 0 on the day.
+  dayBucket   Int
+  recipient   String
+  sentAt      DateTime @default(now())
+
+  @@unique([entityType, entityId, dayBucket])
+  @@index([sentAt])
+}
+
 model InvoiceSeries {
   /// The financial year, e.g. "2026-27".
   id         String   @id

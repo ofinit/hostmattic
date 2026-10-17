@@ -38,6 +38,11 @@ const PUBLIC_ROUTES = [
   // the admin-only diagnostics route.
   '/api/hosting/pricing',
   '/api/payments/methods',
+
+  // The reminder scheduler has no session - it is a cron caller - so it
+  // authenticates with CRON_SECRET in the route itself and would otherwise be
+  // rejected here for having no cookie.
+  '/api/cron/',
 ];
 
 // Routes that require ADMIN role

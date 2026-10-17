@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { notifyAdmins } from '@/lib/email/notify';
+import { generateAdminNewTicketEmail } from '@/lib/email/lifecycle';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/auth';
 
@@ -65,6 +67,20 @@ export async function POST(req: NextRequest) {
         ],
       };
     }
+
+    // The response has always claimed the team was notified. Until now nothing
+    // was sent, so a ticket sat unread until someone happened to open the
+    // console.
+    await notifyAdmins(
+      generateAdminNewTicketEmail({
+        ticketNumber,
+        customerName: session?.name || 'Customer',
+        customerEmail: session?.email || 'unknown',
+        subject,
+        priority,
+        message,
+      })
+    );
 
     return NextResponse.json({
       success: true,
