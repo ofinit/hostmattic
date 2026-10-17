@@ -76,6 +76,7 @@ export default function AdminDashboardPage() {
   // down, so a useState below it runs on some renders and not others, which
   // is React error #310.
   const [retryingOrderId, setRetryingOrderId] = useState<string | null>(null);
+  const [refreshingPricing, setRefreshingPricing] = useState(false);
 
   // Pagination states
   const [customerPage, setCustomerPage] = useState(1);
@@ -506,6 +507,34 @@ export default function AdminDashboardPage() {
    * the service is owed; this is how it gets delivered rather than sitting
    * unnoticed.
    */
+  /**
+   * Publish a price change made in the reseller panel immediately.
+   *
+   * Prices are cached for five minutes so that every page view does not call
+   * upstream. That is the right default for visitors and the wrong one for
+   * whoever has just changed a price and wants to see it.
+   */
+  const refreshPricing = async () => {
+    setRefreshingPricing(true);
+    try {
+      const res = await fetch('/api/admin/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'refresh-pricing' }),
+      });
+      const text = await res.text();
+      const json = text ? JSON.parse(text) : null;
+      setSyncNotice({
+        type: json?.success ? 'success' : 'error',
+        message: json?.message || json?.error || 'Could not refresh pricing.',
+      });
+    } catch {
+      setSyncNotice({ type: 'error', message: 'Could not refresh pricing.' });
+    } finally {
+      setRefreshingPricing(false);
+    }
+  };
+
   const retryFulfilment = async (orderId: string) => {
     setRetryingOrderId(orderId);
     try {
@@ -775,6 +804,28 @@ export default function AdminDashboardPage() {
             >
               <span className={syncingUpstream ? 'spinner-inline' : ''}>🔄</span>
               <span>{syncingUpstream ? 'Syncing...' : 'Sync Live Upstream'}</span>
+            </button>
+            <button
+              onClick={refreshPricing}
+              disabled={refreshingPricing}
+              title="Re-read prices from the reseller panel now, without waiting for the cache to lapse"
+              style={{
+                background: 'rgba(41, 180, 213, 0.15)',
+                border: '1px solid rgba(41, 180, 213, 0.35)',
+                color: '#29B4D5',
+                padding: '6px 14px',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: refreshingPricing ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.2s',
+              }}
+            >
+              <span className={refreshingPricing ? 'spinner-inline' : ''}>💲</span>
+              <span>{refreshingPricing ? 'Refreshing...' : 'Refresh pricing'}</span>
             </button>
             <Link
               href="/client/dashboard"

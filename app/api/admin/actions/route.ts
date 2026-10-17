@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { isLiveApiConfigured, apiClient } from '@/lib/api/client';
 import { fulfilOrder } from '@/lib/services/fulfilment';
+import { clearDomainPricingCache, getLiveDomainPricing } from '@/lib/api/pricing';
+import { clearHostingPricingCache, getLiveHostingPricing } from '@/lib/api/hostingPricing';
 
 export const dynamic = 'force-dynamic';
 
@@ -78,6 +80,31 @@ export async function POST(req: NextRequest) {
     //
     // Guards: never an ADMIN, never yourself, and never an account that still
     // holds services or billing history unless the caller explicitly forces it.
+    // Publish a price change made in the reseller panel straight away, rather
+    // than waiting out the cache. Prices are cached for five minutes so that
+    // every page view does not call upstream; when someone has just changed a
+    // price they should not have to wait for that to lapse.
+    if (action === 'refresh-pricing') {
+      clearDomainPricingCache();
+      clearHostingPricingCache();
+
+      // Re-read immediately so the next visitor does not pay the fetch cost,
+      // and so the response can confirm what upstream now says.
+      const [domains, hosting] = await Promise.all([
+        getLiveDomainPricing(),
+        getLiveHostingPricing(),
+      ]);
+
+      console.log(`[Hostmattic] PRICING REFRESH by ${session.email}`);
+
+      return NextResponse.json({
+        success: true,
+        message: `Pricing refreshed: ${Object.keys(domains).length} extensions, ${Object.keys(hosting).length} product families.`,
+        extensions: Object.keys(domains).length,
+        families: Object.keys(hosting).length,
+      });
+    }
+
     // Retry a paid order whose provisioning failed. The money is already
     // taken, so the service is owed; this is the path that settles it rather
     // than leaving the customer waiting on a line nobody can see.

@@ -122,7 +122,13 @@ const STATIC_FALLBACK_PRICING: Record<string, TldPricingInfo> = {
 // In-memory cache with 1-hour TTL
 let pricingCache: Record<string, TldPricingInfo> | null = null;
 let cacheExpiry: number = 0;
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+// Five minutes, not an hour. Prices are changed deliberately in the reseller
+// panel and the person doing it expects to see the result, not to wait out a
+// cache. Three upstream calls every five minutes per container is negligible
+// against being an hour out of date.
+//
+// Admin -> Refresh pricing clears this immediately when the wait still matters.
+const CACHE_TTL_MS = 5 * 60 * 1000;
 const USD_INR_RATE = 83.5;
 
 /**
@@ -328,4 +334,14 @@ export async function getPricingForTld(tld: string): Promise<TldPricingInfo> {
     retailUsd: 12.99,
     isPromo: false,
   };
+}
+
+
+/**
+ * Drops the cached domain prices so the next request reads upstream again.
+ * Used by the admin refresh action after a price change in the panel.
+ */
+export function clearDomainPricingCache(): void {
+  pricingCache = null;
+  cacheExpiry = 0;
 }

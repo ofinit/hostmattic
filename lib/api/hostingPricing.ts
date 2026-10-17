@@ -43,7 +43,9 @@
 import { apiClient, isLiveApiConfigured } from './client';
 
 const USD_INR_RATE = 83.5;
-const CACHE_TTL_MS = 15 * 60 * 1000;
+// Matches the domain pricing TTL, for the same reason: a price changed in the
+// panel should appear in minutes, not after a quarter of an hour.
+const CACHE_TTL_MS = 5 * 60 * 1000;
 
 export interface PlanPricing {
   planId: string;
@@ -357,6 +359,17 @@ export async function getSellablePlan(
 
 /** Clears the in-process caches. Used by the regression tests only. */
 export function __resetForTests(): void {
+  cache = null;
+  cacheExpiry = 0;
+  planDetailCache.clear();
+}
+
+
+/**
+ * Drops the cached plan prices and plan-name lookups so the next request reads
+ * upstream again. Used by the admin refresh action.
+ */
+export function clearHostingPricingCache(): void {
   cache = null;
   cacheExpiry = 0;
   planDetailCache.clear();
