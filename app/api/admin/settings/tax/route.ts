@@ -4,18 +4,29 @@ import { requireAdmin } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
+// Statutory identity is NEVER defaulted.
+//
+// These previously carried a GSTIN (32AABCO1234F1Z5), a PAN, a Kochi address
+// and "Kerala" as the seller's state, none of which belong to the registered
+// company. They were served whenever the database was unreachable, and the
+// admin route seeded them into a fresh database, so an invoice could carry a
+// tax number belonging to nobody under a name that is not the legal entity.
+//
+// Only the genuinely general values are defaulted: the GST rate and the SAC
+// code. Everything that identifies the seller is blank until configured, and
+// the invoice renders a blank one as visibly unset rather than plausible.
 const DEFAULT_TAX_SETTINGS = {
   id: 'default_tax_settings',
   gstRate: 18.0,
-  legalBusinessName: 'Hostmattic Technologies / OfinIT Solutions',
-  sellerGstin: '32AABCO1234F1Z5',
-  registeredAddress: 'Building 4B, Infopark Technology Hub',
-  city: 'Kochi',
-  state: 'Kerala',
-  stateCode: '32',
-  panNumber: 'AABCO1234F',
+  legalBusinessName: '',
+  sellerGstin: '',
+  registeredAddress: '',
+  city: '',
+  state: '',
+  stateCode: '',
+  panNumber: '',
   defaultSacCode: '998315',
-  lutNumber: 'LUT/AD320324001928K',
+  lutNumber: '',
   usdGstPolicy: 'LUT_EXPORT', // 'LUT_EXPORT' (0% with LUT) or 'APPLY_GST'
 };
 
@@ -88,8 +99,11 @@ export async function POST(req: NextRequest) {
       sellerGstin: sellerGstin?.trim().toUpperCase() || '',
       registeredAddress: registeredAddress?.trim() || '',
       city: city?.trim() || '',
-      state: state?.trim() || 'Kerala',
-      stateCode: stateCode?.trim() || '32',
+      // No fallback: the seller's state decides intra-state against
+      // inter-state on every Indian invoice, and Kerala was not even the
+      // right state for this company.
+      state: state?.trim() || '',
+      stateCode: stateCode?.trim() || '',
       panNumber: panNumber?.trim().toUpperCase() || '',
       defaultSacCode: defaultSacCode?.trim() || '998315',
       lutNumber: lutNumber?.trim() || '',

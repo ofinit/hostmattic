@@ -60,14 +60,14 @@ export default function AdminDashboardPage() {
   const [taxSettings, setTaxSettings] = useState<any>({
     gstRate: 18.0,
     legalBusinessName: 'Hostmattic Technologies / OfinIT Solutions',
-    sellerGstin: '32AABCO1234F1Z5',
+    sellerGstin: '',
     registeredAddress: 'Building 4B, Infopark Technology Hub',
     city: 'Kochi',
-    state: 'Kerala',
-    stateCode: '32',
-    panNumber: 'AABCO1234F',
+    state: '',
+    stateCode: '',
+    panNumber: '',
     defaultSacCode: '998315',
-    lutNumber: 'LUT/AD320324001928K',
+    lutNumber: '',
     usdGstPolicy: 'LUT_EXPORT',
   });
   const [savingTaxSettings, setSavingTaxSettings] = useState(false);
@@ -2783,7 +2783,7 @@ export default function AdminDashboardPage() {
               <div style={{ background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px', padding: '20px' }}>
                 <div style={{ fontSize: '0.8rem', color: '#94A3B8', fontWeight: 600 }}>Registered State &amp; Code</div>
                 <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#FFFFFF', marginTop: '6px' }}>
-                  {taxSettings.state || 'Kerala'} ({taxSettings.stateCode || '32'})
+                  {taxSettings.state || <NotConfigured label="state" />} ({taxSettings.stateCode || '--'})
                 </div>
                 <div style={{ fontSize: '0.72rem', color: '#94A3B8', marginTop: '4px' }}>Intra-state threshold base</div>
               </div>
@@ -2866,14 +2866,14 @@ export default function AdminDashboardPage() {
                       Registered Home State (Base) *
                     </label>
                     <select
-                      value={taxSettings.stateCode || '32'}
+                      value={taxSettings.stateCode || ''}
                       onChange={(e) => {
                         const code = e.target.value;
                         const match = GST_STATES.find((s) => s.code === code);
                         setTaxSettings({
                           ...taxSettings,
                           stateCode: code,
-                          state: match ? match.name : 'Kerala',
+                          state: match ? match.name : '',
                         });
                       }}
                       className="form-select"

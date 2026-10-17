@@ -6,6 +6,19 @@ import { useRouter } from 'next/navigation';
 import { useCurrency } from '@/components/CurrencyContext';
 import { useCart } from '@/components/CartContext';
 
+/**
+ * Marks a statutory field nobody has configured. An invoice is a legal
+ * document, so a missing tax number must be obviously missing rather than a
+ * plausible-looking placeholder.
+ */
+function NotConfigured({ label }: { label: string }) {
+  return (
+    <span style={{ color: '#DC2626', fontWeight: 700 }} title={`No ${label} is configured`}>
+      [{label.toUpperCase()} NOT SET]
+    </span>
+  );
+}
+
 export default function ClientDashboard() {
   const router = useRouter();
   const { formatPrice, currency } = useCurrency();
@@ -18,14 +31,14 @@ export default function ClientDashboard() {
   const [selectedRenewalModal, setSelectedRenewalModal] = useState<any | null>(null);
   const [taxSettings, setTaxSettings] = useState<any>({
     legalBusinessName: 'Hostmattic Technologies / OfinIT Solutions',
-    sellerGstin: '32AABCO1234F1Z5',
-    panNumber: 'AABCO1234F',
+    sellerGstin: '',
+    panNumber: '',
     registeredAddress: 'Building 4B, Infopark Technology Hub',
     city: 'Kochi',
-    state: 'Kerala',
-    stateCode: '32',
+    state: '',
+    stateCode: '',
     defaultSacCode: '998315',
-    lutNumber: 'LUT/AD320324001928K',
+    lutNumber: '',
   });
 
   useEffect(() => {
@@ -3225,11 +3238,15 @@ export default function ClientDashboard() {
                 <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#0F172A' }}>{taxSettings.legalBusinessName || 'Hostmattic Technologies'}</div>
                 <div style={{ color: '#64748B', marginTop: '4px', lineHeight: 1.4 }}>
                   {taxSettings.registeredAddress || 'Building 4B, Infopark Technology Hub'}<br />
-                  {taxSettings.city || 'Kochi'}, {taxSettings.state || 'Kerala'} &bull; State Code: <strong>{taxSettings.stateCode || '32'}</strong>
+                  {taxSettings.city}
+                  {taxSettings.city && taxSettings.state ? ', ' : ''}
+                  {taxSettings.state || <NotConfigured label="state" />} &bull; State Code:{' '}
+                  <strong>{taxSettings.stateCode || '--'}</strong>
                 </div>
                 <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed #CBD5E1' }}>
-                  <div><strong>GSTIN:</strong> <span style={{ fontFamily: 'monospace' }}>{taxSettings.sellerGstin || '32AABCO1234F1Z5'}</span></div>
-                  <div><strong>PAN:</strong> <span style={{ fontFamily: 'monospace' }}>{taxSettings.panNumber || 'AABCO1234F'}</span></div>
+                  {/* An unset tax number must look unset, not plausible. */}
+                  <div><strong>GSTIN:</strong> <span style={{ fontFamily: 'monospace' }}>{taxSettings.sellerGstin || <NotConfigured label="GSTIN" />}</span></div>
+                  <div><strong>PAN:</strong> <span style={{ fontFamily: 'monospace' }}>{taxSettings.panNumber || <NotConfigured label="PAN" />}</span></div>
                 </div>
               </div>
 
@@ -3280,7 +3297,7 @@ export default function ClientDashboard() {
                       <strong>Customer Type:</strong> Individual / Retail Consumer (B2C)
                     </div>
                   )}
-                  <div><strong>Place of Supply:</strong> {viewInvoice.placeOfSupply || `${taxSettings.stateCode || '32'}-${taxSettings.state || 'Kerala'}`}</div>
+                  <div><strong>Place of Supply:</strong> {viewInvoice.placeOfSupply || <NotConfigured label="place of supply" />}</div>
                 </div>
               </div>
             </div>

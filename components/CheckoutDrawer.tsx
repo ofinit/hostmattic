@@ -1258,7 +1258,7 @@ export default function CheckoutDrawer() {
                         <span>{currency === 'INR' ? '₹0.00' : '$0.00'}</span>
                       </div>
                       <div style={{ fontSize: '0.68rem', marginTop: '2px' }}>
-                        🌍 Billing: {selectedCountry.name} &bull; Zero-Rated Export under LUT ({taxSettings?.lutNumber || 'LUT/2026-27/001'}).
+                        🌍 Billing: {selectedCountry.name} &bull; Zero-Rated Export{taxSettings?.lutNumber ? ` under LUT ${taxSettings.lutNumber}` : ' — LUT reference not recorded'}.
                       </div>
                     </div>
                   ) : (

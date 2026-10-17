@@ -102,15 +102,16 @@ model PaymentGateway {
 model TaxSetting {
   id                   String   @id @default("default_tax_settings")
   gstRate              Float    @default(18.0)
-  legalBusinessName    String   @default("Hostmattic Technologies / OfinIT Solutions")
+  // Statutory identity is blank until configured; see app/api/tax/settings.
+  legalBusinessName    String   @default("")
   sellerGstin          String   @default("")
   registeredAddress    String   @default("")
   city                 String   @default("")
-  state                String   @default("Kerala")
-  stateCode            String   @default("32")
+  state                String   @default("")
+  stateCode            String   @default("")
   panNumber            String   @default("")
   defaultSacCode       String   @default("998315")
-  lutNumber            String   @default("LUT/2026-27/001")
+  lutNumber            String   @default("")
   usdGstPolicy         String   @default("LUT_EXPORT") // "LUT_EXPORT" (0% with LUT) or "APPLY_GST"
   updatedAt            DateTime @updatedAt
 }

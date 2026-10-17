@@ -54,7 +54,10 @@ export default function FullCheckoutPage() {
 
   // Billing Profile States & Country-State Mapping
   const [billingCountry, setBillingCountry] = useState(currency === 'INR' ? 'IN' : 'US');
-  const [billingStateCode, setBillingStateCode] = useState(currency === 'INR' ? '32' : 'CA');
+  // Nothing preselected. Place of supply decides CGST+SGST against IGST, so
+  // defaulting it to the seller's own state billed out-of-state customers
+  // the wrong tax. Same fault as the checkout drawer had.
+  const [billingStateCode, setBillingStateCode] = useState('');
   const [customStateText, setCustomStateText] = useState('');
 
   // Automatically enforce method and default country according to currency
@@ -63,7 +66,7 @@ export default function FullCheckoutPage() {
       setPaymentMethod('razorpay_card');
       if (billingCountry === 'IN') {
         setBillingCountry('US');
-        setBillingStateCode('CA');
+        setBillingStateCode('');
       }
     } else {
       if (paymentMethod === 'razorpay_card') {
@@ -71,7 +74,7 @@ export default function FullCheckoutPage() {
       }
       if (billingCountry !== 'IN') {
         setBillingCountry('IN');
-        setBillingStateCode('32');
+        setBillingStateCode('');
       }
     }
   }, [currency]);
@@ -109,7 +112,9 @@ export default function FullCheckoutPage() {
 
   let selectedState = { code: billingStateCode, name: billingStateCode };
   if (isIndianBuyer) {
-    selectedState = GST_STATES.find((s) => s.code === billingStateCode) || { code: '32', name: 'Kerala' };
+    // No match means nothing has been chosen yet; falling back to the
+    // seller's state is what produced Kerala invoices for Delhi customers.
+    selectedState = GST_STATES.find((s) => s.code === billingStateCode) || { code: '', name: '' };
   } else if (countryStates.length > 0) {
     const matched = countryStates.find((s) => s.code === billingStateCode);
     selectedState = matched || { code: billingStateCode, name: billingStateCode };
@@ -687,10 +692,9 @@ export default function FullCheckoutPage() {
                           const newCountry = e.target.value;
                           setBillingCountry(newCountry);
                           const states = getCountryStates(newCountry);
-                          if (newCountry === 'IN') {
-                            setBillingStateCode('32');
-                          } else if (states.length > 0) {
-                            setBillingStateCode(states[0].code);
+                          if (states.length > 0) {
+                            // Cleared, never defaulted.
+                            setBillingStateCode('');
                           } else {
                             setBillingStateCode('OTHER');
                             setCustomStateText('');
@@ -1138,7 +1142,7 @@ export default function FullCheckoutPage() {
                             <span>{currency === 'INR' ? '₹0.00' : '$0.00'}</span>
                           </div>
                           <div style={{ fontSize: '0.7rem', color: '#64748B' }}>
-                            🌍 Billing: {selectedCountry.name} &bull; Zero-Rated Export under LUT ({taxSettings?.lutNumber || 'LUT/2026-27/001'}) without payment of IGST.
+                            🌍 Billing: {selectedCountry.name} &bull; Zero-Rated Export{taxSettings?.lutNumber ? ` under LUT ${taxSettings.lutNumber}` : ' — LUT reference not recorded'} without payment of IGST.
                           </div>
                         </div>
                       ) : (

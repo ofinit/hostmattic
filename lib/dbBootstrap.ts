@@ -95,11 +95,11 @@ const DDL_STATEMENTS = [
     "sellerGstin" TEXT NOT NULL DEFAULT '',
     "registeredAddress" TEXT NOT NULL DEFAULT '',
     "city" TEXT NOT NULL DEFAULT '',
-    "state" TEXT NOT NULL DEFAULT 'Kerala',
+    "state" TEXT NOT NULL DEFAULT '',
     "stateCode" TEXT NOT NULL DEFAULT '32',
     "panNumber" TEXT NOT NULL DEFAULT '',
     "defaultSacCode" TEXT NOT NULL DEFAULT '998315',
-    "lutNumber" TEXT NOT NULL DEFAULT 'LUT/2026-27/001',
+    "lutNumber" TEXT NOT NULL DEFAULT '',
     "usdGstPolicy" TEXT NOT NULL DEFAULT 'LUT_EXPORT',
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
@@ -122,7 +122,7 @@ const DDL_STATEMENTS = [
     "companyName" TEXT,
     "billingAddress" TEXT,
     "billingCity" TEXT,
-    "billingState" TEXT DEFAULT 'Kerala',
+    "billingState" TEXT,
     "billingCountry" TEXT DEFAULT 'IN',
     "placeOfSupply" TEXT DEFAULT '32-Kerala',
     "taxType" TEXT DEFAULT 'CGST_SGST',
@@ -295,9 +295,12 @@ export async function ensureDatabaseBootstrap() {
           id: 'default_tax_settings',
           gstRate: 18.0,
           legalBusinessName: 'Hostmattic Technologies / OfinIT Solutions',
-          state: 'Kerala',
-          stateCode: '32',
-          lutNumber: 'LUT/2026-27/001',
+          // Statutory identity is never seeded. A fresh database used to be
+          // given Kerala as the seller's state and an LUT reference that
+          // exists nowhere, which then appeared on invoices.
+          state: '',
+          stateCode: '',
+          lutNumber: '',
           usdGstPolicy: 'LUT_EXPORT',
         },
       }).catch((e) => console.warn('[Hostmattic DB Bootstrap] TaxSetting seed notice:', e?.message));
