@@ -292,6 +292,18 @@ export default function CheckoutDrawer() {
       return;
     }
 
+    // The upstream account that holds the customer's services cannot be created
+    // without a postcode, and inventing one puts a fictional address into
+    // public WHOIS. Asking here is better than failing after payment.
+    if (!billingZip.trim()) {
+      setErrorMessage(
+        isIndianBuyer
+          ? 'Please enter your PIN code. It forms part of the registrant contact for your services.'
+          : 'Please enter your postal code. It forms part of the registrant contact for your services.'
+      );
+      return;
+    }
+
     // Place of supply decides CGST+SGST against IGST, so it cannot be guessed.
     if (countryStates.length > 0 && !billingStateCode) {
       setErrorMessage(
@@ -1027,7 +1039,7 @@ export default function CheckoutDrawer() {
 
                 <div className="form-group" style={{ marginBottom: '10px' }}>
                   <label className="form-label" style={{ fontSize: '0.8rem' }}>
-                    {isIndianBuyer ? 'PIN Code' : 'Postal / ZIP Code'}
+                    {isIndianBuyer ? 'PIN Code *' : 'Postal / ZIP Code *'}
                   </label>
                   <input
                     type="text"
@@ -1038,7 +1050,8 @@ export default function CheckoutDrawer() {
                     style={{ fontSize: '0.82rem', padding: '6px 10px' }}
                   />
                   <div style={{ fontSize: '0.7rem', color: '#64748B', marginTop: '3px' }}>
-                    Required for domain registrations — it forms part of the registrant contact.
+                    Required: it forms part of the registrant contact held against your
+                    services, and an inaccurate one can get a domain suspended.
                   </div>
                 </div>
 
@@ -1313,7 +1326,7 @@ export default function CheckoutDrawer() {
               {/* Submit CTA */}
               <button
                 type="submit"
-                disabled={loading || (countryStates.length > 0 && !billingStateCode)}
+                disabled={loading || !billingZip.trim() || (countryStates.length > 0 && !billingStateCode)}
                 className="btn btn-primary"
                 style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '1rem', marginTop: '20px' }}
               >

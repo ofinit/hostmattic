@@ -148,6 +148,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // A postcode is needed to create the upstream account that holds the
+    // customer's services, and it becomes part of the registrant contact. The
+    // form asks for it, but a form check is bypassable and failing here is far
+    // better than failing after the payment has been taken.
+    if (!String(billingZip || '').trim()) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'POSTCODE_REQUIRED',
+          error: 'Please enter your PIN or postal code so your services can be registered.',
+        },
+        { status: 400 }
+      );
+    }
+
     // Place of supply decides CGST+SGST against IGST. Defaulting it to the
     // seller's own state produced Kerala invoices for out-of-state customers,
     // which is the wrong tax on a document that has to be filed.

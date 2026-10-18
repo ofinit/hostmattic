@@ -86,6 +86,8 @@ export default function FullCheckoutPage() {
   const [customerGstin, setCustomerGstin] = useState('');
   const [billingAddress, setBillingAddress] = useState('');
   const [billingCity, setBillingCity] = useState('');
+  // Part of the registrant contact. This page had no postcode field at all.
+  const [billingZip, setBillingZip] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -196,6 +198,15 @@ export default function FullCheckoutPage() {
       return;
     }
 
+    if (!billingZip.trim()) {
+      setErrorMessage(
+        billingCountry === 'IN'
+          ? 'Please enter your PIN code. It forms part of the registrant contact for your services.'
+          : 'Please enter your postal code. It forms part of the registrant contact for your services.'
+      );
+      return;
+    }
+
     if (customerType === 'B2B') {
       if (!companyName.trim()) {
         setErrorMessage('Please provide your Registered Company Name for B2B billing.');
@@ -237,6 +248,7 @@ export default function FullCheckoutPage() {
         companyName: customerType === 'B2B' ? companyName.trim() : undefined,
         billingAddress: billingAddress.trim() || undefined,
         billingCity: billingCity.trim() || undefined,
+        billingZip: billingZip.trim() || undefined,
         billingState: selectedState.name,
         billingCountry: billingCountry,
         placeOfSupply: isIndianBuyer ? `${selectedState.code}-${selectedState.name}` : `${billingCountry}-${selectedState.name}`,
@@ -749,6 +761,20 @@ export default function FullCheckoutPage() {
                       placeholder="e.g. Kochi / London / New York"
                       value={billingCity}
                       onChange={(e) => setBillingCity(e.target.value)}
+                    />
+                  </div>
+
+                  {/* PIN / Postal code - required for the registrant contact */}
+                  <div className="form-group" style={{ marginBottom: '14px' }}>
+                    <label className="form-label">
+                      {billingCountry === 'IN' ? 'PIN Code *' : 'Postal / ZIP Code *'}
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder={billingCountry === 'IN' ? 'e.g. 403517' : 'e.g. 10001'}
+                      value={billingZip}
+                      onChange={(e) => setBillingZip(e.target.value)}
                     />
                   </div>
 

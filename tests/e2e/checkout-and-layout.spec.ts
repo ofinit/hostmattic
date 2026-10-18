@@ -107,3 +107,15 @@ for (const route of ['/', '/hosting/shared-linux']) {
     ).toBeLessThanOrEqual(overflow.client + 2);
   });
 }
+
+test('a postcode is required before payment', async ({ page }) => {
+  // It forms part of the registrant contact held upstream. Without it the
+  // account cannot be created from real data, and inventing an address puts a
+  // fictional one into public WHOIS.
+  await openDrawerWithItem(page);
+
+  await expect(page.getByText(/PIN Code \*|Postal \/ ZIP Code \*/)).toBeVisible();
+
+  const pay = page.getByRole('button', { name: /Pay .* & Provision Services/ });
+  await expect(pay, 'pay is enabled with no postcode').toBeDisabled();
+});
