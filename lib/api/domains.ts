@@ -267,15 +267,21 @@ export async function transferDomain(params: {
     };
   }
 
+  // Parameter set taken from a working LogicBoxes SDK's transfer call:
+  // auth-code, years, ns, customer-id, the four contact ids, invoice-option,
+  // purchase-privacy and protect-privacy. `years` was missing here - a
+  // transfer carries a registration term, as a registration does.
   const postData: Record<string, any> = {
     'domain-name': params.domainName,
     'auth-code': params.authCode.trim(),
+    years: params.years || 1,
     'customer-id': params.customerId,
     'reg-contact-id': params.contacts.registrant,
     'admin-contact-id': params.contacts.admin,
     'tech-contact-id': params.contacts.tech,
     'billing-contact-id': params.contacts.billing,
     'invoice-option': 'NoInvoice',
+    'purchase-privacy': params.privacyProtection ? 'true' : 'false',
     'protect-privacy': params.privacyProtection ? 'true' : 'false',
     ns: ns.join(','),
   };
