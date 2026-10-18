@@ -24,6 +24,7 @@ import { registerDomain, transferDomain } from '@/lib/api/domains';
 import { provisionHosting } from '@/lib/api/hosting';
 import { sendEmail } from '@/lib/email/resend';
 import { notifyAdmins } from '@/lib/email/notify';
+import { ensureUpstreamCustomer } from '@/lib/services/upstreamCustomer';
 import {
   generateServiceActivatedEmail,
   generateActivationDelayedEmail,
@@ -78,7 +79,22 @@ export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
     throw new Error(`Order ${order.orderNumber} is not paid, so it cannot be fulfilled.`);
   }
 
-  const customerId = await upstreamCustomerId(order.userId);
+  // Create the upstream account now if the customer has none, using the
+  // billing details on this order. They are real: the invoice required them.
+  let customerId = await upstreamCustomerId(order.userId);
+  let customerError: string | undefined;
+
+  if (!customerId) {
+    const ensured = await ensureUpstreamCustomer(order.userId, {
+      billingAddress: order.billingAddress,
+      billingCity: order.billingCity,
+      billingState: order.billingState,
+      billingCountry: order.billingCountry,
+      billingZip: order.billingZip,
+    });
+    customerId = ensured.customerId;
+    customerError = ensured.error;
+  }
 
   for (const item of order.items) {
     if (item.provisionStatus === 'PROVISIONED') {
@@ -103,14 +119,12 @@ export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
     }
 
     if (!customerId) {
-      await markFailed(item.id, 'No upstream customer account is linked to this user.');
+      const why =
+        customerError || 'No upstream customer account is linked to this user.';
+      await markFailed(item.id, why);
       result.attempted++;
       result.failed++;
-      result.lines.push({
-        description: item.description,
-        status: 'FAILED',
-        error: 'No upstream customer account is linked to this user.',
-      });
+      result.lines.push({ description: item.description, status: 'FAILED', error: why });
       continue;
     }
 

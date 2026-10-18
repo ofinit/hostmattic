@@ -83,26 +83,50 @@ export async function POST(req: NextRequest) {
 
     let upstreamCid: string | null = null;
 
-    // Create in upstream system first
-    try {
-      const upstreamRes = await createUpstreamCustomer({
-        username: email,
-        passwd: password,
-        name,
-        company: company || 'Personal',
-        address: address || '123 Enterprise Way',
-        city: city || 'New York',
-        state: state || 'NY',
-        country: country || 'US',
-        zipcode: zip || '10001',
-        phoneNo: phone || '1234567890',
-      });
+    // The upstream account is created only from real details.
+    //
+    // This previously substituted '123 Enterprise Way', 'New York', 'NY', 'US'
+    // and the phone number '1234567890' for anything the form did not collect
+    // - and the signup form collects no address at all, so every customer was
+    // registered upstream at a fictional address. For a domain registration
+    // that record becomes the WHOIS registrant contact, and inaccurate WHOIS
+    // is grounds for the registry to suspend the domain.
+    //
+    // When the details are genuinely present the account is created here.
+    // Otherwise it is left for checkout, where a billing address is collected
+    // because the invoice needs one - see ensureUpstreamCustomer().
+    const complete = [address, city, state, country, zip, phone].every(
+      (v) => typeof v === 'string' && v.trim().length > 0
+    );
 
-      if (upstreamRes.success && upstreamRes.data?.customerId) {
-        upstreamCid = upstreamRes.data.customerId;
+    if (complete) {
+      try {
+        const upstreamRes = await createUpstreamCustomer({
+          username: email,
+          passwd: password,
+          name,
+          company: company?.trim() || 'Personal',
+          address: address.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          country: country.trim(),
+          zipcode: zip.trim(),
+          phoneNo: String(phone).replace(/\D/g, '').slice(-10),
+        });
+
+        if (upstreamRes.success && upstreamRes.data?.customerId) {
+          upstreamCid = upstreamRes.data.customerId;
+        } else {
+          console.warn('[Register] Upstream declined the account:', upstreamRes.error);
+        }
+      } catch (upstreamErr: any) {
+        console.warn('[Register] Upstream customer creation failed:', upstreamErr.message);
       }
-    } catch (upstreamErr: any) {
-      console.warn('[Register] Upstream customer creation failed:', upstreamErr.message);
+    } else {
+      console.log(
+        `[Register] ${email} has no complete address yet, so no upstream account was ` +
+          'created. It will be created from the billing details at checkout.'
+      );
     }
 
     // Save in PostgreSQL — required, no fallback

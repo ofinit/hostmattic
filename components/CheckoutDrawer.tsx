@@ -174,6 +174,10 @@ export default function CheckoutDrawer() {
   const [customerGstin, setCustomerGstin] = useState('');
   const [billingAddress, setBillingAddress] = useState('');
   const [billingCity, setBillingCity] = useState('');
+  // Required for a domain registrant contact: without it the upstream
+  // account cannot be created from real data, and inventing one puts a
+  // fictional address into WHOIS.
+  const [billingZip, setBillingZip] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -342,6 +346,7 @@ export default function CheckoutDrawer() {
         companyName: customerType === 'B2B' ? companyName.trim() : undefined,
         billingAddress: billingAddress.trim() || undefined,
         billingCity: billingCity.trim() || undefined,
+        billingZip: billingZip.trim() || undefined,
         billingState: selectedState.name,
         billingCountry: billingCountry,
         placeOfSupply: isIndianBuyer ? `${selectedState.code}-${selectedState.name}` : `${billingCountry}-${selectedState.name}`,
@@ -1018,6 +1023,23 @@ export default function CheckoutDrawer() {
                     onChange={(e) => setBillingCity(e.target.value)}
                     style={{ fontSize: '0.82rem', padding: '6px 10px' }}
                   />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '10px' }}>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>
+                    {isIndianBuyer ? 'PIN Code' : 'Postal / ZIP Code'}
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder={isIndianBuyer ? 'e.g. 403517' : 'e.g. 10001'}
+                    value={billingZip}
+                    onChange={(e) => setBillingZip(e.target.value)}
+                    style={{ fontSize: '0.82rem', padding: '6px 10px' }}
+                  />
+                  <div style={{ fontSize: '0.7rem', color: '#64748B', marginTop: '3px' }}>
+                    Required for domain registrations — it forms part of the registrant contact.
+                  </div>
                 </div>
 
                 {/* Only for a brand-new account: a signed-in customer already has one. */}

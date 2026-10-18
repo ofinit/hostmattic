@@ -175,6 +175,9 @@ model Order {
   companyName        String?
   billingAddress     String?
   billingCity        String?
+  /// Postcode. Required by the registry for a domain registrant contact, and
+  /// the reason an upstream customer could not be created from real data.
+  billingZip         String?
   billingState       String?
   billingCountry     String?     @default("IN")
   // No default: an unset place of supply must stay unset rather than
