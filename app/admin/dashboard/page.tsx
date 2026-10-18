@@ -2274,12 +2274,20 @@ export default function AdminDashboardPage() {
               // Paid, but something upstream did not deliver. These are the
               // orders where money has been taken and the customer is owed a
               // service, so they belong at the top of the screen.
-              const owed = (data?.orders || []).filter(
-                (o: any) =>
-                  o.paymentStatus === 'PAID' &&
-                  (o.status === 'AWAITING_FULFILMENT' ||
-                    (o.items || []).some((i: any) => i.provisionStatus === 'FAILED'))
-              );
+              // Any paid order with a line that has not been delivered, not just
+              // ones that failed. An order whose provisioning never ran leaves
+              // its lines PENDING, and the Instamojo callback used to mark such
+              // orders COMPLETED - so the one case that most needed attention
+              // was the one this panel did not show.
+              const owed = (data?.orders || []).filter((o: any) => {
+                if (o.paymentStatus !== 'PAID') return false;
+                const lines = o.items || [];
+                if (!lines.length) return o.status === 'AWAITING_FULFILMENT';
+                return lines.some(
+                  (i: any) =>
+                    i.provisionStatus !== 'PROVISIONED' && i.provisionStatus !== 'NOT_REQUIRED'
+                );
+              });
               if (!owed.length) return null;
 
               return (
@@ -2296,8 +2304,9 @@ export default function AdminDashboardPage() {
                     {owed.length} paid order{owed.length === 1 ? '' : 's'} not yet delivered
                   </div>
                   <div style={{ fontSize: '0.8rem', color: '#FCA5A5', marginBottom: '14px', lineHeight: 1.5 }}>
-                    Payment was taken but provisioning did not complete. The customer is owed
-                    these services.
+                    Payment was taken and these services have not been delivered. Retry sends
+                    them upstream; a line already provisioned is skipped, so it is safe to press
+                    more than once.
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
