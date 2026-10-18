@@ -26,6 +26,7 @@ import { sendEmail } from '@/lib/email/resend';
 import { notifyAdmins } from '@/lib/email/notify';
 import { ensureUpstreamCustomer } from '@/lib/services/upstreamCustomer';
 import { ensureDomainContacts } from '@/lib/api/contacts';
+import { getUpstreamCustomerDetails } from '@/lib/api/customers';
 import {
   generateServiceActivatedEmail,
   generateActivationDelayedEmail,
@@ -156,17 +157,41 @@ export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
         // A domain order needs registrant, admin, technical and billing
         // contacts. They become the public WHOIS record, so they are built
         // from the customer's own details and nothing is substituted.
+        let address = order.billingAddress || order.user?.address || '';
+        let city = order.billingCity || order.user?.city || '';
+        let state = order.billingState || order.user?.state || '';
+        let country = order.billingCountry || order.user?.country || '';
+        let zipcode = order.billingZip || order.user?.zip || '';
+        let phone = (order.user?.phone || '').replace(/\D/g, '');
+
+        // Orders placed before the checkout collected a street address have
+        // none, and the contact cannot be built without one. The upstream
+        // account was created with a real address, so read it from there
+        // rather than asking anyone to retype what is already on file.
+        if (!address || !city || !zipcode || !phone) {
+          const upstream = await getUpstreamCustomerDetails(customerId);
+          const d: any = upstream.success ? upstream.data : null;
+          if (d) {
+            address = address || d['customer.address1'] || d.address1 || d.address || '';
+            city = city || d['customer.city'] || d.city || '';
+            state = state || d['customer.state'] || d.state || '';
+            country = country || d['customer.country'] || d.country || '';
+            zipcode = zipcode || d['customer.zip'] || d.zip || d.zipcode || '';
+            phone = phone || String(d['customer.telno'] || d.telno || d.phone || '').replace(/\D/g, '');
+          }
+        }
+
         const { contacts, error: contactError } = await ensureDomainContacts(customerId, {
           name: order.user?.name || order.user?.email || '',
           company: order.user?.company || '',
           email: order.user?.email || '',
-          address: order.billingAddress || order.user?.address || '',
-          city: order.billingCity || order.user?.city || '',
-          state: order.billingState || order.user?.state || '',
-          country: order.billingCountry || order.user?.country || '',
-          zipcode: order.billingZip || order.user?.zip || '',
+          address,
+          city,
+          state,
+          country,
+          zipcode,
           phoneCc: '91',
-          phone: (order.user?.phone || '').replace(/\D/g, '').slice(-10),
+          phone: phone.slice(-10),
         });
 
         if (!contacts) {

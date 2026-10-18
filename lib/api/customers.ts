@@ -88,3 +88,17 @@ export async function generateCustomerSsoToken(customerId: string, ip: string = 
 
   return { success: false, error: res.error || 'Could not generate SSO token' };
 }
+
+/**
+ * The customer's details as upstream holds them.
+ *
+ * Used when the local record is missing something a registrant contact needs.
+ * The account was created upstream with a real address, so that address is
+ * authoritative and reading it is better than asking an administrator to
+ * retype what the system already knows - or worse, substituting a placeholder.
+ */
+export async function getUpstreamCustomerDetails(
+  customerId: string
+): Promise<ApiResponse<Record<string, any>>> {
+  return apiClient('/customers/details-by-id.json', { 'customer-id': customerId });
+}

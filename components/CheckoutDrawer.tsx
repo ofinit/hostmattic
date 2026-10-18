@@ -313,6 +313,18 @@ export default function CheckoutDrawer() {
     // The upstream account that holds the customer's services cannot be created
     // without a postcode, and inventing one puts a fictional address into
     // public WHOIS. Asking here is better than failing after payment.
+    // The registrant contact needs a street address and a city as well as a
+    // postcode. Upstream rejects the contact without them, and the order then
+    // fails after the payment has been taken.
+    if (!billingAddress.trim()) {
+      setErrorMessage('Please enter your address. It forms part of the registrant contact.');
+      return;
+    }
+    if (!billingCity.trim()) {
+      setErrorMessage('Please enter your city or town.');
+      return;
+    }
+
     // Shared with the other checkout and with the API, so one rule governs all
     // three rather than three that drift.
     const postcode = validatePostcode(billingZip, billingCountry);
@@ -1053,8 +1065,26 @@ export default function CheckoutDrawer() {
                   )}
                 </div>
 
+                {/*
+                  * The street address. `billingAddress` was in state and in the
+                  * payload, but no field ever set it, so every order carried an
+                  * empty one - which left it off the invoice and made the
+                  * registrant contact fail upstream on address-line-1.
+                  */}
                 <div className="form-group" style={{ marginBottom: '10px' }}>
-                  <label className="form-label" style={{ fontSize: '0.8rem' }}>City / Town</label>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>Address *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="House / flat, street, area"
+                    value={billingAddress}
+                    onChange={(e) => setBillingAddress(e.target.value)}
+                    style={{ fontSize: '0.82rem', padding: '6px 10px' }}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '10px' }}>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>City / Town *</label>
                   <input
                     type="text"
                     className="form-input"
@@ -1354,7 +1384,7 @@ export default function CheckoutDrawer() {
               {/* Submit CTA */}
               <button
                 type="submit"
-                disabled={loading || !validatePostcode(billingZip, billingCountry).ok || (countryStates.length > 0 && !billingStateCode)}
+                disabled={loading || !billingAddress.trim() || !billingCity.trim() || !validatePostcode(billingZip, billingCountry).ok || (countryStates.length > 0 && !billingStateCode)}
                 className="btn btn-primary"
                 style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '1rem', marginTop: '20px' }}
               >

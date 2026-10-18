@@ -153,6 +153,25 @@ export async function POST(req: NextRequest) {
     // customer's services, and it becomes part of the registrant contact. The
     // form asks for it, but a form check is bypassable and failing here is far
     // better than failing after the payment has been taken.
+    // The registrant contact upstream needs these. Failing here is far better
+    // than failing after the payment has been taken, which is what happened on
+    // the first real order.
+    const missingContactFields = [
+      !String(billingAddress || '').trim() && 'address',
+      !String(billingCity || '').trim() && 'city',
+    ].filter(Boolean);
+
+    if (missingContactFields.length) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: 'CONTACT_DETAILS_REQUIRED',
+          error: `Please enter your ${missingContactFields.join(' and ')} so your services can be registered.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const postcodeCheck = validatePostcode(String(billingZip || ''), billingCountry);
     if (!postcodeCheck.ok) {
       return NextResponse.json(

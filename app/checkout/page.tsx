@@ -199,6 +199,15 @@ export default function FullCheckoutPage() {
       return;
     }
 
+    if (!billingAddress.trim()) {
+      setErrorMessage('Please enter your address. It forms part of the registrant contact.');
+      return;
+    }
+    if (!billingCity.trim()) {
+      setErrorMessage('Please enter your city or town.');
+      return;
+    }
+
     const postcode = validatePostcode(billingZip, billingCountry);
     if (!postcode.ok) {
       setErrorMessage(postcode.error || 'Please check your postal code.');
