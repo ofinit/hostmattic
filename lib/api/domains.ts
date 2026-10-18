@@ -170,6 +170,7 @@ export async function registerDomain(params: {
   customerId: string;
   /** Registrant, admin, technical and billing contact ids. Required upstream. */
   contacts?: { registrant: string; admin: string; tech: string; billing: string };
+  autoRenew?: boolean;
   years?: number;
   nameservers?: string[];
   privacyProtection?: boolean;
@@ -202,6 +203,7 @@ export async function registerDomain(params: {
   const postData: Record<string, any> = {
     'domain-name': params.domainName,
     years: params.years || 1,
+    'auto-renew': params.autoRenew === false ? 'false' : 'true',
     'customer-id': params.customerId,
     'reg-contact-id': params.contacts.registrant,
     'admin-contact-id': params.contacts.admin,
@@ -219,6 +221,53 @@ export async function registerDomain(params: {
 }
 
 /**
+ * Whether a domain can be transferred in at all.
+ *
+ * The specification pairs transfer-in with a validate-transfer-in check, and
+ * this is the legacy API's equivalent. It catches what a registry refuses
+ * outright - inside the 60-day window after registration or a previous
+ * transfer, registrar-locked, expired beyond the grace period, privacy still
+ * switched on at the losing registrar - so those surface before the customer
+ * is charged rather than after.
+ *
+ * `transferable: null` means the check did not answer. That is deliberately
+ * not treated as a refusal: the authoritative answer comes from the transfer
+ * call itself, and blocking an order on a check that is merely unavailable
+ * would be worse than letting the transfer speak for itself.
+ */
+export async function validateTransfer(
+  domainName: string
+): Promise<{ transferable: boolean | null; reason?: string }> {
+  if (!isLiveApiConfigured()) return { transferable: true };
+
+  const res = await apiClient<any>('/domains/validate-transfer.json', {
+    'domain-name': domainName,
+  });
+
+  if (!res.success) return { transferable: null, reason: res.error };
+
+  // The call answers with a bare boolean, as a string or as JSON.
+  const raw =
+    typeof res.data === 'object' && res.data !== null
+      ? (res.data as any).result ?? (res.data as any).transferable ?? res.data
+      : res.data;
+  const text = String(raw).trim().toLowerCase().replace(/^"|"$/g, '');
+
+  if (text === 'true') return { transferable: true };
+  if (text === 'false') {
+    return {
+      transferable: false,
+      reason:
+        'The registry will not accept a transfer for this domain yet. The usual causes are ' +
+        'a registration or previous transfer less than 60 days old, a registrar lock, or ' +
+        'privacy protection still enabled at the current registrar.',
+    };
+  }
+
+  return { transferable: null, reason: `Unrecognised response: ${text.slice(0, 120)}` };
+}
+
+/**
  * Transfer a domain in from another registrar.
  *
  * Distinct from registration: upstream charges a different price for it and
@@ -231,6 +280,8 @@ export async function transferDomain(params: {
   customerId: string;
   authCode: string;
   contacts?: { registrant: string; admin: string; tech: string; billing: string };
+  /** Required by the specification. Defaults to on, as a registrar normally would. */
+  autoRenew?: boolean;
   years?: number;
   nameservers?: string[];
   privacyProtection?: boolean;
@@ -267,14 +318,31 @@ export async function transferDomain(params: {
     };
   }
 
-  // Parameter set taken from a working LogicBoxes SDK's transfer call:
-  // auth-code, years, ns, customer-id, the four contact ids, invoice-option,
-  // purchase-privacy and protect-privacy. `years` was missing here - a
-  // transfer carries a registration term, as a registration does.
+  // Ask first. A refusal here costs one request; learning the same thing from
+  // the transfer call costs the customer's money and an order that then has to
+  // be unpicked by hand.
+  const preflight = await validateTransfer(params.domainName);
+  if (preflight.transferable === false) {
+    return { success: false, error: preflight.reason };
+  }
+
+  // Parameters follow the vendor's Domain Transfer In specification, which
+  // marks customerId, the four contact ids, invoiceOption and autoRenew as
+  // required, and authCode as required at order placement for .AU, .CA, .DE,
+  // .RU and .UK.
+  //
+  // Note the specification describes API v2 - a JSON endpoint at
+  // /v2/domains/{domainName}/transfer-in using camelCase and header auth -
+  // while this client speaks the legacy HTTP API, which answers in kebab-case
+  // and is what every other call here uses. The field set is mapped across;
+  // the transport is not.
+  //
+  // `auto-renew` was absent entirely and the specification marks it required.
   const postData: Record<string, any> = {
     'domain-name': params.domainName,
     'auth-code': params.authCode.trim(),
     years: params.years || 1,
+    'auto-renew': params.autoRenew === false ? 'false' : 'true',
     'customer-id': params.customerId,
     'reg-contact-id': params.contacts.registrant,
     'admin-contact-id': params.contacts.admin,
