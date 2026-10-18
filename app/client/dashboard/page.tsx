@@ -32,6 +32,50 @@ function formatStored(amount: number | null | undefined, currency: string): stri
     : `$${value.toFixed(2)}`;
 }
 
+/**
+ * What has actually happened to the services on an order.
+ *
+ * A customer whose payment succeeded but whose provisioning did not used to
+ * see an invoice marked PAID, "Active Domains: 0", and nothing joining the
+ * two. The money had gone and the portal said nothing at all.
+ *
+ * Deliberately no retry control for the customer: every realistic failure here
+ * is ours - a missing registrant contact, an upstream balance, an outage -
+ * and none of them is fixed by the customer pressing a button. What they are
+ * owed is an honest account of where their order stands.
+ */
+function serviceState(order: any): { label: string; tone: 'ok' | 'pending' | 'bad'; detail?: string } {
+  if (order?.paymentStatus !== 'PAID') {
+    return { label: 'Awaiting payment', tone: 'pending' };
+  }
+
+  const lines: any[] = order.items || [];
+  if (!lines.length) return { label: 'Active', tone: 'ok' };
+
+  const outstanding = lines.filter(
+    (i) => i.provisionStatus !== 'PROVISIONED' && i.provisionStatus !== 'NOT_REQUIRED'
+  );
+  if (!outstanding.length) return { label: 'Active', tone: 'ok' };
+
+  const failed = outstanding.filter((i) => i.provisionStatus === 'FAILED');
+  if (failed.length) {
+    return {
+      label: 'Delayed — we are on it',
+      tone: 'bad',
+      detail:
+        'Your payment went through and setting this up did not complete automatically. ' +
+        'Our team has been alerted and is finishing it by hand. You have not been charged ' +
+        'twice, and you do not need to do anything.',
+    };
+  }
+
+  return {
+    label: 'Setting up',
+    tone: 'pending',
+    detail: 'Your order is being activated. This usually takes a few minutes.',
+  };
+}
+
 function NotConfigured({ label }: { label: string }) {
   return (
     <span style={{ color: '#DC2626', fontWeight: 700 }} title={`No ${label} is configured`}>
@@ -2138,6 +2182,59 @@ export default function ClientDashboard() {
               </div>
             </div>
 
+            {(() => {
+              const waiting = (orders || []).filter((o: any) => {
+                const state = serviceState(o);
+                return state.tone !== 'ok';
+              });
+              if (!waiting.length) return null;
+
+              const anyFailed = waiting.some((o: any) => serviceState(o).tone === 'bad');
+              return (
+                <div
+                  role="status"
+                  style={{
+                    background: anyFailed ? '#FEF2F2' : '#FFF7ED',
+                    border: `1px solid ${anyFailed ? '#FCA5A5' : '#FDBA74'}`,
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    marginBottom: '18px',
+                    fontSize: '0.86rem',
+                    color: anyFailed ? '#7F1D1D' : '#7C2D12',
+                    lineHeight: 1.55,
+                  }}
+                >
+                  <strong style={{ display: 'block', marginBottom: '4px' }}>
+                    {anyFailed
+                      ? `${waiting.length} order${waiting.length === 1 ? '' : 's'} still being set up`
+                      : 'Your order is being activated'}
+                  </strong>
+                  {serviceState(waiting[0]).detail}
+                  {anyFailed && (
+                    <>
+                      {' '}
+                      If you would rather not wait,{' '}
+                      <button
+                        onClick={() => setActiveTab('tickets')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: 0,
+                          color: '#1D4ED8',
+                          textDecoration: 'underline',
+                          cursor: 'pointer',
+                          font: 'inherit',
+                        }}
+                      >
+                        open a support ticket
+                      </button>{' '}
+                      and we will cancel and refund the affected items.
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+
             <div className="table-responsive">
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
                 <thead>
@@ -2158,6 +2255,22 @@ export default function ClientDashboard() {
                       </td>
                       <td style={{ padding: '16px', color: '#64748B' }}>
                         {ord.items?.[0]?.description || 'Hosting & Domain Provisioning'}
+                        {(() => {
+                          const state = serviceState(ord);
+                          if (state.tone === 'ok') return null;
+                          return (
+                            <div
+                              style={{
+                                marginTop: '6px',
+                                fontSize: '0.76rem',
+                                fontWeight: 700,
+                                color: state.tone === 'bad' ? '#B91C1C' : '#B45309',
+                              }}
+                            >
+                              {state.label}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: '16px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>
                         {formatStored(ord.totalAmount, ord.currency)}
