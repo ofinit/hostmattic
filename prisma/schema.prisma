@@ -13,6 +13,15 @@ model User {
   // Dot/plus-stripped form used only for duplicate detection on signup.
   // Nullable so existing rows stay valid; backfilled on bootstrap.
   emailCanonical     String?            @unique
+
+  /// Deliverability, from Resend webhooks. A hard bounce or a spam complaint
+  /// means this address will not receive anything, so continuing to send to
+  /// it burns the domain's sending reputation and the customer never hears
+  /// about a renewal they are about to lose.
+  /// "OK" | "BOUNCED" | "COMPLAINED"
+  emailStatus        String             @default("OK")
+  emailIssueAt       DateTime?
+  emailIssueReason   String?
   passwordHash       String
   name               String
   company            String?

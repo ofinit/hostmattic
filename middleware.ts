@@ -43,6 +43,10 @@ const PUBLIC_ROUTES = [
   // authenticates with CRON_SECRET in the route itself and would otherwise be
   // rejected here for having no cookie.
   '/api/cron/',
+
+  // Resend delivery events. No session - the caller is Resend - and the route
+  // verifies the Svix signature itself before trusting anything.
+  '/api/webhooks/',
 ];
 
 // Routes that require ADMIN role

@@ -7,6 +7,9 @@ import bcrypt from 'bcryptjs';
  */
 const MIGRATION_STATEMENTS = [
   `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailCanonical" TEXT`,
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailStatus" TEXT NOT NULL DEFAULT 'OK'`,
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailIssueAt" TIMESTAMP(3)`,
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "emailIssueReason" TEXT`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "User_emailCanonical_key" ON "User" ("emailCanonical")`,
 
   // Fulfilment fields on OrderItem. `prisma db push` runs at build time but

@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
   const sent: string[] = [];
   const skipped: string[] = [];
   const failed: string[] = [];
+  const undeliverable: string[] = [];
 
   /** Records the send first, so a crash mid-run cannot cause a resend. */
   async function claim(entityType: string, entityId: string, dayBucket: number, recipient: string) {
@@ -90,13 +91,21 @@ export async function POST(req: NextRequest) {
     // --- domains ----------------------------------------------------------
     const domains = await prisma.domain.findMany({
       where: { status: { not: 'EXPIRED' } },
-      include: { user: { select: { name: true, email: true } } },
+      include: { user: { select: { name: true, email: true, emailStatus: true } } },
     });
 
     for (const d of domains) {
       const days = daysUntil(d.expiryDate, now);
       const bucket = bucketFor(days, DOMAIN_BUCKETS);
       if (bucket === null || !d.user?.email) continue;
+
+      // A hard-bounced or complained address will not receive this, and
+      // sending anyway damages deliverability for every other customer. It is
+      // reported so the customer can be reached another way.
+      if (d.user.emailStatus && d.user.emailStatus !== 'OK') {
+        undeliverable.push(`${d.domainName} -> ${d.user.email} (${d.user.emailStatus})`);
+        continue;
+      }
 
       if (!(await claim('DOMAIN', d.id, bucket, d.user.email))) {
         skipped.push(`${d.domainName} @${bucket}d`);
@@ -125,13 +134,18 @@ export async function POST(req: NextRequest) {
     // --- hosting and other subscriptions ----------------------------------
     const accounts = await prisma.hostingAccount.findMany({
       where: { status: 'ACTIVE' },
-      include: { user: { select: { name: true, email: true } } },
+      include: { user: { select: { name: true, email: true, emailStatus: true } } },
     });
 
     for (const h of accounts) {
       const days = daysUntil(h.nextDueDate, now);
       const bucket = bucketFor(days, SERVICE_BUCKETS);
       if (bucket === null || !h.user?.email) continue;
+
+      if (h.user.emailStatus && h.user.emailStatus !== 'OK') {
+        undeliverable.push(`${h.domainName} -> ${h.user.email} (${h.user.emailStatus})`);
+        continue;
+      }
 
       if (!(await claim('HOSTING', h.id, bucket, h.user.email))) {
         skipped.push(`${h.domainName} @${bucket}d`);
@@ -177,7 +191,8 @@ export async function POST(req: NextRequest) {
     }
 
     console.log(
-      `[Cron] Reminders: ${sent.length} sent, ${skipped.length} already sent, ${failed.length} failed.`
+      `[Cron] Reminders: ${sent.length} sent, ${skipped.length} already sent, ` +
+        `${failed.length} failed, ${undeliverable.length} undeliverable.`
     );
 
     return NextResponse.json({
@@ -186,6 +201,7 @@ export async function POST(req: NextRequest) {
       sent,
       skipped,
       failed,
+      undeliverable,
       balance,
     });
   } catch (error: any) {
