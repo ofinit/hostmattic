@@ -11,6 +11,27 @@ import { useCart } from '@/components/CartContext';
  * document, so a missing tax number must be obviously missing rather than a
  * plausible-looking placeholder.
  */
+/**
+ * Renders a stored amount in the currency it was stored in.
+ *
+ * Order amounts are already in the order's own currency. The billing list used
+ * to do `Math.round(ord.totalAmount * 84)`, converting an amount that was
+ * already rupees a second time, and with a third exchange rate at that - 84,
+ * against the 83.5 used everywhere else. A customer who paid Rs884.80 was
+ * shown a bill for Rs74,323.
+ *
+ * Nothing here rounds to whole units either: an invoice that says Rs885 when
+ * Rs884.80 was taken does not reconcile, and the tax figure on it is the one
+ * that gets filed.
+ */
+function formatStored(amount: number | null | undefined, currency: string): string {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return '—';
+  return currency === 'INR'
+    ? `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `$${value.toFixed(2)}`;
+}
+
 function NotConfigured({ label }: { label: string }) {
   return (
     <span style={{ color: '#DC2626', fontWeight: 700 }} title={`No ${label} is configured`}>
@@ -2139,7 +2160,7 @@ export default function ClientDashboard() {
                         {ord.items?.[0]?.description || 'Hosting & Domain Provisioning'}
                       </td>
                       <td style={{ padding: '16px', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>
-                        {currency === 'INR' ? `₹${Math.round(ord.totalAmount * 84).toLocaleString()}` : `$${ord.totalAmount.toFixed(2)}`}
+                        {formatStored(ord.totalAmount, ord.currency)}
                       </td>
                       <td style={{ padding: '16px', color: '#64748B', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
                         {new Date(ord.createdAt).toLocaleDateString()}
@@ -3400,7 +3421,7 @@ export default function ClientDashboard() {
                   <span style={{ color: '#64748B' }}>Taxable Subtotal (Ex-Tax):</span>
                   <span style={{ fontWeight: 600 }}>
                     {viewInvoice.currency === 'INR'
-                      ? `₹${Math.round(viewInvoice.subtotalAmount || (viewInvoice.totalAmount / 1.18)).toLocaleString()}`
+                      ? formatStored(viewInvoice.subtotalAmount, 'INR')
                       : `$${(viewInvoice.subtotalAmount || viewInvoice.totalAmount).toFixed(2)}`}
                   </span>
                 </div>
@@ -3410,17 +3431,19 @@ export default function ClientDashboard() {
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.8rem' }}>
                         <span style={{ color: '#64748B' }}>Central Tax (CGST {viewInvoice.taxRate ? viewInvoice.taxRate / 2 : 9}%):</span>
-                        <span>₹{Math.round(viewInvoice.cgstAmount || ((viewInvoice.totalAmount - (viewInvoice.totalAmount / 1.18)) / 2)).toLocaleString()}</span>
+                        {/* Never derived. Dividing the total by 1.18 invents a tax
+                            breakdown on a statutory document. */}
+                        <span>{formatStored(viewInvoice.cgstAmount, 'INR')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.8rem' }}>
                         <span style={{ color: '#64748B' }}>State Tax (SGST {viewInvoice.taxRate ? viewInvoice.taxRate / 2 : 9}%):</span>
-                        <span>₹{Math.round(viewInvoice.sgstAmount || ((viewInvoice.totalAmount - (viewInvoice.totalAmount / 1.18)) / 2)).toLocaleString()}</span>
+                        <span>{formatStored(viewInvoice.sgstAmount, 'INR')}</span>
                       </div>
                     </>
                   ) : (
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.8rem' }}>
                       <span style={{ color: '#64748B' }}>Integrated Tax (IGST {viewInvoice.taxRate || 18}%):</span>
-                      <span>₹{Math.round(viewInvoice.igstAmount || (viewInvoice.totalAmount - (viewInvoice.totalAmount / 1.18))).toLocaleString()}</span>
+                      <span>{formatStored(viewInvoice.igstAmount, 'INR')}</span>
                     </div>
                   )
                 ) : (
@@ -3433,7 +3456,7 @@ export default function ClientDashboard() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '2px solid #0F172A', fontWeight: 800, fontSize: '1rem', color: '#0F172A' }}>
                   <span>Total Amount Paid:</span>
                   <span style={{ color: 'var(--brand-action-green)' }}>
-                    {viewInvoice.currency === 'INR' ? `₹${Math.round(viewInvoice.totalAmount).toLocaleString()}` : `$${viewInvoice.totalAmount.toFixed(2)}`}
+                    {formatStored(viewInvoice.totalAmount, viewInvoice.currency)}
                   </span>
                 </div>
               </div>

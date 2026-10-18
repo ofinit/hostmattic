@@ -59,6 +59,8 @@ function DomainTransferForm() {
   const matchedTld = pricing ? extensionOf(domain, Object.keys(pricing)) : null;
   const tldPricing = matchedTld ? pricing?.[matchedTld] : null;
   const transferUsd = Number(tldPricing?.transferUsd ?? 0);
+  // The catalogue's rupee figure, before any conversion rounding.
+  const transferInr = Number(tldPricing?.transferInr ?? 0);
   const canTransfer = transferUsd > 0;
 
   useEffect(() => {
@@ -92,6 +94,7 @@ function DomainTransferForm() {
         billingPeriod: 'annual',
         priceMonthly: Number((transferUsd / 12).toFixed(2)),
         priceAnnual: transferUsd,
+        priceAnnualInr: transferInr || undefined,
       },
       true
     );

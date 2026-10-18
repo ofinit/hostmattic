@@ -22,6 +22,15 @@ export interface CartItem {
   authCode?: string;
   /** Registration or transfer term, in years. */
   years?: number;
+  /**
+   * The catalogue's exact rupee price, where it has one.
+   *
+   * Prices are held upstream in rupees. Converting to dollars for the cart and
+   * back for display loses precision: Rs750 becomes $8.98 becomes Rs749.83,
+   * and that 17 paise reached a tax invoice. When this is set the rupee path
+   * uses it directly and the invoice matches what was charged.
+   */
+  priceAnnualInr?: number;
 }
 
 interface CartContextType {

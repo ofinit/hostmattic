@@ -234,7 +234,24 @@ export default function CheckoutDrawer() {
 
   if (currency === 'INR') {
     const rate = 83.5;
-    subtotalAmount = Math.round(totalUsd * rate * 100) / 100;
+
+    // Prefer the catalogue's own rupee figures. Converting dollars back to
+    // rupees turned Rs750 into Rs749.83, and that reached the invoice; the
+    // conversion is only used for lines that have no rupee price.
+    const everyLineHasInr =
+      items.length > 0 &&
+      items.every((i) => typeof i.priceAnnualInr === 'number' && i.priceAnnualInr > 0);
+
+    subtotalAmount = everyLineHasInr
+      ? items.reduce(
+          (sum, i) =>
+            sum +
+            (i.billingPeriod === 'annual'
+              ? (i.priceAnnualInr as number)
+              : Math.round(((i.priceAnnualInr as number) / 12) * 100) / 100),
+          0
+        )
+      : Math.round(totalUsd * rate * 100) / 100;
     if (isIndianBuyer) {
       if (isSameState) {
         taxType = 'CGST_SGST';
@@ -338,9 +355,17 @@ export default function CheckoutDrawer() {
           sacCode: '998315',
           domainName: item.domainName || (item.type === 'DOMAIN' ? item.name : undefined),
           upstreamPlan: item.upstreamPlan,
+          priceAnnualInr: item.priceAnnualInr,
           authCode: item.authCode,
           years: item.years,
-          price: (item.billingPeriod === 'annual' ? item.priceAnnual : item.priceMonthly) * rate,
+          // The rupee figure where the catalogue has one, so the charge, the
+          // invoice and the server's re-price all agree to the paisa.
+          price:
+            currency === 'INR' && typeof item.priceAnnualInr === 'number' && item.priceAnnualInr > 0
+              ? item.billingPeriod === 'annual'
+                ? item.priceAnnualInr
+                : Math.round((item.priceAnnualInr / 12) * 100) / 100
+              : (item.billingPeriod === 'annual' ? item.priceAnnual : item.priceMonthly) * rate,
           period: item.billingPeriod === 'annual' ? '1 Year' : '1 Month',
         })),
         customer: {
@@ -432,6 +457,9 @@ export default function CheckoutDrawer() {
             orderNumber: data.orderNumber,
             buyerName: customerName,
             email: customerEmail,
+            // The gateway asks the customer for this on its own page; we
+            // already hold it on the account, so sending it saves a step.
+            phone: sessionUser?.phone || undefined,
           }),
         });
 

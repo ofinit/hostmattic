@@ -54,6 +54,22 @@ const SPECIMEN_INVOICE = {
   ],
 };
 
+/**
+ * Renders a stored amount exactly, in the currency it was stored in.
+ *
+ * `toLocaleString()` with no options drops the decimals, so Rs884.80 printed
+ * as "884.8" and Rs885 was shown where Rs884.80 had been charged. An invoice
+ * that does not match the payment does not reconcile, and its tax figure is
+ * the one that gets filed.
+ */
+function formatStored(amount: number | null | undefined, currency: string): string {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return '—';
+  return currency === 'INR'
+    ? `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : `$${value.toFixed(2)}`;
+}
+
 function NotConfigured({ label }: { label: string }) {
   return (
     <span style={{ color: '#DC2626', fontWeight: 700 }} title={`No ${label} is configured`}>
@@ -2494,7 +2510,7 @@ export default function AdminDashboardPage() {
                           </div>
                         </td>
                         <td style={{ padding: '14px 16px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap' }}>
-                          <div>{o.currency === 'INR' ? `₹${o.totalAmount.toLocaleString()}` : `$${o.totalAmount.toFixed(2)}`}</div>
+                          <div>{formatStored(o.totalAmount, o.currency)}</div>
                           {o.taxAmount > 0 && (
                             <div style={{ fontSize: '0.7rem', color: '#94A3B8', fontWeight: 400 }}>
                               Tax: {cSign}{o.taxAmount.toLocaleString()}
@@ -3347,7 +3363,7 @@ export default function AdminDashboardPage() {
                         <td style={{ padding: '10px 14px', fontFamily: 'monospace', color: '#29B4D5' }}>{it.sacCode || '998315'}</td>
                         <td style={{ padding: '10px 14px', color: '#64748B' }}>{it.billingPeriod || '1 Year'}</td>
                         <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700 }}>
-                          {selectedAdminInvoice.currency === 'INR' ? `₹${it.price.toLocaleString()}` : `$${it.price.toFixed(2)}`}
+                          {formatStored(it.price, selectedAdminInvoice.currency)}
                         </td>
                       </tr>
                     ))
@@ -3376,7 +3392,7 @@ export default function AdminDashboardPage() {
                   <span style={{ color: '#64748B' }}>Taxable Subtotal:</span>
                   <span style={{ fontWeight: 600 }}>
                     {selectedAdminInvoice.currency === 'INR'
-                      ? `₹${(selectedAdminInvoice.subtotalAmount || selectedAdminInvoice.totalAmount).toLocaleString()}`
+                      ? formatStored(selectedAdminInvoice.subtotalAmount, 'INR')
                       : `$${(selectedAdminInvoice.subtotalAmount || selectedAdminInvoice.totalAmount).toFixed(2)}`}
                   </span>
                 </div>
@@ -3386,17 +3402,17 @@ export default function AdminDashboardPage() {
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.8rem' }}>
                         <span style={{ color: '#64748B' }}>Central Tax (CGST {selectedAdminInvoice.taxRate ? selectedAdminInvoice.taxRate / 2 : 9}%):</span>
-                        <span>₹{(selectedAdminInvoice.cgstAmount || 0).toLocaleString()}</span>
+                        <span>{formatStored(selectedAdminInvoice.cgstAmount, 'INR')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.8rem' }}>
                         <span style={{ color: '#64748B' }}>State Tax (SGST {selectedAdminInvoice.taxRate ? selectedAdminInvoice.taxRate / 2 : 9}%):</span>
-                        <span>₹{(selectedAdminInvoice.sgstAmount || 0).toLocaleString()}</span>
+                        <span>{formatStored(selectedAdminInvoice.sgstAmount, 'INR')}</span>
                       </div>
                     </>
                   ) : (
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '0.8rem' }}>
                       <span style={{ color: '#64748B' }}>Integrated Tax (IGST {selectedAdminInvoice.taxRate || 18}%):</span>
-                      <span>₹{(selectedAdminInvoice.igstAmount || selectedAdminInvoice.taxAmount || 0).toLocaleString()}</span>
+                      <span>{formatStored(selectedAdminInvoice.igstAmount, 'INR')}</span>
                     </div>
                   )
                 ) : (
@@ -3409,7 +3425,7 @@ export default function AdminDashboardPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '2px solid #0F172A', fontWeight: 800, fontSize: '1rem', color: '#0F172A' }}>
                   <span>Total Invoice Amount:</span>
                   <span style={{ color: 'var(--brand-action-green)' }}>
-                    {selectedAdminInvoice.currency === 'INR' ? `₹${selectedAdminInvoice.totalAmount.toLocaleString()}` : `$${selectedAdminInvoice.totalAmount.toFixed(2)}`}
+                    {formatStored(selectedAdminInvoice.totalAmount, selectedAdminInvoice.currency)}
                   </span>
                 </div>
               </div>

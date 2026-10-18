@@ -71,7 +71,9 @@ function domainAction(name: string): 'transfer' | 'renew' | 'register' {
   return 'register';
 }
 
-async function expectedUsdFor(line: CartLine): Promise<{ usd: number | null; detail?: string }> {
+async function expectedUsdFor(
+  line: CartLine
+): Promise<{ usd: number | null; inr?: number; detail?: string }> {
   const label = line.name || line.domainName || 'item';
 
   if (line.type === 'DOMAIN') {
@@ -88,7 +90,13 @@ async function expectedUsdFor(line: CartLine): Promise<{ usd: number | null; det
     if (!unit) return { usd: null, detail: `upstream prices no ${action} for ${tld}` };
 
     const years = Number(line.years) > 0 ? Number(line.years) : 1;
-    return { usd: unit * years };
+
+    // The catalogue holds rupees; comparing in them avoids the round trip that
+    // turned Rs750 into Rs749.83.
+    const unitInr =
+      action === 'transfer' ? info.transferInr : action === 'renew' ? info.renewInr : info.retailInr;
+
+    return { usd: unit * years, inr: unitInr ? unitInr * years : undefined };
   }
 
   // Plan-based products all arrive as type HOSTING from the pricing cards.
@@ -126,13 +134,17 @@ export async function repriceCart(
     const label = line.name || line.domainName || 'item';
     const submitted = Number(line.price);
 
-    const { usd, detail } = await expectedUsdFor(line);
+    const { usd, inr, detail } = await expectedUsdFor(line);
     if (usd == null) {
       checks.push({ name: label, submitted, expected: null, status: 'unverified', detail });
       continue;
     }
 
-    const expected = Number((usd * rate).toFixed(2));
+    // Prefer the exact rupee figure when the order is in rupees.
+    const expected =
+      rate !== 1 && typeof inr === 'number' && inr > 0
+        ? Number(inr.toFixed(2))
+        : Number((usd * rate).toFixed(2));
     const tolerance = Math.max(TOLERANCE_ABSOLUTE, expected * TOLERANCE_FRACTION);
     const ok = Number.isFinite(submitted) && Math.abs(submitted - expected) <= tolerance;
 
