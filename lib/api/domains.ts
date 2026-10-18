@@ -168,6 +168,8 @@ export async function checkDomainAvailability(
 export async function registerDomain(params: {
   domainName: string;
   customerId: string;
+  /** Registrant, admin, technical and billing contact ids. Required upstream. */
+  contacts?: { registrant: string; admin: string; tech: string; billing: string };
   years?: number;
   nameservers?: string[];
   privacyProtection?: boolean;
@@ -186,10 +188,25 @@ export async function registerDomain(params: {
 
   const ns = params.nameservers || ['ns1.hostmattic.com', 'ns2.hostmattic.com'];
 
+  // The registry requires all four. Omitting them is what produced
+  // "Required parameter missing: reg-contact-id" on the first real order.
+  if (!params.contacts?.registrant) {
+    return {
+      success: false,
+      error:
+        'No registrant contact was supplied, so this domain cannot be registered. ' +
+        'Create one from the customer details first.',
+    };
+  }
+
   const postData: Record<string, any> = {
     'domain-name': params.domainName,
     years: params.years || 1,
     'customer-id': params.customerId,
+    'reg-contact-id': params.contacts.registrant,
+    'admin-contact-id': params.contacts.admin,
+    'tech-contact-id': params.contacts.tech,
+    'billing-contact-id': params.contacts.billing,
     'invoice-option': 'NoInvoice',
     'protect-privacy': params.privacyProtection ? 'true' : 'false',
   };
@@ -213,6 +230,7 @@ export async function transferDomain(params: {
   domainName: string;
   customerId: string;
   authCode: string;
+  contacts?: { registrant: string; admin: string; tech: string; billing: string };
   years?: number;
   nameservers?: string[];
   privacyProtection?: boolean;
@@ -240,10 +258,23 @@ export async function transferDomain(params: {
 
   const ns = params.nameservers || ['ns1.hostmattic.com', 'ns2.hostmattic.com'];
 
+  if (!params.contacts?.registrant) {
+    return {
+      success: false,
+      error:
+        'No registrant contact was supplied, so this transfer cannot be lodged. ' +
+        'Create one from the customer details first.',
+    };
+  }
+
   const postData: Record<string, any> = {
     'domain-name': params.domainName,
     'auth-code': params.authCode.trim(),
     'customer-id': params.customerId,
+    'reg-contact-id': params.contacts.registrant,
+    'admin-contact-id': params.contacts.admin,
+    'tech-contact-id': params.contacts.tech,
+    'billing-contact-id': params.contacts.billing,
     'invoice-option': 'NoInvoice',
     'protect-privacy': params.privacyProtection ? 'true' : 'false',
     ns: ns.join(','),

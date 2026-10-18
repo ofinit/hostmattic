@@ -25,6 +25,7 @@ import { provisionHosting } from '@/lib/api/hosting';
 import { sendEmail } from '@/lib/email/resend';
 import { notifyAdmins } from '@/lib/email/notify';
 import { ensureUpstreamCustomer } from '@/lib/services/upstreamCustomer';
+import { ensureDomainContacts } from '@/lib/api/contacts';
 import {
   generateServiceActivatedEmail,
   generateActivationDelayedEmail,
@@ -59,7 +60,22 @@ async function upstreamCustomerId(userId: string): Promise<string | null> {
 export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { items: true, user: { select: { name: true, email: true } } },
+    include: {
+      items: true,
+      user: {
+        select: {
+          name: true,
+          email: true,
+          phone: true,
+          company: true,
+          address: true,
+          city: true,
+          state: true,
+          country: true,
+          zip: true,
+        },
+      },
+    },
   });
 
   if (!order) throw new Error('Order not found.');
@@ -136,16 +152,43 @@ export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
       if (isDomain) {
         const years = item.years && item.years > 0 ? item.years : 1;
         const transferring = /transfer/i.test(item.description);
+
+        // A domain order needs registrant, admin, technical and billing
+        // contacts. They become the public WHOIS record, so they are built
+        // from the customer's own details and nothing is substituted.
+        const { contacts, error: contactError } = await ensureDomainContacts(customerId, {
+          name: order.user?.name || order.user?.email || '',
+          company: order.user?.company || '',
+          email: order.user?.email || '',
+          address: order.billingAddress || order.user?.address || '',
+          city: order.billingCity || order.user?.city || '',
+          state: order.billingState || order.user?.state || '',
+          country: order.billingCountry || order.user?.country || '',
+          zipcode: order.billingZip || order.user?.zip || '',
+          phoneCc: '91',
+          phone: (order.user?.phone || '').replace(/\D/g, '').slice(-10),
+        });
+
+        if (!contacts) {
+          const why = contactError || 'Could not create a registrant contact.';
+          await markFailed(item.id, why);
+          result.failed++;
+          result.lines.push({ description: item.description, status: 'FAILED', error: why });
+          continue;
+        }
+
         response = transferring
           ? await transferDomain({
               domainName: item.domainName || '',
               customerId,
               authCode: item.authCode || '',
+              contacts,
               years,
             })
           : await registerDomain({
               domainName: item.domainName || '',
               customerId,
+              contacts,
               years,
             });
       } else {
