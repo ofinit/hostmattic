@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSellablePlan } from '@/lib/api/hostingPricing';
 import { repriceCart } from '@/lib/services/cartPricing';
 import { nextInvoiceNumber } from '@/lib/services/invoiceNumber';
+import { validatePostcode, normalisePostcode } from '@/lib/validation/postcode';
 import { validateCurrencyMatch, lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { requireAuth } from '@/lib/auth';
 
@@ -152,13 +153,10 @@ export async function POST(req: NextRequest) {
     // customer's services, and it becomes part of the registrant contact. The
     // form asks for it, but a form check is bypassable and failing here is far
     // better than failing after the payment has been taken.
-    if (!String(billingZip || '').trim()) {
+    const postcodeCheck = validatePostcode(String(billingZip || ''), billingCountry);
+    if (!postcodeCheck.ok) {
       return NextResponse.json(
-        {
-          success: false,
-          code: 'POSTCODE_REQUIRED',
-          error: 'Please enter your PIN or postal code so your services can be registered.',
-        },
+        { success: false, code: 'POSTCODE_REQUIRED', error: postcodeCheck.error },
         { status: 400 }
       );
     }
@@ -286,7 +284,7 @@ export async function POST(req: NextRequest) {
             companyName: companyName ? companyName.trim() : null,
             billingAddress: billingAddress ? billingAddress.trim() : null,
             billingCity: billingCity ? billingCity.trim() : null,
-            billingZip: billingZip ? String(billingZip).trim() : null,
+            billingZip: normalisePostcode(String(billingZip || ''), billingCountry) || null,
             billingState: billingState || null,
             billingCountry: billingCountry || (currency === 'INR' ? 'IN' : 'US'),
             placeOfSupply: placeOfSupply || null,

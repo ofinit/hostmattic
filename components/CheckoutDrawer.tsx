@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
 import { GST_STATES, DEFAULT_SELLER_STATE_CODE } from '@/lib/constants/gstStates';
+import { validatePostcode } from '@/lib/validation/postcode';
 import { COUNTRIES, getCountryStates } from '@/lib/constants/countries';
 import { loadRazorpaySdk } from '@/lib/utils/loadRazorpay';
 
@@ -295,12 +296,11 @@ export default function CheckoutDrawer() {
     // The upstream account that holds the customer's services cannot be created
     // without a postcode, and inventing one puts a fictional address into
     // public WHOIS. Asking here is better than failing after payment.
-    if (!billingZip.trim()) {
-      setErrorMessage(
-        isIndianBuyer
-          ? 'Please enter your PIN code. It forms part of the registrant contact for your services.'
-          : 'Please enter your postal code. It forms part of the registrant contact for your services.'
-      );
+    // Shared with the other checkout and with the API, so one rule governs all
+    // three rather than three that drift.
+    const postcode = validatePostcode(billingZip, billingCountry);
+    if (!postcode.ok) {
+      setErrorMessage(postcode.error || 'Please check your postal code.');
       return;
     }
 
@@ -1326,7 +1326,7 @@ export default function CheckoutDrawer() {
               {/* Submit CTA */}
               <button
                 type="submit"
-                disabled={loading || !billingZip.trim() || (countryStates.length > 0 && !billingStateCode)}
+                disabled={loading || !validatePostcode(billingZip, billingCountry).ok || (countryStates.length > 0 && !billingStateCode)}
                 className="btn btn-primary"
                 style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '1rem', marginTop: '20px' }}
               >

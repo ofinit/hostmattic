@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCart } from '@/components/CartContext';
 import { useCurrency } from '@/components/CurrencyContext';
 import { GST_STATES, DEFAULT_SELLER_STATE_CODE } from '@/lib/constants/gstStates';
+import { validatePostcode } from '@/lib/validation/postcode';
 import { COUNTRIES, getCountryStates } from '@/lib/constants/countries';
 import { loadRazorpaySdk } from '@/lib/utils/loadRazorpay';
 
@@ -198,12 +199,9 @@ export default function FullCheckoutPage() {
       return;
     }
 
-    if (!billingZip.trim()) {
-      setErrorMessage(
-        billingCountry === 'IN'
-          ? 'Please enter your PIN code. It forms part of the registrant contact for your services.'
-          : 'Please enter your postal code. It forms part of the registrant contact for your services.'
-      );
+    const postcode = validatePostcode(billingZip, billingCountry);
+    if (!postcode.ok) {
+      setErrorMessage(postcode.error || 'Please check your postal code.');
       return;
     }
 
