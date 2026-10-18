@@ -208,7 +208,6 @@ export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
               customerId,
               authCode: item.authCode || '',
               contacts,
-              years,
             })
           : await registerDomain({
               domainName: item.domainName || '',

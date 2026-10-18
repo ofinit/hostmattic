@@ -1,4 +1,5 @@
 import { apiClient, isLiveApiConfigured, ApiResponse } from './client';
+import { apiV2, isUnavailable } from './clientV2';
 import { getLiveDomainPricing } from './pricing';
 
 export interface DomainCheckResult {
@@ -223,57 +224,69 @@ export async function registerDomain(params: {
 /**
  * Whether a domain can be transferred in at all.
  *
- * The specification pairs transfer-in with a validate-transfer-in check, and
- * this is the legacy API's equivalent. It catches what a registry refuses
- * outright - inside the 60-day window after registration or a previous
- * transfer, registrar-locked, expired beyond the grace period, privacy still
- * switched on at the losing registrar - so those surface before the customer
- * is charged rather than after.
+ * The v2 specification pairs transfer-in with GET validate-transfer-in for
+ * exactly this purpose: catching what a registry refuses outright - inside the
+ * 60-day window after registration or a previous transfer, registrar-locked,
+ * expired past the grace period, privacy still on at the losing registrar -
+ * before the customer is charged rather than after.
  *
- * `transferable: null` means the check did not answer. That is deliberately
- * not treated as a refusal: the authoritative answer comes from the transfer
- * call itself, and blocking an order on a check that is merely unavailable
- * would be worse than letting the transfer speak for itself.
+ * `transferable: null` means the check did not answer. That is deliberately not
+ * a refusal: the authoritative answer comes from the transfer call itself, and
+ * blocking an order on a check that is merely unavailable would be worse than
+ * letting the transfer speak for itself.
  */
 export async function validateTransfer(
   domainName: string
 ): Promise<{ transferable: boolean | null; reason?: string }> {
   if (!isLiveApiConfigured()) return { transferable: true };
 
-  const res = await apiClient<any>('/domains/validate-transfer.json', {
-    'domain-name': domainName,
-  });
+  const res = await apiV2<{ success?: boolean; status?: string; message?: string }>(
+    `/domains/${encodeURIComponent(domainName)}/validate-transfer-in`
+  );
 
-  if (!res.success) return { transferable: null, reason: res.error };
-
-  // The call answers with a bare boolean, as a string or as JSON.
-  const raw =
-    typeof res.data === 'object' && res.data !== null
-      ? (res.data as any).result ?? (res.data as any).transferable ?? res.data
-      : res.data;
-  const text = String(raw).trim().toLowerCase().replace(/^"|"$/g, '');
-
-  if (text === 'true') return { transferable: true };
-  if (text === 'false') {
-    return {
-      transferable: false,
-      reason:
-        'The registry will not accept a transfer for this domain yet. The usual causes are ' +
-        'a registration or previous transfer less than 60 days old, a registrar lock, or ' +
-        'privacy protection still enabled at the current registrar.',
-    };
+  if (res.success) {
+    const body = res.data || {};
+    if (body.success === true || body.status === 'Success') return { transferable: true };
+    if (body.success === false) {
+      return { transferable: false, reason: body.message || transferRefusalReason() };
+    }
+    return { transferable: null, reason: body.message || 'The check returned no verdict.' };
   }
 
-  return { transferable: null, reason: `Unrecognised response: ${text.slice(0, 120)}` };
+  // A rejection that names a reason is a real answer; only an unreachable
+  // endpoint is inconclusive.
+  if (!isUnavailable(res)) {
+    return { transferable: false, reason: res.error || transferRefusalReason() };
+  }
+
+  return { transferable: null, reason: res.error };
 }
+
+function transferRefusalReason(): string {
+  return (
+    'The registry will not accept a transfer for this domain yet. The usual causes are ' +
+    'a registration or previous transfer less than 60 days old, a registrar lock, or ' +
+    'privacy protection still enabled at the current registrar.'
+  );
+}
+
+/** TLDs whose registry demands the authorisation code at order placement. */
+const AUTH_CODE_REQUIRED_AT_PLACEMENT = ['.au', '.ca', '.de', '.eu', '.nz'];
 
 /**
  * Transfer a domain in from another registrar.
  *
- * Distinct from registration: upstream charges a different price for it and
- * requires the EPP / authorisation code the customer obtains from their
- * current registrar. Without that code the registry will reject the request,
- * so this refuses rather than sending one it knows will fail.
+ * Field set and required-ness come from the v2 InitiateDomainTransferRequest
+ * schema: customerId, the four contact ids, invoiceOption and autoRenew are
+ * required; authCode, ns, privacy and premium DNS are optional. There is no
+ * `years` parameter - a transfer carries the term the registry grants, not one
+ * the caller chooses, which is why an earlier attempt to send one was wrong.
+ *
+ * Tries v2 first because that is the documented interface, and falls back to
+ * the legacy endpoint only when v2 reports the account cannot reach it at all
+ * (401/403/404). A validation or business rejection from v2 is a real answer
+ * and is returned as-is - retrying that on legacy would risk lodging the same
+ * transfer twice.
  */
 export async function transferDomain(params: {
   domainName: string;
@@ -282,16 +295,25 @@ export async function transferDomain(params: {
   contacts?: { registrant: string; admin: string; tech: string; billing: string };
   /** Required by the specification. Defaults to on, as a registrar normally would. */
   autoRenew?: boolean;
-  years?: number;
   nameservers?: string[];
   privacyProtection?: boolean;
 }): Promise<ApiResponse> {
-  if (!params.authCode?.trim()) {
+  const dot = params.domainName.indexOf('.');
+  const tld = dot === -1 ? '' : params.domainName.slice(dot).toLowerCase();
+  const authCode = params.authCode?.trim() || '';
+
+  // The specification makes authCode optional for most TLDs, submittable
+  // afterwards via submitTransferAuthCode. It is still required here: a
+  // transfer lodged without one sits pending until the registry times it out,
+  // and the customer has already paid by that point.
+  if (!authCode) {
+    const mandatory = AUTH_CODE_REQUIRED_AT_PLACEMENT.includes(tld);
     return {
       success: false,
-      error:
-        'This transfer has no authorisation code. Ask the customer for the EPP code ' +
-        'from their current registrar, then retry.',
+      error: mandatory
+        ? `A ${tld} transfer cannot be lodged without the authorisation code. Ask the customer for the EPP code from their current registrar, then retry.`
+        : 'This transfer has no authorisation code. Ask the customer for the EPP code ' +
+          'from their current registrar, then retry.',
     };
   }
 
@@ -306,8 +328,6 @@ export async function transferDomain(params: {
       isMock: true,
     };
   }
-
-  const ns = params.nameservers || ['ns1.hostmattic.com', 'ns2.hostmattic.com'];
 
   if (!params.contacts?.registrant) {
     return {
@@ -326,33 +346,92 @@ export async function transferDomain(params: {
     return { success: false, error: preflight.reason };
   }
 
-  // Parameters follow the vendor's Domain Transfer In specification, which
-  // marks customerId, the four contact ids, invoiceOption and autoRenew as
-  // required, and authCode as required at order placement for .AU, .CA, .DE,
-  // .RU and .UK.
-  //
-  // Note the specification describes API v2 - a JSON endpoint at
-  // /v2/domains/{domainName}/transfer-in using camelCase and header auth -
-  // while this client speaks the legacy HTTP API, which answers in kebab-case
-  // and is what every other call here uses. The field set is mapped across;
-  // the transport is not.
-  //
-  // `auto-renew` was absent entirely and the specification marks it required.
+  const ns = params.nameservers || ['ns1.hostmattic.com', 'ns2.hostmattic.com'];
+  const autoRenew = params.autoRenew !== false;
+
+  const v2 = await apiV2(`/domains/${encodeURIComponent(params.domainName)}/transfer-in`, {
+    method: 'POST',
+    body: {
+      authCode,
+      customerId: Number(params.customerId),
+      regContactId: Number(params.contacts.registrant),
+      adminContactId: Number(params.contacts.admin),
+      techContactId: Number(params.contacts.tech),
+      billingContactId: Number(params.contacts.billing),
+      invoiceOption: 'NoInvoice',
+      autoRenew,
+      purchasePrivacy: Boolean(params.privacyProtection),
+      protectPrivacy: Boolean(params.privacyProtection),
+      ns: ns.slice(0, 13),
+    },
+  });
+
+  if (v2.success || !isUnavailable(v2)) {
+    return { success: v2.success, data: v2.data, error: v2.error };
+  }
+
+  console.warn(
+    `[transfer] v2 unavailable (HTTP ${v2.httpStatus}); falling back to the legacy endpoint.`
+  );
+
   const postData: Record<string, any> = {
     'domain-name': params.domainName,
-    'auth-code': params.authCode.trim(),
-    years: params.years || 1,
-    'auto-renew': params.autoRenew === false ? 'false' : 'true',
+    'auth-code': authCode,
     'customer-id': params.customerId,
     'reg-contact-id': params.contacts.registrant,
     'admin-contact-id': params.contacts.admin,
     'tech-contact-id': params.contacts.tech,
     'billing-contact-id': params.contacts.billing,
     'invoice-option': 'NoInvoice',
+    'auto-renew': autoRenew ? 'true' : 'false',
     'purchase-privacy': params.privacyProtection ? 'true' : 'false',
     'protect-privacy': params.privacyProtection ? 'true' : 'false',
     ns: ns.join(','),
   };
 
   return apiClient('/domains/transfer.json', postData, 'POST');
+}
+
+/**
+ * Supplies the authorisation code for a transfer already lodged without one.
+ * The specification's route for the TLDs where the code may follow the order.
+ */
+export async function submitTransferAuthCode(
+  orderId: string,
+  authCode: string
+): Promise<ApiResponse> {
+  if (!authCode?.trim()) {
+    return { success: false, error: 'No authorisation code was supplied.' };
+  }
+  if (!isLiveApiConfigured()) return { success: true, isMock: true };
+
+  const res = await apiV2(`/domains/${encodeURIComponent(orderId)}/transfer-in/auth-code`, {
+    method: 'POST',
+    body: { authCode: authCode.trim() },
+  });
+  return { success: res.success, data: res.data, error: res.error };
+}
+
+/**
+ * Transfers lodged upstream and still in progress.
+ *
+ * Worth having because a transfer is not instant - it can sit for days waiting
+ * on the losing registrar. Without this, a transfer that was lodged and one
+ * that was never accepted look identical from here.
+ */
+export async function listPendingTransfers(
+  filters: { customerId?: string; domainName?: string; orderId?: string } = {}
+): Promise<ApiResponse> {
+  if (!isLiveApiConfigured()) return { success: true, data: { transfers: [] }, isMock: true };
+
+  const res = await apiV2('/domain-transfers/pending', {
+    query: {
+      size: 50,
+      page: 1,
+      customerId: filters.customerId ? Number(filters.customerId) : undefined,
+      domainName: filters.domainName,
+      orderId: filters.orderId ? Number(filters.orderId) : undefined,
+    },
+  });
+  return { success: res.success, data: res.data, error: res.error };
 }
