@@ -6,6 +6,7 @@ import { generatePaymentReceivedEmail } from '@/lib/email/lifecycle';
 import { instamojoService } from '@/lib/services/instamojo';
 import { lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { fulfilOrder } from '@/lib/services/fulfilment';
+import { issueInvoiceNumber } from '@/lib/services/invoiceNumber';
 
 export async function POST(req: NextRequest) {
   try {
@@ -74,6 +75,9 @@ export async function POST(req: NextRequest) {
         user: { select: { name: true, email: true } },
       },
     });
+
+    // Paid, so the tax invoice is issuable. Idempotent and non-throwing.
+    await issueInvoiceNumber(order.id);
 
     if (order.userId) {
       await lockCustomerCurrency(order.userId, 'INR');

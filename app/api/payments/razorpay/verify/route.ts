@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { sendEmail } from '@/lib/email/resend';
 import { generatePaymentReceivedEmail } from '@/lib/email/lifecycle';
 import { fulfilOrder } from '@/lib/services/fulfilment';
+import { issueInvoiceNumber } from '@/lib/services/invoiceNumber';
 import { razorpayService } from '@/lib/services/razorpay';
 import { lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { requireAuth } from '@/lib/auth';
@@ -96,6 +97,9 @@ export async function POST(req: NextRequest) {
         user: { select: { name: true, email: true } },
       },
     });
+
+    // Paid, so the tax invoice is issuable. Idempotent and non-throwing.
+    await issueInvoiceNumber(order.id);
 
     if (order.userId && (order.currency === 'USD' || order.currency === 'INR')) {
       await lockCustomerCurrency(order.userId, order.currency as 'USD' | 'INR');

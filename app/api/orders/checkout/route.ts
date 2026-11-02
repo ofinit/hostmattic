@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSellablePlan } from '@/lib/api/hostingPricing';
 import { repriceCart } from '@/lib/services/cartPricing';
-import { nextInvoiceNumber } from '@/lib/services/invoiceNumber';
+import { nextOrderNumber } from '@/lib/services/invoiceNumber';
 import { validatePostcode, normalisePostcode } from '@/lib/validation/postcode';
 import { validateCurrencyMatch, lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { requireAuth } from '@/lib/auth';
@@ -71,15 +71,15 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Rule 46(b): a consecutive serial, unique for the financial year. The
-    // previous scheme was a timestamp fragment plus a random three-digit
-    // number - not consecutive, and able to collide. No fallback here: an
-    // order that cannot be given a lawful invoice number is not recorded.
+    // An order reference, not an invoice number. The tax invoice serial is
+    // allocated when the invoice is issued - on payment - because Rule 46(b)
+    // wants a consecutive series and an abandoned basket must not leave a gap
+    // in it. This counter is separate and carries no statutory meaning.
     let orderNumber: string;
     try {
-      orderNumber = await nextInvoiceNumber();
+      orderNumber = await nextOrderNumber();
     } catch (numErr: any) {
-      console.error('[Checkout] Could not allocate an invoice number:', numErr?.message);
+      console.error('[Checkout] Could not allocate an order number:', numErr?.message);
       return NextResponse.json(
         { success: false, error: 'Could not start this order. Please try again in a moment.' },
         { status: 503 }

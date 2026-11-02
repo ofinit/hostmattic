@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { instamojoService } from '@/lib/services/instamojo';
 import { lockCustomerCurrency } from '@/lib/services/currencyLock';
 import { fulfilOrder } from '@/lib/services/fulfilment';
+import { issueInvoiceNumber } from '@/lib/services/invoiceNumber';
 import { sendEmail } from '@/lib/email/resend';
 import { generatePaymentReceivedEmail } from '@/lib/email/lifecycle';
 
@@ -43,6 +44,11 @@ export async function GET(req: NextRequest) {
             paymentMethod: 'INSTAMOJO_UPI',
           },
         });
+
+        // The supply is now paid for, so the tax invoice is issuable.
+        // Idempotent, and never throws: the money has already moved, and a
+        // numbering failure must not fail the payment path.
+        await issueInvoiceNumber(order.id);
 
         if (order.userId) {
           await lockCustomerCurrency(order.userId, 'INR');

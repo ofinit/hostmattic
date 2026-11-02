@@ -26,6 +26,7 @@ import { sendEmail } from '@/lib/email/resend';
 import { notifyAdmins } from '@/lib/email/notify';
 import { ensureUpstreamCustomer } from '@/lib/services/upstreamCustomer';
 import { ensureDomainContacts } from '@/lib/api/contacts';
+import { issueInvoiceNumber } from '@/lib/services/invoiceNumber';
 import { getUpstreamCustomerDetails } from '@/lib/api/customers';
 import {
   generateServiceActivatedEmail,
@@ -59,6 +60,10 @@ async function upstreamCustomerId(userId: string): Promise<string | null> {
 }
 
 export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
+  // Belt and braces: every paid order passes through here, so an invoice that
+  // a gateway route failed to number still gets one. Idempotent.
+  await issueInvoiceNumber(orderId);
+
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {

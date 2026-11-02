@@ -35,24 +35,86 @@ export function formatInvoiceNumber(fy: string, serial: number): string {
   return `HM/${fy}/${String(serial).padStart(4, '0')}`;
 }
 
+/** Order references are internal and carry no statutory meaning. */
+export function formatOrderNumber(fy: string, serial: number): string {
+  return `HMO/${fy}/${String(serial).padStart(4, '0')}`;
+}
+
 /**
- * Allocates the next number in this financial year's series.
+ * One atomic increment against a named counter. Postgres locks the row for the
+ * update, so two checkouts racing for the same series take different numbers.
+ */
+async function nextSerial(seriesId: string): Promise<number> {
+  const series = await prisma.invoiceSeries.upsert({
+    where: { id: seriesId },
+    create: { id: seriesId, lastNumber: 1 },
+    update: { lastNumber: { increment: 1 } },
+  });
+  return series.lastNumber;
+}
+
+/**
+ * Allocates the next number in this financial year's INVOICE series.
  *
  * Deliberately has no fallback. If a number cannot be allocated the caller
- * must fail the checkout: an order recorded without a valid invoice number is
- * a document that cannot lawfully be issued, and inventing one is how the
- * previous scheme came to exist.
+ * must fail rather than invent one: an invoice without a valid serial is a
+ * document that cannot lawfully be issued.
+ *
+ * Call this only when an invoice is actually being issued. It used to be
+ * called at checkout, which burned a serial on every abandoned basket and left
+ * the series full of gaps.
  */
 export async function nextInvoiceNumber(now: Date = new Date()): Promise<string> {
   const fy = financialYearOf(now);
+  return formatInvoiceNumber(fy, await nextSerial(fy));
+}
 
-  // A single atomic increment. Postgres locks the row for the update, so two
-  // checkouts racing for the same series take different numbers.
-  const series = await prisma.invoiceSeries.upsert({
-    where: { id: fy },
-    create: { id: fy, lastNumber: 1 },
-    update: { lastNumber: { increment: 1 } },
-  });
+/**
+ * The reference for an order, allocated at checkout.
+ *
+ * Kept on its own counter so an unpaid order cannot consume an invoice serial.
+ */
+export async function nextOrderNumber(now: Date = new Date()): Promise<string> {
+  const fy = financialYearOf(now);
+  return formatOrderNumber(fy, await nextSerial(`ORD-${fy}`));
+}
 
-  return formatInvoiceNumber(fy, series.lastNumber);
+/**
+ * Issues the tax invoice for an order that has been paid.
+ *
+ * Idempotent: an order that already carries a number keeps it. That matters
+ * because three separate gateway routes mark an order paid and each calls
+ * this, and because re-issuing a different serial for a supply already
+ * invoiced is precisely what the numbering rules forbid.
+ *
+ * Returns null if the order is not paid or does not exist. Never throws into
+ * a payment path: the money has already moved by the time this runs, and
+ * failing the callback would leave the customer charged with no record. The
+ * failure is logged for an administrator and the backfill script can repair
+ * it.
+ */
+export async function issueInvoiceNumber(orderId: string): Promise<string | null> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, invoiceNumber: true, paymentStatus: true, createdAt: true },
+    });
+
+    if (!order) return null;
+    if (order.invoiceNumber) return order.invoiceNumber;
+    if (order.paymentStatus !== 'PAID') return null;
+
+    const issuedAt = new Date();
+    const invoiceNumber = await nextInvoiceNumber(issuedAt);
+
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { invoiceNumber, invoiceIssuedAt: issuedAt },
+    });
+
+    return invoiceNumber;
+  } catch (err: any) {
+    console.error(`[invoice] Could not issue a number for order ${orderId}:`, err?.message);
+    return null;
+  }
 }

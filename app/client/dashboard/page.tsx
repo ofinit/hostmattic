@@ -33,6 +33,56 @@ function formatStored(amount: number | null | undefined, currency: string): stri
 }
 
 /**
+ * Downloads the tax invoice as a PDF.
+ *
+ * Generated server-side from the order record, so the file is identical
+ * wherever it is produced and the text stays selectable. Print remains
+ * alongside it: printing is for paper, this is for sending and filing.
+ */
+async function downloadInvoicePdf(
+  reference: string,
+  setBusy: (v: boolean) => void,
+  onError: (msg: string) => void
+) {
+  if (!reference) return;
+  setBusy(true);
+  try {
+    const res = await fetch(`/api/invoices/${encodeURIComponent(reference)}/pdf`, {
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      // The route answers with JSON on failure, so say what it said rather
+      // than saving an error page as a .pdf.
+      let message = 'The invoice could not be downloaded.';
+      try {
+        const body = await res.json();
+        if (body?.error) message = body.error;
+      } catch {
+        /* non-JSON body; keep the generic message */
+      }
+      onError(message);
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${reference.replace(/[^A-Za-z0-9._-]+/g, '-')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // Revoking immediately can cancel the download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (err: any) {
+    onError(err?.message || 'The invoice could not be downloaded.');
+  } finally {
+    setBusy(false);
+  }
+}
+
+/**
  * What has actually happened to the services on an order.
  *
  * A customer whose payment succeeded but whose provisioning did not used to
@@ -177,6 +227,10 @@ export default function ClientDashboard() {
 
   // Invoice Modal state
   const [viewInvoice, setViewInvoice] = useState<any>(null);
+  // Declared here with the other state, above the early return taken while
+  // loading. A hook below that return runs on some renders and not others,
+  // which is React error #310 - and has shipped from this file twice.
+  const [invoicePdfBusy, setInvoicePdfBusy] = useState(false);
 
   // Pagination states
   const [clientDomainPage, setClientDomainPage] = useState(1);
@@ -3353,6 +3407,20 @@ export default function ClientDashboard() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() =>
+                    downloadInvoicePdf(
+                      viewInvoice.invoiceNumber || viewInvoice.orderNumber,
+                      setInvoicePdfBusy,
+                      (msg) => alert(msg)
+                    )
+                  }
+                  disabled={invoicePdfBusy}
+                  className="btn btn-sm btn-outline"
+                  style={{ fontSize: '0.8rem', marginRight: '8px' }}
+                >
+                  {invoicePdfBusy ? 'Preparing…' : 'Download PDF ⬇'}
+                </button>
                 <button onClick={() => window.print()} className="btn btn-sm btn-outline" style={{ fontSize: '0.8rem' }}>
                   Print / PDF 🖨️
                 </button>
@@ -3442,7 +3510,11 @@ export default function ClientDashboard() {
             <div className="grid-invoice-meta">
               <div>
                 <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Invoice Number:</span>
-                <strong>{viewInvoice.orderNumber}</strong>
+                <strong>
+                  {viewInvoice.invoiceNumber || (
+                    <span style={{ color: '#B45309' }}>Not issued (unpaid)</span>
+                  )}
+                </strong>
               </div>
               <div>
                 <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Date of Issue:</span>

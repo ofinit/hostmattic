@@ -23,7 +23,9 @@ import { GST_STATES } from '@/lib/constants/gstStates';
  */
 const SPECIMEN_INVOICE = {
   __specimen: true,
-  orderNumber: 'HM-SPECIMEN-0000',
+  orderNumber: 'HMO-SPECIMEN-0000',
+  // Visibly a specimen, so it can never be mistaken for a real serial.
+  invoiceNumber: 'HM/SPECIMEN/0000',
   createdAt: new Date().toISOString(),
   currency: 'INR',
   customerType: 'B2C',
@@ -68,6 +70,56 @@ function formatStored(amount: number | null | undefined, currency: string): stri
   return currency === 'INR'
     ? `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     : `$${value.toFixed(2)}`;
+}
+
+/**
+ * Downloads the tax invoice as a PDF.
+ *
+ * Generated server-side from the order record, so the file is identical
+ * wherever it is produced and the text stays selectable. Print remains
+ * alongside it: printing is for paper, this is for sending and filing.
+ */
+async function downloadInvoicePdf(
+  reference: string,
+  setBusy: (v: boolean) => void,
+  onError: (msg: string) => void
+) {
+  if (!reference) return;
+  setBusy(true);
+  try {
+    const res = await fetch(`/api/invoices/${encodeURIComponent(reference)}/pdf`, {
+      credentials: 'include',
+    });
+
+    if (!res.ok) {
+      // The route answers with JSON on failure, so say what it said rather
+      // than saving an error page as a .pdf.
+      let message = 'The invoice could not be downloaded.';
+      try {
+        const body = await res.json();
+        if (body?.error) message = body.error;
+      } catch {
+        /* non-JSON body; keep the generic message */
+      }
+      onError(message);
+      return;
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${reference.replace(/[^A-Za-z0-9._-]+/g, '-')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // Revoking immediately can cancel the download in some browsers.
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (err: any) {
+    onError(err?.message || 'The invoice could not be downloaded.');
+  } finally {
+    setBusy(false);
+  }
 }
 
 function NotConfigured({ label }: { label: string }) {
@@ -130,6 +182,10 @@ export default function AdminDashboardPage() {
   const [savingTaxSettings, setSavingTaxSettings] = useState(false);
   const [taxNotice, setTaxNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [selectedAdminInvoice, setSelectedAdminInvoice] = useState<any | null>(null);
+  // Declared here with the other state, above the early return taken while
+  // loading. A hook below that return runs on some renders and not others,
+  // which is React error #310 - and has shipped from this file twice.
+  const [invoicePdfBusy, setInvoicePdfBusy] = useState(false);
 
   // Drill-down Modal States (Option 1)
   const [selectedStaffTicket, setSelectedStaffTicket] = useState<any | null>(null);
@@ -3231,6 +3287,20 @@ export default function AdminDashboardPage() {
                 )}
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() =>
+                    downloadInvoicePdf(
+                      selectedAdminInvoice.invoiceNumber || selectedAdminInvoice.orderNumber,
+                      setInvoicePdfBusy,
+                      (msg) => alert(msg)
+                    )
+                  }
+                  disabled={invoicePdfBusy}
+                  className="btn btn-sm btn-outline"
+                  style={{ borderColor: '#CBD5E1', fontSize: '0.78rem', marginRight: '8px' }}
+                >
+                  {invoicePdfBusy ? 'Preparing…' : 'Download PDF ⬇'}
+                </button>
                 <button onClick={() => window.print()} className="btn btn-sm btn-outline" style={{ borderColor: '#CBD5E1', fontSize: '0.78rem' }}>
                   Print Invoice 🖨️
                 </button>
@@ -3305,7 +3375,16 @@ export default function AdminDashboardPage() {
             <div className="grid-invoice-meta" style={{ background: '#0F172A', color: '#FFFFFF', padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', fontSize: '0.8rem' }}>
               <div>
                 <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Invoice No:</span>
-                <strong>{selectedAdminInvoice.orderNumber}</strong>
+                {/*
+                  * The invoice serial, which is allocated when the invoice is
+                  * issued - on payment. It used to show the order number, so
+                  * an unpaid order presented itself as a numbered tax invoice.
+                  */}
+                <strong>
+                  {selectedAdminInvoice.invoiceNumber || (
+                    <span style={{ color: '#F59E0B' }}>Not issued (unpaid)</span>
+                  )}
+                </strong>
               </div>
               <div>
                 <span style={{ color: '#94A3B8', display: 'block', fontSize: '0.72rem' }}>Invoice Date:</span>
