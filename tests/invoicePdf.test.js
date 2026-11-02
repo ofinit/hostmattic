@@ -147,6 +147,16 @@ test('many line items still produce one valid document', async () => {
   assert.ok(isPdf(bytes));
 });
 
+test('the brand mark is embedded as an image, not redrawn as text', async () => {
+  // The logo lives in public/ and is read at render time. If that read fails
+  // the wordmark is drawn as text instead, so this guards against the logo
+  // silently disappearing from every invoice.
+  const bytes = await renderInvoicePdf(order(), SELLER);
+  const raw = Buffer.from(bytes).toString('latin1');
+  assert.ok(raw.includes('/Image'), 'should embed an image XObject');
+  assert.ok(bytes.length > 20000, 'an embedded logo makes the file substantially larger');
+});
+
 test('the filename drops the slashes an invoice serial carries', () => {
   assert.strictEqual(
     invoiceFilename({ invoiceNumber: 'HM/2026-27/0001', orderNumber: 'HMO/2026-27/0001' }),

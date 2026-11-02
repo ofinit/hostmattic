@@ -19,6 +19,8 @@
  *    order number and presenting itself as one.
  */
 
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
 
 export interface InvoiceSeller {
@@ -71,6 +73,27 @@ export interface InvoiceOrder {
 
 const A4: [number, number] = [595.28, 841.89];
 const MARGIN = 42;
+
+/**
+ * The brand mark, read once and kept.
+ *
+ * `null` means the file could not be read - in a container the public
+ * directory is copied next to the server bundle, and if that ever changes the
+ * invoice must still render. The wordmark is drawn as text instead. An invoice
+ * that fails to generate is far worse than one without a logo.
+ */
+let logoCache: Uint8Array | null | undefined;
+
+async function loadLogo(): Promise<Uint8Array | null> {
+  if (logoCache !== undefined) return logoCache;
+  try {
+    const file = path.join(process.cwd(), 'public', 'assets', 'img', 'hostmattic-logo.png');
+    logoCache = new Uint8Array(await readFile(file));
+  } catch {
+    logoCache = null;
+  }
+  return logoCache;
+}
 
 const INK = rgb(0.06, 0.09, 0.16);
 const MUTED = rgb(0.39, 0.45, 0.55);
@@ -183,18 +206,28 @@ export async function renderInvoicePdf(
   const docTitle = issued ? 'TAX INVOICE' : 'PROFORMA INVOICE';
 
   // ---- Masthead ----------------------------------------------------------
-  text('HOSTMATTIC', MARGIN, y - 16, { size: 20, font: bold });
-  text('Domains, Websites & Hosting', MARGIN, y - 29, { size: 8, color: MUTED });
+  // The logo already carries the name and the tagline, so when it is present
+  // neither is drawn again.
+  const logoBytes = await loadLogo();
+  if (logoBytes) {
+    const logo = await pdf.embedPng(logoBytes);
+    const logoHeight = 30;
+    const logoWidth = (logo.width / logo.height) * logoHeight;
+    page.drawImage(logo, { x: MARGIN, y: y - logoHeight, width: logoWidth, height: logoHeight });
+  } else {
+    text('HOSTMATTIC', MARGIN, y - 16, { size: 20, font: bold });
+    text('Domains, Websites & Hosting', MARGIN, y - 29, { size: 8, color: MUTED });
+  }
 
   const titleWidth = bold.widthOfTextAtSize(docTitle, 10) + 18;
   page.drawRectangle({
     x: right - titleWidth,
-    y: y - 20,
+    y: y - 22,
     width: titleWidth,
     height: 20,
     color: issued ? INK : WARN,
   });
-  textRight(docTitle, right - 9, y - 14, { size: 10, font: bold, color: rgb(1, 1, 1) });
+  textRight(docTitle, right - 9, y - 16, { size: 10, font: bold, color: rgb(1, 1, 1) });
 
   y -= 44;
   text(
@@ -231,7 +264,11 @@ export async function renderInvoicePdf(
     return cursor;
   };
 
-  const sellerAddress = [seller.registeredAddress, seller.city].filter(Boolean).map((v) => safe(v)).join(', ');
+  // Trailing punctuation on the stored value produced "Siolim,, North Goa".
+  const sellerAddress = [seller.registeredAddress, seller.city]
+    .map((v) => safe(v).replace(/[,;\s]+$/, ''))
+    .filter(Boolean)
+    .join(', ');
   const sellerRegion = [
     safe(seller.state),
     seller.stateCode ? `State Code: ${safe(seller.stateCode)}` : '',
