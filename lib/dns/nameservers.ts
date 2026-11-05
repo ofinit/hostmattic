@@ -124,9 +124,10 @@ export async function nameserverReport(): Promise<{
       checks: [],
       usable: [],
       verdict:
-        'BRAND_NAMESERVERS is not set, so orders are placed without nameservers and upstream ' +
-        'applies the customer default. That works, but the nameservers a customer sees on their ' +
-        'domain will be whatever upstream assigns.',
+        'BRAND_NAMESERVERS is not set, so orders fall back to the customer default held ' +
+        'upstream. See customerDefaultNameservers and wouldSend below for what an order would ' +
+        'actually carry - nameservers are mandatory on a registration, so an empty wouldSend ' +
+        'means the order cannot complete.',
     };
   }
 
