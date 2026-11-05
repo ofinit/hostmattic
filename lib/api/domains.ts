@@ -184,14 +184,59 @@ export async function checkDomainAvailability(
  * registrant can point the domain wherever they like afterwards, and that is
  * a far better outcome than an order that fails with their money taken.
  */
-async function nameserverList(supplied?: string[]): Promise<string[]> {
+/**
+ * The customer's own default nameservers, held upstream.
+ *
+ * The documented endpoint for this. It is the correct source when we have no
+ * nameservers of our own to offer: every customer has a usable default, and
+ * it is what the provider would have applied anyway.
+ */
+export async function getCustomerDefaultNameservers(customerId: string): Promise<string[]> {
+  const res = await apiV2<{ nameServers?: string[] }>(
+    `/customers/${encodeURIComponent(customerId)}/default-nameservers`
+  );
+  if (!res.success) return [];
+  const list = (res.data as any)?.nameServers;
+  if (!Array.isArray(list)) return [];
+  return list.map((n: any) => String(n).trim().toLowerCase()).filter(Boolean).slice(0, 13);
+}
+
+/**
+ * Which nameservers an order should carry, in order of preference.
+ *
+ * Nameservers are NOT optional on a registration - omitting them answers
+ * "Required parameter missing: nameservers". An earlier version left them out
+ * on the assumption that upstream would fill in the customer default, and
+ * that assumption cost a retry.
+ *
+ *   1. Whatever the caller passed explicitly.
+ *   2. The branded set, but only the entries that genuinely resolve. A
+ *      nameserver without an address record fails registry validation, which
+ *      is how this order failed the first time.
+ *   3. The customer's own default, read from upstream.
+ *
+ * Returns an empty list only when all three are unavailable, and the caller
+ * then refuses rather than sending a request it knows is incomplete.
+ */
+async function resolveNameservers(
+  supplied: string[] | undefined,
+  customerId: string
+): Promise<string[]> {
   const explicit = (supplied || []).map((n) => n.trim()).filter(Boolean).slice(0, 13);
   if (explicit.length) return explicit;
 
-  // Nothing explicit, so use the branded set - but only those that genuinely
-  // resolve. An empty result means the key is omitted and upstream applies
-  // the customer's default.
-  return usableNameservers();
+  const branded = await usableNameservers();
+  if (branded.length) return branded;
+
+  return getCustomerDefaultNameservers(customerId);
+}
+
+/** The message when no nameserver could be sourced from anywhere. */
+function noNameserversError(): string {
+  return (
+    'No nameservers could be determined for this order. Set BRAND_NAMESERVERS to hostnames ' +
+    'that resolve, or confirm the customer has default nameservers upstream.'
+  );
 }
 
 /**
@@ -219,8 +264,6 @@ export async function registerDomain(params: {
     };
   }
 
-  const ns = await nameserverList(params.nameservers);
-
   // The registry requires all four. Omitting them is what produced
   // "Required parameter missing: reg-contact-id" on the first real order.
   if (!params.contacts?.registrant) {
@@ -230,6 +273,11 @@ export async function registerDomain(params: {
         'No registrant contact was supplied, so this domain cannot be registered. ' +
         'Create one from the customer details first.',
     };
+  }
+
+  const ns = await resolveNameservers(params.nameservers, params.customerId);
+  if (!ns.length) {
+    return { success: false, error: noNameserversError() };
   }
 
   const years = params.years || 1;
@@ -247,7 +295,7 @@ export async function registerDomain(params: {
     body: {
       domainName: params.domainName,
       years,
-      ...(ns.length ? { ns } : {}),
+      ns,
       customerId: Number(params.customerId),
       regContactId: Number(params.contacts.registrant),
       adminContactId: Number(params.contacts.admin),
@@ -284,7 +332,7 @@ export async function registerDomain(params: {
     // An ARRAY. apiClient appends one `ns` field per entry, which is the wire
     // format this API wants. Joining them with a comma is what produced
     // "should be in proper format".
-    ...(ns.length ? { ns } : {}),
+    ns,
   };
 
   return apiClient('/domains/register.json', postData, 'POST');
@@ -415,7 +463,10 @@ export async function transferDomain(params: {
     return { success: false, error: preflight.reason };
   }
 
-  const ns = await nameserverList(params.nameservers);
+  const ns = await resolveNameservers(params.nameservers, params.customerId);
+  if (!ns.length) {
+    return { success: false, error: noNameserversError() };
+  }
   const autoRenew = params.autoRenew !== false;
 
   const v2 = await apiV2(`/domains/${encodeURIComponent(params.domainName)}/transfer-in`, {
@@ -431,7 +482,7 @@ export async function transferDomain(params: {
       autoRenew,
       purchasePrivacy: Boolean(params.privacyProtection),
       protectPrivacy: Boolean(params.privacyProtection),
-      ...(ns.length ? { ns } : {}),
+      ns,
     },
   });
 
@@ -455,7 +506,7 @@ export async function transferDomain(params: {
     'auto-renew': autoRenew ? 'true' : 'false',
     'purchase-privacy': params.privacyProtection ? 'true' : 'false',
     'protect-privacy': params.privacyProtection ? 'true' : 'false',
-    ...(ns.length ? { ns } : {}),
+    ns,
   };
 
   return apiClient('/domains/transfer.json', postData, 'POST');

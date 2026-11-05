@@ -4,7 +4,7 @@ import { requireAdmin } from '@/lib/auth';
 import { apiClient, isLiveApiConfigured } from '@/lib/api/client';
 import { getUpstreamCustomerDetails } from '@/lib/api/customers';
 import { getDefaultContacts } from '@/lib/api/contacts';
-import { checkDomainAvailability } from '@/lib/api/domains';
+import { checkDomainAvailability, getCustomerDefaultNameservers } from '@/lib/api/domains';
 import { nameserverReport } from '@/lib/dns/nameservers';
 
 export const dynamic = 'force-dynamic';
@@ -209,7 +209,22 @@ export async function GET(req: NextRequest) {
   // A nameserver that does not resolve fails the registration at the registry,
   // after the customer has paid. This is what failed the first one.
   const nameservers = await nameserverReport();
-  if (nameservers.configured.length && !nameservers.usable.length) {
+
+  // Nameservers are mandatory on a registration, so what WOULD be sent
+  // matters more than what is configured.
+  let customerDefaultNameservers: string[] = [];
+  if (u?.upstreamCustomerId) {
+    customerDefaultNameservers = await getCustomerDefaultNameservers(u.upstreamCustomerId);
+  }
+  const wouldSend = nameservers.usable.length ? nameservers.usable : customerDefaultNameservers;
+
+  if (!wouldSend.length) {
+    findings.push(
+      'No nameservers could be sourced - neither a resolving branded set nor a customer default ' +
+        'upstream. A registration without them is refused with "Required parameter missing: ' +
+        'nameservers", so this order cannot complete until one of the two exists.'
+    );
+  } else if (!nameservers.usable.length && nameservers.configured.length) {
     findings.push(nameservers.verdict);
   }
 
@@ -236,7 +251,7 @@ export async function GET(req: NextRequest) {
     contactsOnFile,
     availability,
     balance,
-    nameservers,
+    nameservers: { ...nameservers, customerDefaultNameservers, wouldSend },
     findings,
   });
 }
