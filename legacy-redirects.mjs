@@ -69,14 +69,12 @@ const MAP = {
   '/login.php': '/login',
   '/checkout.php': '/checkout',
 
-  // --- No current equivalent ----------------------------------------------
-  // This site has no contact, legal or privacy page yet. Sending these to the
-  // home page is a stopgap: search engines treat an unrelated redirect as a
-  // soft 404, and a business taking payments is normally expected to publish
-  // privacy and terms. Point these at real pages once they exist.
-  '/support/contact-us.php': '/',
-  '/support/legal.php': '/',
-  '/support/privacy.php': '/',
+  // --- Support and legal ---------------------------------------------------
+  // These used to redirect to the home page because no such pages existed,
+  // which search engines read as a soft 404. They now point at the real ones.
+  '/support/contact-us.php': '/contact',
+  '/support/legal.php': '/legal/terms',
+  '/support/privacy.php': '/legal/privacy',
 };
 
 /**

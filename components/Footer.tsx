@@ -93,10 +93,16 @@ export default function Footer() {
           <div>
             &copy; 2026 Hostmattic - Enterprise Cloud Hosting &amp; Infrastructure. A business unit of OfinIT Solutions Pvt. Ltd. All rights reserved.
           </div>
+          {/* A customer should be able to reach the terms they are agreeing
+              to, and a way to contact a person, from any page. */}
           <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
             <Link href="/products" style={{ color: '#94A3B8' }}>Products Directory</Link>
             <Link href="/#faq" style={{ color: '#94A3B8' }}>Knowledge Base</Link>
             <Link href="/login" style={{ color: '#94A3B8' }}>Customer Portal</Link>
+            <Link href="/contact" style={{ color: '#94A3B8' }}>Contact Us</Link>
+            <Link href="/legal/terms" style={{ color: '#94A3B8' }}>Terms</Link>
+            <Link href="/legal/privacy" style={{ color: '#94A3B8' }}>Privacy</Link>
+            <Link href="/legal/refunds" style={{ color: '#94A3B8' }}>Refunds</Link>
           </div>
         </div>
       </div>

@@ -41,6 +41,7 @@ const ROUTES = [
   '/email/google-workspace', '/security/ssl', '/security/sitelock',
   '/security/codeguard', '/security/acronis', '/tools/website-builder',
   '/login', '/register', '/checkout', '/admin/login',
+  '/contact', '/legal/terms', '/legal/privacy', '/legal/refunds',
 ];
 
 const VIEWPORTS = [
