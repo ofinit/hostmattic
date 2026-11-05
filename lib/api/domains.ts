@@ -164,6 +164,30 @@ export async function checkDomainAvailability(
 }
 
 /**
+ * The nameservers to send, or none.
+ *
+ * Two faults lived in the old one-liner `['ns1.hostmattic.com', 'ns2...']`:
+ *
+ * 1. It was joined with a comma for the legacy API, which wants `ns` repeated
+ *    once per server. Upstream read the whole joined string as a single
+ *    nameserver and answered "NameServer ns1.hostmattic.com,ns2.hostmattic.com
+ *    should be in proper format", which is what failed the first real
+ *    registration AFTER the customer had paid.
+ *
+ * 2. Neither host resolves. hostmattic.com delegates to ns1-ns4 but publishes
+ *    no A records for them, so a registry that checks its nameservers would
+ *    refuse the registration even once the format was right.
+ *
+ * So nothing is assumed. With no nameservers supplied the key is omitted
+ * entirely and upstream applies the customer's defaults - which work. The
+ * registrant can point the domain wherever they like afterwards, and that is
+ * a far better outcome than an order that fails with their money taken.
+ */
+function nameserverList(supplied?: string[]): string[] {
+  return (supplied || []).map((n) => n.trim()).filter(Boolean).slice(0, 13);
+}
+
+/**
  * Register a domain through upstream API
  */
 export async function registerDomain(params: {
@@ -188,7 +212,7 @@ export async function registerDomain(params: {
     };
   }
 
-  const ns = params.nameservers || ['ns1.hostmattic.com', 'ns2.hostmattic.com'];
+  const ns = nameserverList(params.nameservers);
 
   // The registry requires all four. Omitting them is what produced
   // "Required parameter missing: reg-contact-id" on the first real order.
@@ -216,7 +240,7 @@ export async function registerDomain(params: {
     body: {
       domainName: params.domainName,
       years,
-      ns: ns.slice(0, 13),
+      ...(ns.length ? { ns } : {}),
       customerId: Number(params.customerId),
       regContactId: Number(params.contacts.registrant),
       adminContactId: Number(params.contacts.admin),
@@ -250,9 +274,10 @@ export async function registerDomain(params: {
     'billing-contact-id': params.contacts.billing,
     'invoice-option': 'NoInvoice',
     'protect-privacy': params.privacyProtection ? 'true' : 'false',
-    // One value, not one assignment per nameserver - the old loop wrote the
-    // same joined string on every pass.
-    ns: ns.join(','),
+    // An ARRAY. apiClient appends one `ns` field per entry, which is the wire
+    // format this API wants. Joining them with a comma is what produced
+    // "should be in proper format".
+    ...(ns.length ? { ns } : {}),
   };
 
   return apiClient('/domains/register.json', postData, 'POST');
@@ -383,7 +408,7 @@ export async function transferDomain(params: {
     return { success: false, error: preflight.reason };
   }
 
-  const ns = params.nameservers || ['ns1.hostmattic.com', 'ns2.hostmattic.com'];
+  const ns = nameserverList(params.nameservers);
   const autoRenew = params.autoRenew !== false;
 
   const v2 = await apiV2(`/domains/${encodeURIComponent(params.domainName)}/transfer-in`, {
@@ -399,7 +424,7 @@ export async function transferDomain(params: {
       autoRenew,
       purchasePrivacy: Boolean(params.privacyProtection),
       protectPrivacy: Boolean(params.privacyProtection),
-      ns: ns.slice(0, 13),
+      ...(ns.length ? { ns } : {}),
     },
   });
 
@@ -423,7 +448,7 @@ export async function transferDomain(params: {
     'auto-renew': autoRenew ? 'true' : 'false',
     'purchase-privacy': params.privacyProtection ? 'true' : 'false',
     'protect-privacy': params.privacyProtection ? 'true' : 'false',
-    ns: ns.join(','),
+    ...(ns.length ? { ns } : {}),
   };
 
   return apiClient('/domains/transfer.json', postData, 'POST');

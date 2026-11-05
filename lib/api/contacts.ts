@@ -40,10 +40,18 @@ export interface DomainContactIds {
 export async function getDefaultContacts(
   customerId: string
 ): Promise<ApiResponse<Record<string, any>>> {
-  return apiClient('/contacts/default.json', {
-    'customer-id': customerId,
-    'type-list': 'Contact',
-  });
+  // POST, not GET. Sent as GET this answered "Method Not Allowed. Use POST"
+  // every time, so the lookup always failed, the caller always fell through to
+  // createContact, and every order created ANOTHER duplicate contact for the
+  // same customer.
+  return apiClient(
+    '/contacts/default.json',
+    {
+      'customer-id': customerId,
+      'type-list': 'Contact',
+    },
+    'POST'
+  );
 }
 
 /** Creates a contact and returns its id. */
