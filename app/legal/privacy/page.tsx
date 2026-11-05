@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { getBusinessIdentity, POLICY_LAST_UPDATED } from '@/lib/legal/identity';
-import { LegalPage, LegalSection, IdentityBlock } from '@/components/legal/LegalPage';
+import { LegalPage, LegalSection, IdentityBlock, MissingFact } from '@/components/legal/LegalPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,6 +21,42 @@ export default async function PrivacyPage() {
     >
       <LegalSection title="Who is responsible for your data">
         <IdentityBlock identity={identity} />
+        <p style={{ marginTop: '14px' }}>
+          Under India's Digital Personal Data Protection Act, 2023 we are the{' '}
+          <strong>Data Fiduciary</strong> for the personal data described here, and you are the{' '}
+          <strong>Data Principal</strong>. That holds even though we provide these services through an
+          upstream registrar: engaging a supplier to process data on our behalf does not move the
+          responsibility for it onto them. If something goes wrong with your data, the obligation to
+          answer for it is ours.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="Our suppliers, and which of them act on our behalf">
+        <p>
+          The distinction matters, because it decides who you can hold to account:
+        </p>
+        <ul style={{ margin: '10px 0 0', paddingLeft: '20px' }}>
+          <li>
+            <strong>Our upstream registrar and hosting suppliers</strong> process data on our
+            instructions, as Data Processors. We remain responsible to you for what they do with it.
+          </li>
+          <li style={{ marginTop: '6px' }}>
+            <strong>Domain registries</strong> are different. A registry sets its own rules about
+            what a registrant must supply and what it publishes, under its own regulatory framework —
+            ICANN for generic extensions, NIXI for .IN. They are not acting on our instructions, and
+            we cannot overrule them. Once registrant details are lodged with a registry, we cannot
+            withdraw them while the domain exists.
+          </li>
+          <li style={{ marginTop: '6px' }}>
+            <strong>Payment providers</strong> set their own terms for the data they hold about a
+            transaction, and are responsible for it directly.
+          </li>
+        </ul>
+        <p style={{ marginTop: '12px' }}>
+          Some of these suppliers operate outside India, so providing these services involves
+          transferring personal data abroad. We do that only where it is necessary to deliver what
+          you asked for, and only to countries not restricted by the Central Government.
+        </p>
       </LegalSection>
 
       <LegalSection title="What we collect, and why">
@@ -122,6 +158,50 @@ export default async function PrivacyPage() {
           only as hashes, and provider credentials are held in the deployment environment rather than
           in the application's source. No system is beyond compromise; if a breach affecting your data
           occurs, we will tell you what happened and what it means for you.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="Questions, complaints and how to escalate">
+        <p>
+          You can ask us anything about how your data is handled, and you can complain if you are not
+          satisfied with the answer. Write to:
+        </p>
+        <div style={{ marginTop: '10px', lineHeight: 1.75 }}>
+          {identity.grievanceContactName && (
+            <div>
+              <strong>{identity.grievanceContactName}</strong>
+            </div>
+          )}
+          {identity.grievanceEmail ? (
+            <a href={`mailto:${identity.grievanceEmail}`} style={{ color: '#10708A', fontWeight: 700 }}>
+              {identity.grievanceEmail}
+            </a>
+          ) : (
+            <MissingFact what="Data-protection contact" />
+          )}
+        </div>
+        <p style={{ marginTop: '12px' }}>
+          We will acknowledge your request and tell you what we are doing about it. If you are not
+          satisfied with how we have handled it, you may complain to the Data Protection Board of
+          India, and to any other authority with jurisdiction over you.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="If there is a breach">
+        <p>
+          If a breach affects your personal data, we will tell you and notify the Data Protection
+          Board of India, in the manner and within the time the law requires. We will tell you what
+          happened, what data was involved, and what it means for you — not simply that an incident
+          occurred.
+        </p>
+      </LegalSection>
+
+      <LegalSection title="Children">
+        <p>
+          These services are not offered to children. You must be 18 or over to open an account. We do
+          not knowingly collect data from anyone under 18, and we do not profile or direct advertising
+          at children. If you believe a child has given us personal data, tell us and we will delete
+          it.
         </p>
       </LegalSection>
 

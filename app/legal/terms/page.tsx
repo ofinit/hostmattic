@@ -41,6 +41,12 @@ export default async function TermsPage() {
 
       <LegalSection title="Your account">
         <p>
+          <strong>You must be 18 or over to hold an account.</strong> India's data protection law
+          treats anyone under 18 as a child and requires verifiable parental consent before their data
+          may be processed; we do not offer these services on that basis, so we do not accept accounts
+          from minors.
+        </p>
+        <p style={{ marginTop: '10px' }}>
           Keep your password to yourself and your email address current. Renewal notices and
           registry-mandated verification messages go to that address, and a domain can be suspended by
           the registry if a verification message is ignored. You are responsible for what is done

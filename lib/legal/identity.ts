@@ -29,6 +29,18 @@ export interface BusinessIdentity {
   supportHours: string | null;
 
   /**
+   * Who answers data-protection questions and complaints.
+   *
+   * The DPDP Act requires a Data Fiduciary to publish the contact details of
+   * whoever can answer a Data Principal's questions about the processing of
+   * their data, and to operate a grievance mechanism. Falls back to the
+   * general support address, because a published route that is answered beats
+   * a dedicated one that is not.
+   */
+  grievanceContactName: string | null;
+  grievanceEmail: string | null;
+
+  /**
    * Days within which a refundable service may be cancelled, when the
    * business has published one. Null means no window has been set, and the
    * pages must not imply there is one.
@@ -87,6 +99,9 @@ export async function getBusinessIdentity(): Promise<BusinessIdentity> {
     supportPhone: clean(process.env.SUPPORT_PHONE),
     supportHours: clean(process.env.SUPPORT_HOURS),
 
+    grievanceContactName: clean(process.env.GRIEVANCE_OFFICER),
+    grievanceEmail: clean(process.env.GRIEVANCE_EMAIL) || clean(process.env.SUPPORT_EMAIL),
+
     refundWindowDays: envRefundWindow(),
 
     siteUrl: clean(process.env.NEXT_PUBLIC_APP_URL) || 'https://hostmattic.com',
@@ -97,6 +112,9 @@ export async function getBusinessIdentity(): Promise<BusinessIdentity> {
   if (!identity.legalName) identity.missing.push('registered business name (admin: Tax & GST Settings)');
   if (!identity.address) identity.missing.push('registered address (admin: Tax & GST Settings)');
   if (!identity.supportEmail) identity.missing.push('support email (environment: SUPPORT_EMAIL)');
+  if (!identity.grievanceEmail) {
+    identity.missing.push('data-protection contact (environment: GRIEVANCE_EMAIL)');
+  }
   if (!identity.refundWindowDays) identity.missing.push('refund window (environment: REFUND_WINDOW_DAYS)');
 
   return identity;
