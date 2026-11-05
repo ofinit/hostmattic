@@ -27,7 +27,8 @@ import { getLiveDomainPricing } from '@/lib/api/pricing';
 import { getSellablePlan, PRODUCT_KEYS } from '@/lib/api/hostingPricing';
 
 /** Matches components/CurrencyContext.tsx, which converts the displayed price. */
-const USD_INR_RATE = 83.5;
+import { usdInrRate } from '../pricing/fx';
+
 
 /** Rounding drift through the INR -> USD -> INR round trip is a rupee or so. */
 const TOLERANCE_ABSOLUTE = 1;
@@ -127,7 +128,7 @@ export async function repriceCart(
   items: CartLine[],
   currency: string
 ): Promise<{ checks: LineCheck[]; mismatches: LineCheck[] }> {
-  const rate = currency?.toUpperCase() === 'INR' ? USD_INR_RATE : 1;
+  const rate = currency?.toUpperCase() === 'INR' ? usdInrRate() : 1;
   const checks: LineCheck[] = [];
 
   for (const line of items || []) {

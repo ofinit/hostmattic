@@ -8,7 +8,13 @@
  * 4. Expiration lifecycle tracking and 30-day renewal alert buckets.
  */
 
-export const USD_TO_INR_RATE = 83.5;
+import { usdInrRate } from '../pricing/fx';
+
+/**
+ * Kept as a named export because callers import it, but it is no longer a
+ * constant: the rate lives in lib/pricing/fx.ts so there is one of it.
+ */
+export const USD_TO_INR_RATE = usdInrRate();
 
 // The per-TLD wholesale table that used to live here has been removed.
 //
@@ -296,7 +302,7 @@ export function estimateItemWholesaleCostDetailed(
         // overstating profit on every one of them.
         const term = years && years > 0 ? years : 1;
         const totalInr = perYearInr * term;
-        const cost = currency === 'INR' ? totalInr : totalInr / USD_TO_INR_RATE;
+        const cost = currency === 'INR' ? totalInr : totalInr / usdInrRate();
         return { cost: parseFloat(cost.toFixed(2)), estimated: false };
       }
     }
@@ -497,9 +503,9 @@ export function computeFinancialReport(
   const usdAov = usdPaid.length > 0 ? usdTurnover / usdPaid.length : 0;
 
   // Consolidated INR equivalents
-  const consTurnover = inrTurnover + usdTurnover * USD_TO_INR_RATE;
-  const consNetSales = inrNetSales + usdNetSales * USD_TO_INR_RATE;
-  const consCogs = inrCogs + usdCogs * USD_TO_INR_RATE;
+  const consTurnover = inrTurnover + usdTurnover * usdInrRate();
+  const consNetSales = inrNetSales + usdNetSales * usdInrRate();
+  const consCogs = inrCogs + usdCogs * usdInrRate();
   const consGrossProfit = Math.max(0, consNetSales - consCogs);
   const consMargin = consNetSales > 0 ? (consGrossProfit / consNetSales) * 100 : 0;
 
@@ -513,7 +519,7 @@ export function computeFinancialReport(
 
   const allPaid = eligibleOrders.filter((o) => o.paymentStatus === 'PAID');
   for (const o of allPaid) {
-    const rate = (o.currency || 'USD') === 'INR' ? 1 : USD_TO_INR_RATE;
+    const rate = (o.currency || 'USD') === 'INR' ? 1 : usdInrRate();
     for (const item of o.items || []) {
       const type = (item.productType || '').toUpperCase();
       let cat = 'HOSTING';

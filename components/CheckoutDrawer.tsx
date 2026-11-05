@@ -11,7 +11,9 @@ import { loadRazorpaySdk } from '@/lib/utils/loadRazorpay';
 
 export default function CheckoutDrawer() {
   const { items, removeItem, updateItemCycle, updateItemPrice, clearCart, isCartOpen, closeCart, totalUsd } = useCart();
-  const { formatPrice, currency, setCurrency, setAccountLock, isLocked, lockedCurrency } = useCurrency();
+  // `rate` comes from the context, which takes it from the server. This file
+  // used to carry its own copy of 83.5 in two places.
+  const { formatPrice, currency, setCurrency, setAccountLock, isLocked, lockedCurrency, rate: usdInr } = useCurrency();
 
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -233,7 +235,7 @@ export default function CheckoutDrawer() {
   let totalAmount = 0;
 
   if (currency === 'INR') {
-    const rate = 83.5;
+    const rate = usdInr;
 
     // Prefer the catalogue's own rupee figures. Converting dollars back to
     // rupees turned Rs750 into Rs749.83, and that reached the invoice; the
@@ -357,7 +359,7 @@ export default function CheckoutDrawer() {
     setLoading(true);
 
     try {
-      const rate = currency === 'INR' ? 83.5 : 1;
+      const rate = currency === 'INR' ? usdInr : 1;
 
       const payload = {
         items: items.map((item) => ({

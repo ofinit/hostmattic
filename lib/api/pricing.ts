@@ -135,7 +135,8 @@ let cacheExpiry: number = 0;
 //
 // Admin -> Refresh pricing clears this immediately when the wait still matters.
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const USD_INR_RATE = 83.5;
+import { usdInrRate } from '../pricing/fx';
+
 
 /**
  * Fetch and calculate all live TLD prices with upstream promotions
@@ -324,10 +325,10 @@ export async function getLiveDomainPricing(): Promise<Record<string, TldPricingI
           : 0
       );
 
-      const retailUsd = Number((retailInr / USD_INR_RATE).toFixed(2));
-      const renewUsd = Number((renewInr / USD_INR_RATE).toFixed(2));
+      const retailUsd = Number((retailInr / usdInrRate()).toFixed(2));
+      const renewUsd = Number((renewInr / usdInrRate()).toFixed(2));
       const transferUsd = transferInr
-        ? Number((transferInr / USD_INR_RATE).toFixed(2))
+        ? Number((transferInr / usdInrRate()).toFixed(2))
         : 0;
 
       computed[tld] = {

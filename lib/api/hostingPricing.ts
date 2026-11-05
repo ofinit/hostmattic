@@ -42,7 +42,8 @@
 
 import { apiClient, isLiveApiConfigured } from './client';
 
-const USD_INR_RATE = 83.5;
+import { usdInrRate } from '../pricing/fx';
+
 // Matches the domain pricing TTL, for the same reason: a price changed in the
 // panel should appear in minutes, not after a quarter of an hour.
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -201,7 +202,7 @@ function num(v: any): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
-const toUsd = (inr: number) => Number((inr / USD_INR_RATE).toFixed(2));
+const toUsd = (inr: number) => Number((inr / usdInrRate()).toFixed(2));
 
 /** Plan ids sit either directly under the product key or inside `plans`. */
 function planNodes(productNode: any): Record<string, any> {

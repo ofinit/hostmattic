@@ -39,6 +39,13 @@ const PUBLIC_ROUTES = [
   '/api/hosting/pricing',
   '/api/payments/methods',
 
+  // The USD/INR rate the storefront prices in. Every page renders both
+  // currencies before anyone signs in, so behind auth this would answer 401
+  // to nearly every visitor and the browser would fall back to its own copy
+  // of the number - which is precisely the duplication lib/pricing/fx.ts
+  // exists to remove. It publishes a shop rate and nothing else.
+  '/api/fx',
+
   // The reminder scheduler has no session - it is a cron caller - so it
   // authenticates with CRON_SECRET in the route itself and would otherwise be
   // rejected here for having no cookie.
