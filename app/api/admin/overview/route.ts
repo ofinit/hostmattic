@@ -448,12 +448,30 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // The REAL cost of every domain line, per TLD and per action, straight
+    // from upstream's reseller-cost-price. The P&L used to read a hardcoded
+    // ten-entry table instead: it priced .in at Rs699 when the actual cost is
+    // Rs689, had no .co.in at all (so every .co.in was costed as a .in), and
+    // made no distinction between registering, renewing and transferring,
+    // which upstream prices separately.
+    //
+    // Cached for 6 hours inside getLiveDomainPricing, and it never throws -
+    // without live credentials it returns the static table, and the lines it
+    // cannot price are flagged costEstimated rather than silently guessed.
+    let costTable: Record<string, any> | undefined;
+    try {
+      const { getLiveDomainPricing } = await import('@/lib/api/pricing');
+      costTable = await getLiveDomainPricing();
+    } catch (priceErr: any) {
+      console.warn('[Overview] Live cost pricing unavailable; costs will be estimated:', priceErr?.message);
+    }
+
     // Compute Financial & P&L Analytics
     const financials = {
-      allTime: computeFinancialReport(orders, 'all'),
-      last30d: computeFinancialReport(orders, '30d'),
-      last7d: computeFinancialReport(orders, '7d'),
-      mtd: computeFinancialReport(orders, 'mtd'),
+      allTime: computeFinancialReport(orders, 'all', costTable),
+      last30d: computeFinancialReport(orders, '30d', costTable),
+      last7d: computeFinancialReport(orders, '7d', costTable),
+      mtd: computeFinancialReport(orders, 'mtd', costTable),
     };
 
     // Compute Expiration Lifecycle Analytics
@@ -462,7 +480,7 @@ export async function GET(req: NextRequest) {
     // Enrich orders with itemized P&L calculations
     const enrichedOrders = orders.map((o: any) => ({
       ...o,
-      financials: calculateOrderFinancials(o),
+      financials: calculateOrderFinancials(o, costTable),
     }));
 
     // Enrich domains with daysUntilExpiry

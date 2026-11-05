@@ -10,19 +10,15 @@
 
 export const USD_TO_INR_RATE = 83.5;
 
-// Wholesale Cost Profiles (ex-tax) based on WebPro Upstream Matrix
-const TLD_WHOLESALE_COSTS: Record<string, { inr: number; usd: number }> = {
-  '.com': { inr: 999, usd: 10.49 },
-  '.in': { inr: 699, usd: 7.49 },
-  '.net': { inr: 1144, usd: 11.99 },
-  '.org': { inr: 959, usd: 9.99 },
-  '.tech': { inr: 879, usd: 8.99 },
-  '.online': { inr: 619, usd: 6.49 },
-  '.store': { inr: 749, usd: 7.99 },
-  '.io': { inr: 3009, usd: 32.00 },
-  '.co': { inr: 1749, usd: 18.50 },
-  '.ai': { inr: 5999, usd: 65.00 },
-};
+// The per-TLD wholesale table that used to live here has been removed.
+//
+// It was a hardcoded ten-entry guess: .in at Rs699 against an actual Rs689,
+// no .co.in at all (so every .co.in resolved to .in by substring match and
+// was costed too cheaply), and one figure for registration, renewal and
+// transfer, which upstream prices separately. Real costs now come from
+// getLiveDomainPricing() and are passed in as a DomainCostTable; anything
+// that cannot be priced from upstream is flagged `costEstimated` instead of
+// quietly substituting a stale number.
 
 // Baseline product gross margin ratios (Retail - Margin = Wholesale Cost)
 const PRODUCT_MARGIN_RATIOS: Record<string, number> = {
@@ -42,6 +38,12 @@ export interface OrderItemFinancials {
   id: string;
   productType: string;
   description: string;
+  /**
+   * True when the cost was derived from a margin ratio because upstream had
+   * no figure for this TLD and action. The console must label it rather than
+   * presenting a guess as a measured cost.
+   */
+  costEstimated?: boolean;
   retailPrice: number;
   wholesaleCost: number;
   /**
@@ -63,6 +65,8 @@ export interface OrderFinancialSummary {
   taxAmount: number;       // GST collected
   netSales: number;        // Turnover excluding tax
   totalCost: number;       // Wholesale COGS, exclusive of input GST
+  /** True when ANY line's cost was estimated rather than read from upstream. */
+  costEstimated?: boolean;
   grossProfit: number;     // Net Sales - Total Cost
   marginPercent: number;
   /** GST charged to us by the supplier on this order's cost. */
@@ -174,30 +178,147 @@ export interface ExpirationAnalyticsSummary {
 }
 
 /**
- * Estimate wholesale cost for a specific order line item.
+ * What a domain line actually costs us depends on which action was sold.
+ *
+ * Upstream prices `addnewdomain`, `renewdomain`, `addtransferdomain` and
+ * `restoredomain` separately, and the gaps are large - a .co.in costs about
+ * Rs7,300 to restore against Rs850 to renew. Reading one figure for all four
+ * is how a restore gets booked at a renewal's cost.
+ */
+export type DomainAction = 'register' | 'renew' | 'transfer' | 'restore';
+
+/**
+ * The per-TLD cost figures this module needs, structurally compatible with
+ * `TldPricingInfo` from lib/api/pricing.ts.
+ *
+ * Declared here rather than imported so the analytics stay free of the API
+ * client: the caller fetches the table and passes it in.
+ */
+export interface TldCostEntry {
+  wholesaleCostInr?: number;
+  renewWholesaleCostInr?: number;
+  transferWholesaleCostInr?: number;
+}
+export type DomainCostTable = Record<string, TldCostEntry>;
+
+/** Pulls the TLD off the first hostname in a line description. */
+function tldFromDescription(description: string): string | undefined {
+  const m = /([a-z0-9][a-z0-9-]*(?:\.[a-z0-9-]+)+)/i.exec(description || '');
+  if (!m) return undefined;
+  const host = m[1].toLowerCase().replace(/\.$/, '');
+  const dot = host.indexOf('.');
+  return dot === -1 ? undefined : host.slice(dot);
+}
+
+/**
+ * Resolves a TLD against the table, longest suffix first.
+ *
+ * `.co.in` must not resolve to `.in`. The old code tested
+ * `description.includes(tld)` over an unordered object, so every .co.in was
+ * costed as a .in - cheaper than the truth, which flattered the margin.
+ */
+function lookupTldEntry(tld: string | undefined, table: DomainCostTable): TldCostEntry | undefined {
+  if (!tld) return undefined;
+  let candidate = tld;
+  while (candidate.includes('.')) {
+    const hit = table[candidate];
+    if (hit) return hit;
+    const next = candidate.indexOf('.', 1);
+    if (next === -1) break;
+    candidate = candidate.slice(next);
+  }
+  return undefined;
+}
+
+/** Which domain action a line describes. */
+export function domainActionOf(description: string): DomainAction {
+  const d = (description || '').toLowerCase();
+  if (/\btransfer/.test(d)) return 'transfer';
+  if (/\brenew/.test(d)) return 'renew';
+  if (/\brestor|\bredeem/.test(d)) return 'restore';
+  return 'register';
+}
+
+function costForAction(entry: TldCostEntry, action: DomainAction): number | undefined {
+  switch (action) {
+    case 'renew':
+      return entry.renewWholesaleCostInr ?? entry.wholesaleCostInr;
+    case 'transfer':
+      return entry.transferWholesaleCostInr ?? entry.renewWholesaleCostInr ?? entry.wholesaleCostInr;
+    case 'restore':
+      // Deliberately no fallback. A restore costs several times a renewal, so
+      // substituting one would not be an approximation, it would be wrong by
+      // a multiple. Returning undefined marks the line as estimated instead.
+      return undefined;
+    case 'register':
+    default:
+      return entry.wholesaleCostInr;
+  }
+}
+
+export interface WholesaleCostResult {
+  /** Cost in the ORDER's currency, for the whole line including its term. */
+  cost: number;
+  /**
+   * False when the figure came from upstream, true when it was derived from a
+   * margin ratio. An estimate is a guess and the console should say so rather
+   * than presenting it as a measured cost.
+   */
+  estimated: boolean;
+}
+
+/**
+ * Wholesale cost for one order line.
+ *
+ * Pass `costTable` (from getLiveDomainPricing) to use the real upstream cost.
+ * Without it this falls back to a margin ratio and flags the result as an
+ * estimate - it no longer silently returns a stale hardcoded figure.
+ */
+export function estimateItemWholesaleCostDetailed(
+  productType: string,
+  description: string,
+  price: number,
+  currency: string,
+  costTable?: DomainCostTable,
+  years?: number
+): WholesaleCostResult {
+  const typeKey = (productType || '').toUpperCase();
+  const isDomain = typeKey === 'DOMAIN' || (description || '').toLowerCase().includes('domain');
+
+  if (isDomain && costTable) {
+    const entry = lookupTldEntry(tldFromDescription(description), costTable);
+    if (entry) {
+      const perYearInr = costForAction(entry, domainActionOf(description));
+      if (perYearInr !== undefined && perYearInr > 0) {
+        // Upstream quotes the rate for ONE unit of term, so a multi-year
+        // registration costs a multiple of it. The previous code ignored the
+        // term entirely and booked a 2-year order at a single year's cost,
+        // overstating profit on every one of them.
+        const term = years && years > 0 ? years : 1;
+        const totalInr = perYearInr * term;
+        const cost = currency === 'INR' ? totalInr : totalInr / USD_TO_INR_RATE;
+        return { cost: parseFloat(cost.toFixed(2)), estimated: false };
+      }
+    }
+  }
+
+  const marginRatio = PRODUCT_MARGIN_RATIOS[typeKey] || 0.35;
+  const cost = Math.max(0, price * (1 - marginRatio));
+  return { cost: parseFloat(cost.toFixed(2)), estimated: true };
+}
+
+/**
+ * Back-compatible wrapper returning just the number.
  */
 export function estimateItemWholesaleCost(
   productType: string,
   description: string,
   price: number,
-  currency: string
+  currency: string,
+  costTable?: DomainCostTable,
+  years?: number
 ): number {
-  const typeKey = (productType || '').toUpperCase();
-
-  // 1. Check for specific domain TLD wholesale match
-  if (typeKey === 'DOMAIN' || description.toLowerCase().includes('domain')) {
-    const descLower = description.toLowerCase();
-    for (const [tld, cost] of Object.entries(TLD_WHOLESALE_COSTS)) {
-      if (descLower.includes(tld)) {
-        return currency === 'INR' ? cost.inr : cost.usd;
-      }
-    }
-  }
-
-  // 2. Check product margin ratio
-  const marginRatio = PRODUCT_MARGIN_RATIOS[typeKey] || 0.35;
-  const cost = Math.max(0, price * (1 - marginRatio));
-  return parseFloat(cost.toFixed(2));
+  return estimateItemWholesaleCostDetailed(productType, description, price, currency, costTable, years).cost;
 }
 
 /**
@@ -216,7 +337,7 @@ export function estimateItemWholesaleCost(
  */
 const INPUT_GST_RATE = 0.18;
 
-export function calculateOrderFinancials(order: any): OrderFinancialSummary {
+export function calculateOrderFinancials(order: any, costTable?: DomainCostTable): OrderFinancialSummary {
   const currency = order.currency || 'USD';
   const grossAmount = parseFloat(order.totalAmount || 0);
   const taxAmount = parseFloat(order.taxAmount || 0);
@@ -224,12 +345,15 @@ export function calculateOrderFinancials(order: any): OrderFinancialSummary {
 
   const items = (order.items || []).map((item: any) => {
     const retailPrice = parseFloat(item.price || 0);
-    const wholesaleCost = estimateItemWholesaleCost(
+    const costResult = estimateItemWholesaleCostDetailed(
       item.productType,
       item.description || '',
       retailPrice,
-      currency
+      currency,
+      costTable,
+      item.years
     );
+    const wholesaleCost = costResult.cost;
     // Margin deliberately excludes input GST on both sides: the sale is
     // measured net of the GST we collect, so the cost is measured net of the
     // GST we pay. Adding it to cost here would understate every margin.
@@ -243,6 +367,12 @@ export function calculateOrderFinancials(order: any): OrderFinancialSummary {
       description: item.description,
       retailPrice,
       wholesaleCost,
+      /**
+       * True when this cost came from a margin ratio rather than upstream.
+       * Surfaced so the console can mark the figure as an estimate instead of
+       * presenting a guess as a measured cost.
+       */
+      costEstimated: costResult.estimated,
       inputGst,
       grossProfit,
       marginPercent,
@@ -251,6 +381,9 @@ export function calculateOrderFinancials(order: any): OrderFinancialSummary {
   });
 
   const totalCost = items.reduce((acc: number, it: any) => acc + it.wholesaleCost, 0);
+  // Any estimated line makes the ORDER's cost an estimate: a total is only as
+  // sound as its weakest component.
+  const costEstimated = items.some((it: any) => it.costEstimated);
   const grossProfit = Math.max(0, parseFloat((netSales - totalCost).toFixed(2)));
   const marginPercent = netSales > 0 ? parseFloat(((grossProfit / netSales) * 100).toFixed(1)) : 0;
 
@@ -266,6 +399,7 @@ export function calculateOrderFinancials(order: any): OrderFinancialSummary {
     taxAmount,
     netSales,
     totalCost: parseFloat(totalCost.toFixed(2)),
+    costEstimated,
     grossProfit,
     marginPercent,
     inputGstPaid,
@@ -281,7 +415,8 @@ export function calculateOrderFinancials(order: any): OrderFinancialSummary {
  */
 export function computeFinancialReport(
   orders: any[],
-  periodFilter: 'all' | '30d' | '7d' | 'mtd' = 'all'
+  periodFilter: 'all' | '30d' | '7d' | 'mtd' = 'all',
+  costTable?: DomainCostTable
 ): FinancialAnalyticsReport {
   const now = new Date();
   let filterDate: Date | null = null;
@@ -317,7 +452,7 @@ export function computeFinancialReport(
   let inrInputGst = 0;
 
   for (const o of inrPaid) {
-    const fin = calculateOrderFinancials(o);
+    const fin = calculateOrderFinancials(o, costTable);
     inrTurnover += fin.grossAmount;
     inrNetSales += fin.netSales;
     inrTax += fin.taxAmount;
@@ -342,7 +477,7 @@ export function computeFinancialReport(
   let usdLutExport = 0;
 
   for (const o of usdPaid) {
-    const fin = calculateOrderFinancials(o);
+    const fin = calculateOrderFinancials(o, costTable);
     usdTurnover += fin.grossAmount;
     usdNetSales += fin.netSales;
     usdTax += fin.taxAmount;

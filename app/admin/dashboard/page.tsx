@@ -2586,8 +2586,20 @@ export default function AdminDashboardPage() {
                           )}
                         </td>
                         <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                          <div style={{ fontSize: '0.8rem', color: '#F59E0B' }}>
-                            COGS: {cSign}{cogs.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          <div style={{ fontSize: '0.8rem', color: '#F59E0B', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                            <span>COGS: {cSign}{cogs.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            {/* An estimated cost is a guess from a margin
+                                ratio, not a figure read from upstream. Saying
+                                so is the difference between a number you can
+                                act on and one you cannot. */}
+                            {o.financials?.costEstimated && (
+                              <span
+                                title="Estimated from a margin ratio - upstream had no cost for this TLD and action."
+                                style={{ fontSize: '0.64rem', padding: '0 5px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.18)', color: '#F59E0B', fontWeight: 800, whiteSpace: 'nowrap' }}
+                              >
+                                EST
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize: '0.75rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <span style={{ color: '#9BCB44', fontWeight: 700 }}>
