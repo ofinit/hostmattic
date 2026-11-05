@@ -255,7 +255,8 @@ export default function RegisterPage() {
                     style={{ accentColor: 'var(--brand-action-green)' }}
                   />
                   <span>
-                    {p.why} You can turn this off at any time from your control panel.
+                    <strong style={{ color: '#334155' }}>{p.label}.</strong> {p.data} {p.why} You
+                    can turn this off at any time from your control panel.
                   </span>
                 </label>
               </div>
