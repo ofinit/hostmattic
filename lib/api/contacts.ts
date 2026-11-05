@@ -48,7 +48,10 @@ export async function getDefaultContacts(
     '/contacts/default.json',
     {
       'customer-id': customerId,
-      'type-list': 'Contact',
+      // 'type', not 'type-list'. With type-list upstream answered
+      // "Required parameter missing: type", so the lookup still failed and
+      // every order still created a duplicate contact.
+      type: 'Contact',
     },
     'POST'
   );
