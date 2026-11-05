@@ -477,6 +477,7 @@ export default function DomainSearchBox({
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
+                        gap: '12px',
                         background: res.available
                           ? (isAdded ? '#F7FDF2' : '#FFFFFF')
                           : '#F8FAFC',
@@ -484,9 +485,9 @@ export default function DomainSearchBox({
                         transition: 'all 0.2s ease',
                       }}
                     >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '1.05rem', fontWeight: 800, color: res.available ? '#0F172A' : '#64748B' }}>
+                      <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '1.05rem', fontWeight: 800, color: res.available ? '#0F172A' : '#64748B', overflowWrap: 'anywhere' }}>
                             {res.domain.split('.')[0]}
                             <span style={{ color: res.available ? '#10708A' : '#94A3B8' }}>
                               .{res.tld ? res.tld.replace('.', '') : res.domain.split('.').slice(1).join('.')}

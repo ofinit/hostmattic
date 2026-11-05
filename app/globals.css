@@ -2324,10 +2324,13 @@ h4 { font-size: 1.15rem; }
 .table-responsive {
   width: 100%;
   -webkit-overflow-scrolling: touch;
-  /* No horizontal scrolling. Tables fit the container and wrap their long
-     values instead of forcing a sideways scrollbar. The previous
-     `min-width: 820px` floor guaranteed a scrollbar on every table. */
-  overflow-x: clip;
+  /* Tables wrap their long values rather than forcing a scrollbar - but when
+     content genuinely cannot fit, it must stay REACHABLE. `clip` cut the
+     Actions column off the right edge of the portal's domain table with no
+     way to scroll to it, so the primary action on a paid-for service was
+     simply unavailable. `auto` shows a scrollbar only when wrapping has
+     already failed. */
+  overflow-x: auto;
 }
 .table-responsive table {
   min-width: 0 !important;
@@ -2360,8 +2363,6 @@ h4 { font-size: 1.15rem; }
   .table-responsive table { font-size: 0.78rem; }
   .table-responsive th,
   .table-responsive td { padding-left: 7px !important; padding-right: 7px !important; }
-  /* Last-resort escape hatch on genuinely tiny screens. */
-  .table-responsive { overflow-x: auto; }
 }
 
 /* Responsive Full Checkout Page Grid */
@@ -2370,6 +2371,12 @@ h4 { font-size: 1.15rem; }
   grid-template-columns: 1.2fr 0.8fr;
   gap: 32px;
   align-items: start;
+}
+/* A grid item defaults to min-width: auto, so it refuses to shrink below its
+   own content and spills past the track. At 390px the billing card and the
+   order summary were each 15px wider than the column holding them. */
+.checkout-page-grid > * {
+  min-width: 0;
 }
 @media (max-width: 860px) {
   .checkout-page-grid {

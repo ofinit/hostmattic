@@ -182,8 +182,11 @@ export default function ClientDashboard() {
   const [submittingReply, setSubmittingReply] = useState(false);
 
   const [selectedDomainDetails, setSelectedDomainDetails] = useState<any | null>(null);
-  const [ns1, setNs1] = useState('ns1.hostmattic.com');
-  const [ns2, setNs2] = useState('ns2.hostmattic.com');
+  // Empty, not seeded. ns1/ns2.hostmattic.com publish no address record, so a
+  // form pre-filled with them invited the customer to save a delegation that
+  // would have taken their domain offline.
+  const [ns1, setNs1] = useState('');
+  const [ns2, setNs2] = useState('');
   const [ns3, setNs3] = useState('');
   const [ns4, setNs4] = useState('');
   const [savingNs, setSavingNs] = useState(false);
@@ -209,6 +212,9 @@ export default function ClientDashboard() {
   const [selectedDomainForDns, setSelectedDomainForDns] = useState<string | null>(null);
   const [dnsRecords, setDnsRecords] = useState<any[]>([]);
   const [loadingDns, setLoadingDns] = useState(false);
+  /// Set when the zone could not be read, so the empty table is explained
+  /// rather than being mistaken for an empty zone.
+  const [dnsError, setDnsError] = useState('');
   const [newRecordType, setNewRecordType] = useState('A');
   const [newRecordHost, setNewRecordHost] = useState('');
   const [newRecordValue, setNewRecordValue] = useState('');
@@ -490,9 +496,15 @@ export default function ClientDashboard() {
     setDomainActionMsg('');
     setAuthCodeValue('');
     setCopiedEpp(false);
-    const parts = (domain.nameservers || 'ns1.hostmattic.com,ns2.hostmattic.com').split(',');
-    setNs1(parts[0] || 'ns1.hostmattic.com');
-    setNs2(parts[1] || 'ns2.hostmattic.com');
+    // Whatever the domain is ACTUALLY delegated to. Unknown stays blank: the
+    // form then shows nothing rather than asserting a delegation we have not
+    // confirmed.
+    const parts = String(domain.nameservers || '')
+      .split(',')
+      .map((n: string) => n.trim())
+      .filter(Boolean);
+    setNs1(parts[0] || '');
+    setNs2(parts[1] || '');
     setNs3(parts[2] || '');
     setNs4(parts[3] || '');
   };
@@ -637,6 +649,7 @@ export default function ClientDashboard() {
     try {
       const res = await fetch(`/api/client/dns?domain=${encodeURIComponent(domainName)}`);
       const json = await res.json();
+      setDnsError('');
       const raw = json?.records;
       let list: any[] = [];
       if (Array.isArray(raw)) {
@@ -646,10 +659,11 @@ export default function ClientDashboard() {
       }
       setDnsRecords(list);
     } catch {
-      setDnsRecords([
-        { id: 'rec_fb_1', type: 'A', host: '@', value: '198.51.100.24', ttl: 14400 },
-        { id: 'rec_fb_2', type: 'CNAME', host: 'www', value: domainName, ttl: 14400 },
-      ]);
+      // Show nothing and say so. This used to fall back to an invented A and
+      // CNAME record, which a customer would reasonably read as their live
+      // zone - and act on.
+      setDnsRecords([]);
+      setDnsError('The DNS zone could not be loaded. These records are not available right now; nothing shown here has been read from the zone.');
     } finally {
       setLoadingDns(false);
     }
@@ -805,6 +819,9 @@ export default function ClientDashboard() {
   }
 
   const domains = data?.domains || [];
+  // The branded nameservers the server has verified as resolving. Empty means
+  // we have none to offer, and the portal must not pretend otherwise.
+  const brandNameservers: string[] = Array.isArray(data?.brandNameservers) ? data.brandNameservers : [];
   const hosting = data?.hosting || [];
   const addons = data?.addons || [];
   const orders = data?.orders || [];
@@ -1912,7 +1929,16 @@ export default function ClientDashboard() {
                             ? d.nameservers
                             : typeof d.nameservers === 'string'
                             ? d.nameservers.split(',').map((s: string) => s.trim()).filter(Boolean)
-                            : ['ns1.hostmattic.com', 'ns2.hostmattic.com'];
+                            : [];
+                          // Printing a default pair here claimed a delegation
+                          // the domain does not have. Say what is known.
+                          if (!nsList.length) {
+                            return (
+                              <span style={{ color: '#94A3B8', fontStyle: 'italic', fontFamily: 'inherit' }}>
+                                Not on record
+                              </span>
+                            );
+                          }
                           return (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                               {nsList.map((ns: string, idx: number) => (
@@ -2627,18 +2653,26 @@ export default function ClientDashboard() {
                   <h4 style={{ fontSize: '1rem', color: '#0F172A', margin: 0 }}>Nameserver Delegation</h4>
                   <p style={{ fontSize: '0.8rem', color: '#64748B', margin: '2px 0 0' }}>Direct DNS queries to Hostmattic cloud or custom external nameservers.</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setNs1('ns1.hostmattic.com');
-                    setNs2('ns2.hostmattic.com');
-                    setNs3('');
-                    setNs4('');
-                  }}
-                  style={{ background: 'none', border: 'none', color: 'var(--brand-action-green)', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Reset to Hostmattic NS
-                </button>
+                {/* Offered ONLY when the branded nameservers genuinely
+                    resolve. This button used to fill the form with hardcoded
+                    hostnames that publish no address record, so saving it
+                    would have delegated a live domain to servers that answer
+                    nobody. The server reports the verified list; an empty one
+                    means there is nothing safe to reset to. */}
+                {brandNameservers.length >= 2 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNs1(brandNameservers[0] || '');
+                      setNs2(brandNameservers[1] || '');
+                      setNs3(brandNameservers[2] || '');
+                      setNs4(brandNameservers[3] || '');
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--brand-action-green)', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Reset to Hostmattic NS
+                  </button>
+                )}
               </div>
 
               <form onSubmit={handleSaveNameservers}>
@@ -3112,7 +3146,28 @@ export default function ClientDashboard() {
                   Zone Records: {selectedDomainForDns}
                 </h3>
                 <p style={{ color: '#64748B', fontSize: '0.85rem', margin: 0 }}>
-                  Active Nameservers: <code>ns1.hostmattic.com</code> &bull; <code>ns2.hostmattic.com</code>
+                  {(() => {
+                    // Read the delegation off the domain. The old fixed text
+                    // named two hosts regardless of where the domain actually
+                    // points.
+                    const d = domains.find((x: any) => x.domainName === selectedDomainForDns);
+                    const ns = String(d?.nameservers || '')
+                      .split(',')
+                      .map((n: string) => n.trim())
+                      .filter(Boolean);
+                    if (!ns.length) return <>Active nameservers are not on record for this domain.</>;
+                    return (
+                      <>
+                        Active Nameservers:{' '}
+                        {ns.map((n: string, i: number) => (
+                          <span key={n}>
+                            {i > 0 && ' • '}
+                            <code>{n}</code>
+                          </span>
+                        ))}
+                      </>
+                    );
+                  })()}
                 </p>
               </div>
               <button
@@ -3131,6 +3186,23 @@ export default function ClientDashboard() {
 
             <div style={{ marginBottom: '24px' }}>
               <h4 style={{ fontSize: '1rem', marginBottom: '10px', color: '#0F172A' }}>Active Zone Records</h4>
+              {dnsError ? (
+                <div
+                  role="alert"
+                  style={{
+                    padding: '14px 16px',
+                    border: '1px solid #FECACA',
+                    background: '#FEF2F2',
+                    color: '#991B1B',
+                    borderRadius: '12px',
+                    fontSize: '0.85rem',
+                    marginBottom: '16px',
+                  }}
+                >
+                  {dnsError}
+                </div>
+              ) : null}
+
               {loadingDns ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: '#64748B' }}>Loading DNS records...</div>
               ) : (
@@ -3569,7 +3641,7 @@ export default function ClientDashboard() {
             )}
 
             {/* Line Items Table */}
-            <div className="table-responsive" style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
+            <div className="table-responsive" style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', marginBottom: '20px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem', minWidth: '460px' }}>
                 <thead>
                   <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>

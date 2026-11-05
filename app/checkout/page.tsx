@@ -530,7 +530,7 @@ export default function FullCheckoutPage() {
                   </div>
 
                   {/* B2C vs B2B Selector */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))', gap: '10px', marginBottom: '16px' }}>
                     <button
                       type="button"
                       onClick={() => setCustomerType('B2C')}
@@ -548,6 +548,7 @@ export default function FullCheckoutPage() {
                         alignItems: 'center',
                         gap: '8px',
                         transition: 'all 0.2s',
+                        minWidth: 0,
                       }}
                     >
                       <span style={{ fontSize: '1.1rem' }}>👤</span>
@@ -574,6 +575,7 @@ export default function FullCheckoutPage() {
                         alignItems: 'center',
                         gap: '8px',
                         transition: 'all 0.2s',
+                        minWidth: 0,
                       }}
                     >
                       <span style={{ fontSize: '1.1rem' }}>🏢</span>

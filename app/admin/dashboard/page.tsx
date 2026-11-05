@@ -1692,7 +1692,7 @@ export default function AdminDashboardPage() {
                   <h3 style={{ fontSize: '1.15rem', color: '#FFFFFF', marginTop: 0, marginBottom: '16px' }}>
                     Product Line Profitability Analysis
                   </h3>
-                  <div className="table-responsive" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', overflow: 'hidden', background: 'rgba(15, 23, 42, 0.6)' }}>
+                  <div className="table-responsive" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', background: 'rgba(15, 23, 42, 0.6)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
                       <thead>
                         <tr style={{ background: 'rgba(15, 23, 42, 0.8)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#94A3B8' }}>
@@ -3431,7 +3431,7 @@ export default function AdminDashboardPage() {
             )}
 
             {/* Line Items Table */}
-            <div className="table-responsive" style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', marginBottom: '20px' }}>
+            <div className="table-responsive" style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', marginBottom: '20px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem', minWidth: '500px' }}>
                 <thead>
                   <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
@@ -4106,7 +4106,7 @@ export default function AdminDashboardPage() {
                   <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#FFFFFF', marginBottom: '10px' }}>
                     Itemized Cost of Goods Sold (COGS) &amp; Margin Breakdown
                   </div>
-                  <div className="table-responsive" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', overflow: 'hidden', background: 'rgba(15, 23, 42, 0.6)' }}>
+                  <div className="table-responsive" style={{ border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', overflowX: 'auto', overflowY: 'hidden', background: 'rgba(15, 23, 42, 0.6)' }}>
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.82rem' }}>
                       <thead>
                         <tr style={{ background: 'rgba(15, 23, 42, 0.8)', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#94A3B8' }}>

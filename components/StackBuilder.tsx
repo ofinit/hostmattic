@@ -296,7 +296,10 @@ export default function StackBuilder() {
           onClick={handleCheckout}
           disabled={loading}
           className="btn btn-primary"
-          style={{ padding: '14px 28px', fontSize: '1.05rem' }}
+          // .btn sets white-space: nowrap, so at 390px this label was wider
+          // than the card holding it and the arrow fell off the edge. Let it
+          // take the full row and wrap when it has to.
+          style={{ padding: '14px 28px', fontSize: '1.05rem', maxWidth: '100%', flex: '1 1 auto', whiteSpace: 'normal' }}
         >
           {loading ? 'Provisioning Custom Stack...' : 'Deploy Complete Stack →'}
         </button>

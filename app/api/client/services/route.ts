@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/auth';
 import { computeExpirationAnalytics } from '@/lib/analytics/pnl';
 import { isLiveApiConfigured } from '@/lib/api/client';
+import { usableNameservers } from '@/lib/dns/nameservers';
 
 export const dynamic = 'force-dynamic';
 
@@ -289,6 +290,13 @@ export async function GET(req: NextRequest) {
     // Compute Expiration Analytics for Customer
     const expirations = computeExpirationAnalytics(domains, hosting);
 
+    // Only the branded nameservers that genuinely resolve. The portal used to
+    // offer a "Reset to Hostmattic NS" button wired to hardcoded hostnames
+    // that publish no address record - pressing it would have delegated the
+    // customer's domain to nameservers that answer nobody. An empty list
+    // means the portal must not offer that at all.
+    const brandNameservers = await usableNameservers();
+
     return NextResponse.json({
       success: true,
       user: session,
@@ -298,6 +306,7 @@ export async function GET(req: NextRequest) {
       addons,
       tickets: enrichedTickets,
       expirations,
+      brandNameservers,
     });
   } catch (error: any) {
     return NextResponse.json(

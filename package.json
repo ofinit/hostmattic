@@ -17,7 +17,8 @@
     "test": "npm run test:pricing",
     "test:e2e": "playwright test",
     "invoices:backfill": "node scripts/backfill-invoices.js",
-    "services:backfill": "node scripts/backfill-services.js"
+    "services:backfill": "node scripts/backfill-services.js",
+    "audit:layout": "node scripts/audit-layout.js"
   },
   "dependencies": {
     "@prisma/client": "^5.21.1",

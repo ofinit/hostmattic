@@ -713,7 +713,13 @@ export default function CheckoutDrawer() {
                   Provisioned Infrastructure Details:
                 </div>
                 <div style={{ color: '#475569', lineHeight: 1.6 }}>
-                  • <strong>Nameservers:</strong> <code>ns1.hostmattic.com</code> / <code>ns2.hostmattic.com</code><br />
+                  {/* This used to name two fixed nameservers on every receipt.
+                      They are not what every order is delegated to, and they
+                      publish no address record, so the first thing a customer
+                      was told about their new domain was wrong. The portal
+                      shows the real delegation per domain. */}
+                  • <strong>Nameservers:</strong> shown per domain under{' '}
+                  <strong>My Domains</strong> in your control panel<br />
                   • <strong>cPanel Gateway:</strong> Port <code>:2083</code> with automated Single Sign-On (SSO)<br />
                   • <strong>Confirmation email:</strong> Sent to <code>{customerEmail}</code>
                 </div>
