@@ -866,7 +866,7 @@ export default function CheckoutDrawer() {
               </div>
 
               {/* B2C vs B2B Selector */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '8px', marginBottom: '14px' }}>
                 <button
                   type="button"
                   onClick={() => setCustomerType('B2C')}

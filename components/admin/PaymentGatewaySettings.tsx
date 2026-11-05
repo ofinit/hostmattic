@@ -71,8 +71,17 @@ export default function PaymentGatewaySettings() {
       const text = await res.text();
       const json = text ? JSON.parse(text) : null;
       if (json?.success) {
-        setGateways(json.gateways);
-        setEncryptionAvailable(json.encryptionAvailable);
+        // success: true is not a promise that `gateways` is an array. A
+        // partial or proxied response set it to undefined, and the render then
+        // threw on .map - which unmounts the WHOLE admin console, not just this
+        // panel, so the operator sees a blank page rather than a failed widget.
+        if (Array.isArray(json.gateways)) {
+          setGateways(json.gateways);
+        } else {
+          setGateways([]);
+          setMessage({ kind: 'error', text: 'Payment settings came back without any gateways. Reload to try again.' });
+        }
+        setEncryptionAvailable(json.encryptionAvailable !== false);
       } else {
         setMessage({ kind: 'error', text: json?.error || 'Could not load payment settings.' });
       }
@@ -250,11 +259,11 @@ export default function PaymentGatewaySettings() {
               Test / sandbox mode
             </label>
 
-            {g.currencies.map((c) => (
+            {(g.currencies || []).map((c) => (
               <label key={c} style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '0.82rem', color: '#CBD5E1' }}>
                 <input
                   type="checkbox"
-                  checked={g.selectedCurrencies.includes(c)}
+                  checked={(g.selectedCurrencies || []).includes(c)}
                   onChange={(e) =>
                     update(g.id, {
                       selectedCurrencies: e.target.checked

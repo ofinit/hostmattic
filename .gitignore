@@ -49,3 +49,6 @@ test-results/
 playwright-report/
 dbg.mjs
 debug_*.mjs
+
+# Compiled analytics used to build audit fixtures (npm run audit:dashboards)
+.fixture-build/

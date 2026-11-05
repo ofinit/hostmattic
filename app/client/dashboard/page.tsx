@@ -1616,7 +1616,7 @@ export default function ClientDashboard() {
             </div>
 
             {/* Quick Summary Tables */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '28px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '28px' }}>
               {/* Active Hosting Section */}
               <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '20px', padding: '28px', boxShadow: 'var(--shadow-sm)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>

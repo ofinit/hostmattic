@@ -48,4 +48,21 @@ USER nextjs
 
 EXPOSE 3000
 
+# Liveness, not readiness.
+#
+# This asks one question: is this container still serving HTTP? It passes on
+# any 200 from /api/health and deliberately does NOT fail when that response
+# says "degraded" because the database is unreachable.
+#
+# Restarting the app cannot fix a database outage, and an orchestrator that
+# keeps killing the container over one would also take down every page that
+# does not need the database - the marketing site, the domain search, the
+# login form. A database fault belongs in the response body and the logs,
+# where it is visible without destroying what still works.
+#
+# The grep is there so a proxy's own error page cannot pass as the app.
+# start-period covers Prisma generation and the first compile on boot.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=3 \
+  CMD curl -fsS http://127.0.0.1:3000/api/health | grep -q '"service":"hostmattic-web"' || exit 1
+
 CMD ["node", "server.js"]

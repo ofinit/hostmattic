@@ -1259,13 +1259,16 @@ export default function AdminDashboardPage() {
                   <div
                     key={c.id}
                     onClick={() => setSelectedCustomerDossier(c)}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)', cursor: 'pointer' }}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '12px 14px', background: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(255, 255, 255, 0.05)', cursor: 'pointer' }}
                   >
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#FFFFFF' }}>{c.name}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>{c.email}</div>
+                    {/* minWidth: 0 or this block will not shrink below its
+                        content, and a long company name or email pushes the
+                        service counts off the card. */}
+                    <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#FFFFFF', overflowWrap: 'anywhere' }}>{c.name}</div>
+                      <div style={{ fontSize: '0.78rem', color: '#94A3B8', overflowWrap: 'anywhere' }}>{c.email}</div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(155, 203, 68, 0.15)', color: '#9BCB44', fontWeight: 600 }}>
                         {c._count?.hostingAccounts ?? 0} Hosting · {c._count?.domains ?? 0} Domains
                       </span>
@@ -1289,7 +1292,7 @@ export default function AdminDashboardPage() {
               </div>
 
               {/* Status summary pills */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '8px', marginBottom: '16px' }}>
                 <div style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '8px', padding: '8px 10px', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.7rem', color: '#FCA5A5', fontWeight: 600 }}>Critical (≤7d)</div>
                   <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#F87171', marginTop: '2px' }}>
@@ -1357,7 +1360,7 @@ export default function AdminDashboardPage() {
                 )}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '8px' }}>
                 <button
                   onClick={() => { setActiveTab('domains'); setDomainFilter('warning'); }}
                   style={{ background: 'rgba(155, 203, 68, 0.15)', border: '1px solid rgba(155, 203, 68, 0.35)', color: '#9BCB44', padding: '8px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}
@@ -1400,7 +1403,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '10px' }}>
                 <button
                   onClick={handleSyncLiveUpstream}
                   disabled={syncingUpstream}
