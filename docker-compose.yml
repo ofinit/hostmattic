@@ -14,7 +14,10 @@ services:
       - RESELLER_AUTH_USERID=${RESELLER_AUTH_USERID:-}
       - RESELLER_API_KEY=${RESELLER_API_KEY:-}
       - RESELLER_API_BASE_URL=${RESELLER_API_BASE_URL:-https://httpapi.com/api}
-      - JWT_SECRET=${JWT_SECRET:-hostmattic_super_secure_jwt_secret_key_change_in_production_2026}
+      # No default. A committed default is a signing key in the repository,
+      # and anyone holding it can mint a token with role ADMIN. `:?` makes
+      # compose refuse to start rather than quietly fall back to it.
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set - generate one with: openssl rand -base64 48}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       - NODE_ENV=production
     depends_on:

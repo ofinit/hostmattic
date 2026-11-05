@@ -69,8 +69,19 @@ const PROTECTED_PAGE_PREFIXES = ['/client', '/admin'];
 /** Pages under those prefixes that must stay reachable while signed out. */
 const PAGE_AUTH_EXCEPTIONS = ['/admin/login'];
 
-function getJwtSecret(): string {
-  return process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || 'hostmattic_secure_jwt_prod_fallback_token_2026';
+/**
+ * No fallback, for the reasons in lib/auth.ts. The two must agree: if the
+ * middleware trusted a committed key that lib/auth.ts refuses, the guard in
+ * front of /client and /admin would accept tokens the application itself
+ * would not - which is the wrong way round for a security boundary.
+ *
+ * Returning null rather than throwing keeps this fail-CLOSED: verifyJwtEdge
+ * treats it as an unverifiable token, so the request is redirected to the
+ * login page instead of the middleware erroring and the platform deciding
+ * for itself what to do with the response.
+ */
+function getJwtSecret(): string | null {
+  return process.env.JWT_SECRET || null;
 }
 
 interface EdgeSession {
@@ -92,6 +103,16 @@ async function verifyJwtEdge(token: string): Promise<EdgeSession | null> {
     const [headerB64, payloadB64, sigB64] = parts;
 
     const secret = getJwtSecret();
+    if (!secret) {
+      // No key, so no token can be verified. Treat every session as absent
+      // rather than guessing: the visitor is sent to the login page and the
+      // protected console never paints.
+      console.error(
+        '[Hostmattic Middleware] JWT_SECRET is not set, so no session can be verified. ' +
+          'Every protected page will redirect to login until it is configured.'
+      );
+      return null;
+    }
     const enc = new TextEncoder();
     const key = await crypto.subtle.importKey(
       'raw',

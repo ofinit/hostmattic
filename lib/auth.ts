@@ -4,11 +4,46 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // SECURITY: No hardcoded fallback. The app MUST have JWT_SECRET set in environment.
 // Lazy initialization so `next build` can import this module without the env var.
+/**
+ * A short key is weak but it is still a key the operator chose. Refusing to
+ * start over it would take down a working deployment on a judgement call, so
+ * this warns once and carries on.
+ */
+const MIN_SECRET_LENGTH = 32;
+let warnedAboutLength = false;
+
 function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET || process.env.ADMIN_PASSWORD || 'hostmattic_secure_jwt_prod_fallback_token_2026';
-  if (!process.env.JWT_SECRET) {
-    console.warn('[Hostmattic Auth] Notice: JWT_SECRET env var not set. Using secure fallback secret.');
+  const secret = process.env.JWT_SECRET;
+
+  if (!secret) {
+    // Deliberately no fallback.
+    //
+    // This used to end at a string literal committed to the repository, so an
+    // unset JWT_SECRET meant every session token was signed with a key that
+    // anyone who could read the source already had - enough to mint a token
+    // with role ADMIN. It warned, and called that key "secure".
+    //
+    // It also accepted ADMIN_PASSWORD as a signing key, which couples two
+    // unrelated secrets: rotating the admin password would silently
+    // invalidate every live session, and the password would gain a second
+    // exposure path through every issued token.
+    //
+    // Failing closed is the point. Without a key this app cannot issue or
+    // trust a session, and pretending it can is worse than refusing.
+    throw new Error(
+      'JWT_SECRET is not set, so session tokens cannot be signed or verified. ' +
+        'Set it in the deployment environment - there is deliberately no fallback.'
+    );
   }
+
+  if (secret.length < MIN_SECRET_LENGTH && !warnedAboutLength) {
+    warnedAboutLength = true;
+    console.warn(
+      `[Hostmattic Auth] JWT_SECRET is ${secret.length} characters; ${MIN_SECRET_LENGTH} or more is ` +
+        'recommended so the signing key cannot be brute-forced offline from a captured token.'
+    );
+  }
+
   return secret;
 }
 

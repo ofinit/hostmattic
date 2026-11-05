@@ -17,8 +17,17 @@ export async function GET() {
     dbStatus = 'unreachable';
   }
 
+  // Now that there is no fallback signing key, a missing JWT_SECRET means
+  // nobody can sign in at all. That used to be a line in the logs; surfacing
+  // it here turns a silent, total auth outage into something an operator can
+  // see. Only ever a boolean - the key itself must never leave the process.
+  const authConfigured = Boolean(process.env.JWT_SECRET);
+
   return NextResponse.json({
-    status: dbStatus === 'connected' ? 'healthy' : 'degraded',
+    status: dbStatus === 'connected' && authConfigured ? 'healthy' : 'degraded',
+    auth: authConfigured
+      ? { status: 'configured' }
+      : { status: 'misconfigured', detail: 'JWT_SECRET is not set; no session can be issued or verified.' },
     timestamp: new Date().toISOString(),
     service: 'hostmattic-web',
     version: '1.0.0',
