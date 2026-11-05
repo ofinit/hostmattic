@@ -201,10 +201,48 @@ export async function registerDomain(params: {
     };
   }
 
+  const years = params.years || 1;
+  const autoRenew = params.autoRenew !== false;
+
+  // Same shape as transferDomain, and for the same reason: v2 is the
+  // documented interface, it is confirmed reachable on this account, and its
+  // DomainRegistrationRequest schema names exactly what is required -
+  // domainName, years, customerId, the four contact ids, invoiceOption and
+  // autoRenew. Registration was left on the legacy endpoint when transfers
+  // moved across, which meant the two halves of the same feature spoke to
+  // different APIs.
+  const v2 = await apiV2('/domains', {
+    method: 'POST',
+    body: {
+      domainName: params.domainName,
+      years,
+      ns: ns.slice(0, 13),
+      customerId: Number(params.customerId),
+      regContactId: Number(params.contacts.registrant),
+      adminContactId: Number(params.contacts.admin),
+      techContactId: Number(params.contacts.tech),
+      billingContactId: Number(params.contacts.billing),
+      invoiceOption: 'NoInvoice',
+      autoRenew,
+      protectPrivacy: Boolean(params.privacyProtection),
+      purchasePrivacy: Boolean(params.privacyProtection),
+    },
+  });
+
+  // Only an unreachable endpoint falls back. A business rejection is a real
+  // answer, and retrying it on legacy could register the domain twice.
+  if (v2.success || !isUnavailable(v2)) {
+    return { success: v2.success, data: v2.data, error: v2.error };
+  }
+
+  console.warn(
+    `[register] v2 unavailable (HTTP ${v2.httpStatus}); falling back to the legacy endpoint.`
+  );
+
   const postData: Record<string, any> = {
     'domain-name': params.domainName,
-    years: params.years || 1,
-    'auto-renew': params.autoRenew === false ? 'false' : 'true',
+    years,
+    'auto-renew': autoRenew ? 'true' : 'false',
     'customer-id': params.customerId,
     'reg-contact-id': params.contacts.registrant,
     'admin-contact-id': params.contacts.admin,
@@ -212,11 +250,10 @@ export async function registerDomain(params: {
     'billing-contact-id': params.contacts.billing,
     'invoice-option': 'NoInvoice',
     'protect-privacy': params.privacyProtection ? 'true' : 'false',
+    // One value, not one assignment per nameserver - the old loop wrote the
+    // same joined string on every pass.
+    ns: ns.join(','),
   };
-
-  ns.forEach((s) => {
-    postData['ns'] = ns.join(',');
-  });
 
   return apiClient('/domains/register.json', postData, 'POST');
 }
