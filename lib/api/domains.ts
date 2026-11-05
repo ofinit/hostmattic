@@ -311,7 +311,9 @@ export async function registerDomain(params: {
   // Only an unreachable endpoint falls back. A business rejection is a real
   // answer, and retrying it on legacy could register the domain twice.
   if (v2.success || !isUnavailable(v2)) {
-    return { success: v2.success, data: v2.data, error: v2.error };
+    // nameserversUsed travels back so the local record can store what was
+    // really sent rather than a hardcoded guess.
+    return { success: v2.success, data: { ...(v2.data as any), nameserversUsed: ns }, error: v2.error };
   }
 
   console.warn(
@@ -335,7 +337,8 @@ export async function registerDomain(params: {
     ns,
   };
 
-  return apiClient('/domains/register.json', postData, 'POST');
+  const legacy = await apiClient<any>('/domains/register.json', postData, 'POST');
+  return { ...legacy, data: { ...(legacy.data as any), nameserversUsed: ns } };
 }
 
 /**
@@ -487,7 +490,7 @@ export async function transferDomain(params: {
   });
 
   if (v2.success || !isUnavailable(v2)) {
-    return { success: v2.success, data: v2.data, error: v2.error };
+    return { success: v2.success, data: { ...(v2.data as any), nameserversUsed: ns }, error: v2.error };
   }
 
   console.warn(
@@ -509,7 +512,8 @@ export async function transferDomain(params: {
     ns,
   };
 
-  return apiClient('/domains/transfer.json', postData, 'POST');
+  const legacy = await apiClient<any>('/domains/transfer.json', postData, 'POST');
+  return { ...legacy, data: { ...(legacy.data as any), nameserversUsed: ns } };
 }
 
 /**

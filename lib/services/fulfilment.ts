@@ -59,6 +59,103 @@ async function upstreamCustomerId(userId: string): Promise<string | null> {
   return user?.upstreamCustomerId || null;
 }
 
+/**
+ * Records the service locally once upstream has delivered it.
+ *
+ * The customer portal lists Domain and HostingAccount rows, not order lines.
+ * Provisioning used to update the OrderItem and stop there, so a domain could
+ * be registered upstream and still show "Active Domains: 0" to the customer
+ * who had just paid for it - which is exactly what happened to
+ * chaitanyaholidayhomes.in.
+ *
+ * Keyed on domainName, which is unique, so a retry updates the existing row
+ * instead of colliding.
+ */
+async function recordProvisionedService(
+  userId: string,
+  item: { domainName: string | null; description: string; productType: string | null; planId: string | null; years: number | null; months: number | null },
+  response: any,
+  upstreamOrderId: string | null
+): Promise<void> {
+  const domainName = (item.domainName || '').trim().toLowerCase();
+  if (!domainName) return;
+
+  const isHosting = Boolean(item.planId);
+  const transferring = /transfer/i.test(item.description);
+
+  if (isHosting) {
+    const months = item.months && item.months > 0 ? item.months : 12;
+    const nextDueDate = new Date();
+    nextDueDate.setMonth(nextDueDate.getMonth() + months);
+
+    // domainName is indexed but not unique on this model, so find-then-write
+    // rather than upsert. Scoped by user: two customers may host the same name.
+    const existing = await prisma.hostingAccount.findFirst({
+      where: { userId, domainName },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await prisma.hostingAccount.update({
+        where: { id: existing.id },
+        data: { status: 'ACTIVE', nextDueDate, upstreamOrderId },
+      });
+    } else {
+      await prisma.hostingAccount.create({
+        data: {
+          userId,
+          domainName,
+          productType: item.productType || 'SHARED_LINUX',
+          planName: item.description,
+          status: 'ACTIVE',
+          billingCycle: months === 1 ? 'MONTHLY' : 'ANNUAL',
+          nextDueDate,
+          upstreamOrderId,
+        },
+      });
+    }
+    return;
+  }
+
+  const years = item.years && item.years > 0 ? item.years : 1;
+  const expiryDate = new Date();
+  expiryDate.setFullYear(expiryDate.getFullYear() + years);
+
+  // A transfer is lodged, not finished - the losing registrar has up to five
+  // days. Calling it ACTIVE would tell the customer something untrue.
+  const status = transferring ? 'PENDING' : 'ACTIVE';
+
+  // What was actually sent, not the schema's hardcoded default. Those default
+  // hostnames do not resolve, so storing them would be a second untruth.
+  const nameservers: string[] = Array.isArray(response?.nameserversUsed)
+    ? response.nameserversUsed
+    : [];
+
+  const dot = domainName.indexOf('.');
+  const tld = dot === -1 ? '' : domainName.slice(dot + 1);
+
+  await prisma.domain.upsert({
+    where: { domainName },
+    create: {
+      userId,
+      domainName,
+      tld,
+      status,
+      expiryDate,
+      autoRenew: true,
+      privacyEnabled: false,
+      nameservers: nameservers.length ? nameservers.join(',') : null,
+      upstreamOrderId,
+    },
+    update: {
+      status,
+      expiryDate,
+      nameservers: nameservers.length ? nameservers.join(',') : undefined,
+      upstreamOrderId,
+    },
+  });
+}
+
 export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
   // Belt and braces: every paid order passes through here, so an invoice that
   // a gateway route failed to number still gets one. Idempotent.
@@ -120,6 +217,18 @@ export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
 
   for (const item of order.items) {
     if (item.provisionStatus === 'PROVISIONED') {
+      // Already delivered upstream, but the local record may still be missing:
+      // provisioning used to stop at the OrderItem, so a domain could be
+      // registered and invisible in the portal. Recording is idempotent, so a
+      // retry repairs that without touching upstream or spending anything.
+      try {
+        await recordProvisionedService(order.userId, item, null, item.upstreamOrderId || null);
+      } catch (recErr: any) {
+        console.error(
+          `[Fulfilment] could not record the already-provisioned ${item.description}:`,
+          recErr?.message
+        );
+      }
       result.skipped++;
       result.lines.push({ description: item.description, status: 'ALREADY_DONE' });
       continue;
@@ -252,6 +361,18 @@ export async function fulfilOrder(orderId: string): Promise<FulfilmentResult> {
           provisionAttempts: { increment: 1 },
         },
       });
+
+      // The portal lists services, not order lines. Without this the domain
+      // is registered upstream and invisible to the customer who paid.
+      try {
+        await recordProvisionedService(order.userId, item, response.data, upstreamId || null);
+      } catch (recErr: any) {
+        // The service IS delivered; failing here must not mark it failed.
+        console.error(
+          `[Fulfilment] ${item.description} was provisioned but could not be recorded locally:`,
+          recErr?.message
+        );
+      }
 
       result.provisioned++;
       result.lines.push({

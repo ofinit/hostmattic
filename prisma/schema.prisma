@@ -58,7 +58,10 @@ model Domain {
   expiryDate         DateTime
   autoRenew          Boolean   @default(true)
   privacyEnabled     Boolean   @default(true)
-  nameservers        String?   @default("ns1.hostmattic.com,ns2.hostmattic.com")
+  /// What was actually sent upstream. No default: the old one named
+  /// hostnames that publish no A records, so every row asserted
+  /// nameservers that resolve for nobody.
+  nameservers        String?
   upstreamOrderId    String?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

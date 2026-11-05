@@ -20,6 +20,7 @@ const MIGRATION_STATEMENTS = [
   `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "planId" TEXT`,
   `ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "authCode" TEXT`,
   `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "billingZip" TEXT`,
+  `ALTER TABLE "Domain" ALTER COLUMN "nameservers" DROP DEFAULT`,
   `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "invoiceNumber" TEXT`,
   `ALTER TABLE "Order" ADD COLUMN IF NOT EXISTS "invoiceIssuedAt" TIMESTAMP(3)`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "Order_invoiceNumber_key" ON "Order" ("invoiceNumber")`,
