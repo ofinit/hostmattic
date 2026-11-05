@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { getBusinessIdentity, POLICY_LAST_UPDATED } from '@/lib/legal/identity';
+import { RETENTION_SCHEDULE } from '@/lib/legal/retention';
 import { LegalPage, LegalSection, IdentityBlock, MissingFact } from '@/components/legal/LegalPage';
 
 export const dynamic = 'force-dynamic';
@@ -122,11 +123,33 @@ export default async function PrivacyPage() {
 
       <LegalSection title="How long we keep it">
         <p>
-          Service records are kept for as long as you hold the service, and afterwards for as long as
-          tax and company law require records of a transaction to be retained — which is longer than
-          the service itself. Support tickets are kept so that the history of an issue remains
-          available to both of us. Closing your account does not delete records we are legally obliged
-          to keep.
+          Most of these periods are not ours to choose. Where the law sets one, it is named below
+          rather than described vaguely, so you can see what we can and cannot delete on request.
+        </p>
+        <div className="table-responsive" style={{ marginTop: '14px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
+                <th style={{ padding: '9px 10px' }}>Record</th>
+                <th style={{ padding: '9px 10px', whiteSpace: 'nowrap' }}>Kept for</th>
+                <th style={{ padding: '9px 10px' }}>Why</th>
+              </tr>
+            </thead>
+            <tbody>
+              {RETENTION_SCHEDULE.map((rule) => (
+                <tr key={rule.record} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                  <td style={{ padding: '10px', fontWeight: 600, color: '#0F172A' }}>{rule.record}</td>
+                  <td style={{ padding: '10px', whiteSpace: 'nowrap', color: '#475569' }}>
+                    {rule.keepForYears ? `${rule.keepForYears} years` : 'While the service lasts'}
+                  </td>
+                  <td style={{ padding: '10px', color: '#475569' }}>{rule.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p style={{ marginTop: '14px' }}>
+          Closing your account does not delete records we are legally obliged to keep.
         </p>
       </LegalSection>
 

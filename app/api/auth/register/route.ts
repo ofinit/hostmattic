@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { recordConsent } from '@/lib/legal/consentStore';
+import { purposesForStage } from '@/lib/legal/consent';
 import { hashPassword, signToken } from '@/lib/auth';
 import { createUpstreamCustomer } from '@/lib/api/customers';
 import { ensureDatabaseBootstrap } from '@/lib/dbBootstrap';
@@ -162,6 +164,22 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Record what they were shown and agreed to.
+    //
+    // The required purposes are recorded because proceeding IS the agreement -
+    // the notice is on the form and the service cannot run without them. The
+    // optional one is recorded only if they actually ticked it; defaulting
+    // marketing to on and calling that consent is exactly what the DPDP Act's
+    // itemisation requirement exists to prevent.
+    //
+    // Deliberately after the user exists and never allowed to fail the
+    // signup: a person left unable to use an account they just created is a
+    // worse outcome than a missing consent row, which can be repaired.
+    const consented: string[] = purposesForStage('signup')
+      .filter((purpose) => !purpose.optional || body?.consent?.[purpose.key] === true)
+      .map((purpose) => purpose.key);
+    await recordConsent(user.id, consented, 'signup');
 
     const token = signToken({
       id: user.id,

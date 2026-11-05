@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { purposesForStage, optionalPurposes } from '@/lib/legal/consent';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export default function RegisterPage() {
   const [company, setCompany] = useState('');
   const [country, setCountry] = useState('US');
   const [agreed, setAgreed] = useState(true);
+  /// Optional consent purposes, all defaulted OFF. See lib/legal/consent.ts.
+  const [consent, setConsent] = useState<Record<string, boolean>>({});
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -40,6 +43,7 @@ export default function RegisterPage() {
           phone: phone || undefined,
           company: company || undefined,
           country,
+          consent,
         }),
       });
 
@@ -201,6 +205,62 @@ export default function RegisterPage() {
               />
             </div>
 
+            {/*
+              The itemised notice. The DPDP Act requires the person to be told
+              what is collected and why, in plain language and broken out by
+              purpose, BEFORE they agree - not pointed at a policy and asked to
+              tick a box.
+            */}
+            <div
+              style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '12px',
+                padding: '14px 16px',
+                marginBottom: '16px',
+                fontSize: '0.8rem',
+                lineHeight: 1.6,
+                color: '#475569',
+              }}
+            >
+              <div style={{ fontWeight: 800, color: '#0F172A', marginBottom: '8px', fontSize: '0.84rem' }}>
+                What we collect when you open an account
+              </div>
+              {purposesForStage('signup')
+                .filter((p) => !p.optional)
+                .map((p) => (
+                  <div key={p.key} style={{ marginBottom: '8px' }}>
+                    <strong style={{ color: '#334155' }}>{p.label}.</strong> {p.data} {p.why}
+                    {p.sharedWith ? <> <em>Shared with: {p.sharedWith}</em></> : null}
+                  </div>
+                ))}
+              <div style={{ color: '#64748B' }}>
+                These are needed to provide the service. Registering a domain later needs more — you
+                will be told exactly what, at that point.
+              </div>
+            </div>
+
+            {/*
+              Optional purposes get a real choice, defaulted OFF. A marketing
+              box pre-ticked is not consent, and bundling it with the terms
+              agreement is precisely what itemisation is meant to stop.
+            */}
+            {optionalPurposes().map((p) => (
+              <div className="form-group" key={p.key} style={{ marginBottom: '14px' }}>
+                <label className="form-checkbox-label" style={{ fontSize: '0.84rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(consent[p.key])}
+                    onChange={(e) => setConsent((c) => ({ ...c, [p.key]: e.target.checked }))}
+                    style={{ accentColor: 'var(--brand-action-green)' }}
+                  />
+                  <span>
+                    {p.why} You can turn this off at any time from your control panel.
+                  </span>
+                </label>
+              </div>
+            ))}
+
             <div className="form-group" style={{ marginBottom: '22px' }}>
               <label className="form-checkbox-label" style={{ fontSize: '0.84rem' }}>
                 <input
@@ -210,12 +270,18 @@ export default function RegisterPage() {
                   style={{ accentColor: 'var(--brand-action-green)' }}
                 />
                 <span>
-                  I agree to Hostmattic&apos;s{' '}
-                  <a href="#terms" onClick={(e) => e.preventDefault()} className="form-link">
+                  {/*
+                    These used to be href="#terms" with preventDefault, so the
+                    documents a person was agreeing to could not be opened at
+                    all. They open in a new tab so a half-filled form is not
+                    lost reading them.
+                  */}
+                  I am 18 or over and agree to Hostmattic&apos;s{' '}
+                  <a href="/legal/terms" target="_blank" rel="noopener noreferrer" className="form-link">
                     Terms of Service
                   </a>{' '}
                   and{' '}
-                  <a href="#privacy" onClick={(e) => e.preventDefault()} className="form-link">
+                  <a href="/legal/privacy" target="_blank" rel="noopener noreferrer" className="form-link">
                     Privacy Policy
                   </a>.
                 </span>

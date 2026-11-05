@@ -8,18 +8,18 @@ generator client {
 }
 
 model User {
-  id                 String             @id @default(cuid())
-  email              String             @unique
+  id             String  @id @default(cuid())
+  email          String  @unique
   // Dot/plus-stripped form used only for duplicate detection on signup.
   // Nullable so existing rows stay valid; backfilled on bootstrap.
-  emailCanonical     String?            @unique
+  emailCanonical String? @unique
 
   /// Deliverability, from Resend webhooks. A hard bounce or a spam complaint
   /// means this address will not receive anything, so continuing to send to
   /// it burns the domain's sending reputation and the customer never hears
   /// about a renewal they are about to lose.
   /// "OK" | "BOUNCED" | "COMPLAINED"
-  emailStatus        String             @default("OK")
+  emailStatus        String    @default("OK")
   emailIssueAt       DateTime?
   emailIssueReason   String?
   passwordHash       String
@@ -31,61 +31,63 @@ model User {
   state              String?
   country            String?
   zip                String?
-  role               String             @default("CUSTOMER") // "CUSTOMER" | "ADMIN"
+  role               String    @default("CUSTOMER") // "CUSTOMER" | "ADMIN"
   upstreamCustomerId String?
-  lockedCurrency     String?            // "USD" | "INR" - locked on first successful payment
+  lockedCurrency     String? // "USD" | "INR" - locked on first successful payment
   currencyLockedAt   DateTime?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  domains            Domain[]
-  hostingAccounts    HostingAccount[]
-  orders             Order[]
-  tickets            SupportTicket[]
+  domains         Domain[]
+  hostingAccounts HostingAccount[]
+  orders          Order[]
+  tickets         SupportTicket[]
+  consents        ConsentRecord[]
+  dataRequests    DataRequest[]
 
   @@index([email])
   @@index([email, lockedCurrency])
 }
 
 model Domain {
-  id                 String    @id @default(cuid())
-  userId             String
-  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  domainName         String    @unique
-  tld                String
-  status             String    @default("ACTIVE") // ACTIVE, PENDING, EXPIRED
-  registrationDate   DateTime  @default(now())
-  expiryDate         DateTime
-  autoRenew          Boolean   @default(true)
-  privacyEnabled     Boolean   @default(true)
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domainName       String   @unique
+  tld              String
+  status           String   @default("ACTIVE") // ACTIVE, PENDING, EXPIRED
+  registrationDate DateTime @default(now())
+  expiryDate       DateTime
+  autoRenew        Boolean  @default(true)
+  privacyEnabled   Boolean  @default(true)
   /// What was actually sent upstream. No default: the old one named
   /// hostnames that publish no A records, so every row asserted
   /// nameservers that resolve for nobody.
-  nameservers        String?
-  upstreamOrderId    String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  nameservers      String?
+  upstreamOrderId  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([userId])
   @@index([domainName])
 }
 
 model HostingAccount {
-  id                 String    @id @default(cuid())
-  userId             String
-  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productType        String    // "SHARED_LINUX", "SHARED_WINDOWS", "WORDPRESS", "CLOUD", "RESELLER", "VPS", "DEDICATED"
-  planName           String
-  domainName         String
-  serverIp           String?   @default("198.51.100.24")
-  cpanelUsername     String?
-  serverLocation     String    @default("US")
-  status             String    @default("ACTIVE") // ACTIVE, SUSPENDED, TERMINATED, PENDING
-  billingCycle       String    @default("ANNUAL") // MONTHLY, ANNUAL
-  nextDueDate        DateTime
-  upstreamOrderId    String?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productType     String // "SHARED_LINUX", "SHARED_WINDOWS", "WORDPRESS", "CLOUD", "RESELLER", "VPS", "DEDICATED"
+  planName        String
+  domainName      String
+  serverIp        String?  @default("198.51.100.24")
+  cpanelUsername  String?
+  serverLocation  String   @default("US")
+  status          String   @default("ACTIVE") // ACTIVE, SUSPENDED, TERMINATED, PENDING
+  billingCycle    String   @default("ANNUAL") // MONTHLY, ANNUAL
+  nextDueDate     DateTime
+  upstreamOrderId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([userId])
   @@index([domainName])
@@ -93,22 +95,22 @@ model HostingAccount {
 
 model PaymentGateway {
   // "RAZORPAY" | "INSTAMOJO"
-  id            String   @id
+  id           String   @id
   // Off until an administrator deliberately turns it on. A gateway that has
   // never been configured must not be offered at checkout.
-  enabled       Boolean  @default(false)
-  sandbox       Boolean  @default(true)
+  enabled      Boolean  @default(false)
+  sandbox      Boolean  @default(true)
   // Key id / API key. Safe to hand to the browser; Razorpay Checkout needs it.
-  publicKey     String   @default("")
+  publicKey    String   @default("")
   // AES-256-GCM under SETTINGS_ENCRYPTION_KEY. Never plaintext, never returned
   // by the API.
-  secretCipher  String   @default("")
+  secretCipher String   @default("")
   // So the console can show which key is installed without revealing it.
-  secretLast4   String   @default("")
+  secretLast4  String   @default("")
   // Comma-separated currencies this gateway may settle, e.g. "INR,USD".
-  currencies    String   @default("INR")
-  updatedAt     DateTime @updatedAt
-  updatedBy     String?
+  currencies   String   @default("INR")
+  updatedAt    DateTime @updatedAt
+  updatedBy    String?
 }
 
 /// One row per financial year, holding the last invoice serial issued.
@@ -118,14 +120,14 @@ model PaymentGateway {
 /// day - or is retried after a partial failure - cannot email the same
 /// customer about the same service twice.
 model ReminderSent {
-  id          String   @id @default(cuid())
+  id         String   @id @default(cuid())
   /// "DOMAIN" | "HOSTING"
-  entityType  String
-  entityId    String
+  entityType String
+  entityId   String
   /// The reminder bucket in days before expiry: 30, 14, 7, 1, or 0 on the day.
-  dayBucket   Int
-  recipient   String
-  sentAt      DateTime @default(now())
+  dayBucket  Int
+  recipient  String
+  sentAt     DateTime @default(now())
 
   @@unique([entityType, entityId, dayBucket])
   @@index([sentAt])
@@ -139,86 +141,86 @@ model InvoiceSeries {
 }
 
 model TaxSetting {
-  id                   String   @id @default("default_tax_settings")
-  gstRate              Float    @default(18.0)
+  id                String   @id @default("default_tax_settings")
+  gstRate           Float    @default(18.0)
   // Statutory identity is blank until configured; see app/api/tax/settings.
-  legalBusinessName    String   @default("")
-  sellerGstin          String   @default("")
-  registeredAddress    String   @default("")
-  city                 String   @default("")
-  state                String   @default("")
-  stateCode            String   @default("")
-  panNumber            String   @default("")
-  defaultSacCode       String   @default("998315")
-  lutNumber            String   @default("")
-  usdGstPolicy         String   @default("LUT_EXPORT") // "LUT_EXPORT" (0% with LUT) or "APPLY_GST"
-  updatedAt            DateTime @updatedAt
+  legalBusinessName String   @default("")
+  sellerGstin       String   @default("")
+  registeredAddress String   @default("")
+  city              String   @default("")
+  state             String   @default("")
+  stateCode         String   @default("")
+  panNumber         String   @default("")
+  defaultSacCode    String   @default("998315")
+  lutNumber         String   @default("")
+  usdGstPolicy      String   @default("LUT_EXPORT") // "LUT_EXPORT" (0% with LUT) or "APPLY_GST"
+  updatedAt         DateTime @updatedAt
 }
 
 model Order {
-  id                 String      @id @default(cuid())
-  orderNumber        String      @unique
+  id              String    @id @default(cuid())
+  orderNumber     String    @unique
   /// The statutory tax invoice serial, allocated when the invoice is ISSUED -
   /// that is, when payment succeeds - not when the order is placed. Rule 46(b)
   /// wants a consecutive series, and an order that is abandoned or whose
   /// payment fails must not consume a number, or the series shows gaps that
   /// read as missing invoices. Null until the order is paid.
-  invoiceNumber      String?     @unique
-  invoiceIssuedAt    DateTime?
-  userId             String
-  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subtotalAmount     Float       @default(0.0)
-  taxRate            Float       @default(0.0)
-  taxAmount          Float       @default(0.0)
-  totalAmount        Float
-  currency           String      @default("USD")
+  invoiceNumber   String?   @unique
+  invoiceIssuedAt DateTime?
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtotalAmount  Float     @default(0.0)
+  taxRate         Float     @default(0.0)
+  taxAmount       Float     @default(0.0)
+  totalAmount     Float
+  currency        String    @default("USD")
   // An order defaults to unpaid. These defaulted to PAID/COMPLETED, so any
   // insert that omitted them produced a settled, fulfilled order that nobody
   // had paid for - which is how HM-002574-943 came to be invoiced.
-  paymentStatus      String      @default("PENDING") // PAID, PENDING, FAILED
-  paymentMethod      String      @default("CREDIT_CARD")
-  status             String      @default("PENDING")
+  paymentStatus   String    @default("PENDING") // PAID, PENDING, FAILED
+  paymentMethod   String    @default("CREDIT_CARD")
+  status          String    @default("PENDING")
 
   // Statutory GST Compliance Fields
-  customerType       String      @default("B2C") // "B2C" | "B2B"
-  customerGstin      String?
-  companyName        String?
-  billingAddress     String?
-  billingCity        String?
+  customerType   String  @default("B2C") // "B2C" | "B2B"
+  customerGstin  String?
+  companyName    String?
+  billingAddress String?
+  billingCity    String?
   /// Postcode. Required by the registry for a domain registrant contact, and
   /// the reason an upstream customer could not be created from real data.
-  billingZip         String?
-  billingState       String?
-  billingCountry     String?     @default("IN")
+  billingZip     String?
+  billingState   String?
+  billingCountry String? @default("IN")
   // No default: an unset place of supply must stay unset rather than
   // silently become the seller's own state on the invoice.
-  placeOfSupply      String?
-  taxType            String?     @default("CGST_SGST") // "CGST_SGST", "IGST", "LUT_EXPORT", "NONE"
-  cgstAmount         Float       @default(0.0)
-  sgstAmount         Float       @default(0.0)
-  igstAmount         Float       @default(0.0)
+  placeOfSupply  String?
+  taxType        String? @default("CGST_SGST") // "CGST_SGST", "IGST", "LUT_EXPORT", "NONE"
+  cgstAmount     Float   @default(0.0)
+  sgstAmount     Float   @default(0.0)
+  igstAmount     Float   @default(0.0)
 
   // Payment Gateway Telemetry
-  gatewayName        String?     // "RAZORPAY" | "INSTAMOJO"
-  gatewayOrderId     String?
-  gatewayPaymentId   String?
-  gatewaySignature   String?
+  gatewayName      String? // "RAZORPAY" | "INSTAMOJO"
+  gatewayOrderId   String?
+  gatewayPaymentId String?
+  gatewaySignature String?
 
-  createdAt          DateTime    @default(now())
-  items              OrderItem[]
+  createdAt DateTime    @default(now())
+  items     OrderItem[]
 
   @@index([userId])
 }
 
 model OrderItem {
-  id                 String    @id @default(cuid())
-  orderId            String
-  order              Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productType        String
-  description        String
-  sacCode            String?   @default("998315")
-  price              Float
-  billingPeriod      String
+  id            String  @id @default(cuid())
+  orderId       String
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productType   String
+  description   String
+  sacCode       String? @default("998315")
+  price         Float
+  billingPeriod String
 
   // What it takes to actually provision this line.
   //
@@ -226,53 +228,117 @@ model OrderItem {
   // payment - and then discarded the details, so by the time a gateway
   // confirmed the money the information needed to deliver the service was
   // gone.
-  domainName         String?
+  domainName String?
   /// Upstream numeric plan id, resolved from the live catalogue at checkout.
-  planId             String?
+  planId     String?
   /// EPP authorisation code, required to transfer a domain in. Collected on
   /// the transfer page and previously discarded, which made the transfer
   /// unfulfillable once payment had been taken.
-  authCode           String?
-  months             Int?
-  years              Int?
+  authCode   String?
+  months     Int?
+  years      Int?
 
   // PENDING -> PROVISIONED | FAILED | NOT_REQUIRED
   //
   // Defaults to PENDING: a line is undelivered until something says otherwise.
-  provisionStatus    String    @default("PENDING")
-  upstreamOrderId    String?
-  provisionError     String?
-  provisionedAt      DateTime?
-  provisionAttempts  Int       @default(0)
+  provisionStatus   String    @default("PENDING")
+  upstreamOrderId   String?
+  provisionError    String?
+  provisionedAt     DateTime?
+  provisionAttempts Int       @default(0)
 
   @@index([orderId])
   @@index([provisionStatus])
 }
 
 model SupportTicket {
-  id                 String        @id @default(cuid())
-  ticketNumber       String        @unique
-  userId             String
-  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  subject            String
-  department         String        @default("Technical Support")
-  priority           String        @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
-  status             String        @default("OPEN") // OPEN, ANSWERED, CLOSED
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
-  replies            TicketReply[]
+  id           String        @id @default(cuid())
+  ticketNumber String        @unique
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject      String
+  department   String        @default("Technical Support")
+  priority     String        @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  status       String        @default("OPEN") // OPEN, ANSWERED, CLOSED
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  replies      TicketReply[]
 
   @@index([userId])
 }
 
 model TicketReply {
-  id                 String        @id @default(cuid())
-  ticketId           String
-  ticket             SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  senderType         String        // CUSTOMER, STAFF
-  senderName         String
-  message            String
-  createdAt          DateTime      @default(now())
+  id         String        @id @default(cuid())
+  ticketId   String
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderType String // CUSTOMER, STAFF
+  senderName String
+  message    String
+  createdAt  DateTime      @default(now())
 
   @@index([ticketId])
+}
+
+/// A record that consent was given - or withdrawn - for one purpose.
+///
+/// The DPDP Act puts the burden of PROVING consent on the Data Fiduciary, so
+/// a boolean on the user row would not be enough: it says the current state
+/// but not what the person was actually shown, or when. Each grant stores the
+/// version of the notice in force at the time, and a withdrawal is recorded
+/// by setting withdrawnAt rather than deleting the row - erasing the evidence
+/// that consent once existed would destroy the only proof that the processing
+/// was lawful while it ran.
+model ConsentRecord {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// A key from lib/legal/consent.ts, e.g. "account", "registrant", "marketing".
+  purpose       String
+  /// The notice the person actually saw, so a later change does not rewrite history.
+  noticeVersion String
+  grantedAt     DateTime  @default(now())
+  /// Set when consent is withdrawn. Null means it still stands.
+  withdrawnAt   DateTime?
+  /// Where it was given: "signup", "checkout", "portal".
+  source        String    @default("signup")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, purpose])
+}
+
+/// A Data Principal exercising a right: access, correction or erasure.
+///
+/// Deliberately a REQUEST and not an immediate action. An erasure cannot
+/// simply run: tax law requires invoices to be kept, registrant details sit
+/// with a registry that will not remove them while the domain exists, and a
+/// live hosting account cannot be deleted out from under a paying customer.
+/// So this records the ask, tracks the answer, and leaves a trail showing the
+/// request was handled rather than dropped.
+model DataRequest {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// "ACCESS" | "CORRECTION" | "ERASURE"
+  type       String
+  /// "OPEN" | "IN_PROGRESS" | "COMPLETED" | "PARTIALLY_COMPLETED" | "REFUSED"
+  status     String  @default("OPEN")
+  /// What the person asked for, in their words.
+  detail     String?
+  /// What was done, and - where something could not be actioned - WHY.
+  /// A refusal without a reason is not an answer.
+  resolution String?
+
+  requestedAt DateTime  @default(now())
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
 }

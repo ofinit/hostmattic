@@ -140,7 +140,7 @@ export default function ClientDashboard() {
   const { addItem } = useCart();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'domains' | 'hosting' | 'addons' | 'billing' | 'tickets'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'domains' | 'hosting' | 'addons' | 'billing' | 'tickets' | 'privacy'>('overview');
   const [pricingData, setPricingData] = useState<Record<string, any>>({});
   const [dealAddedMsg, setDealAddedMsg] = useState<string | null>(null);
   const [selectedRenewalModal, setSelectedRenewalModal] = useState<any | null>(null);
@@ -210,6 +210,12 @@ export default function ClientDashboard() {
 
   // DNS Modal state
   const [selectedDomainForDns, setSelectedDomainForDns] = useState<string | null>(null);
+  /// Consent state and data-protection requests. See lib/legal/consent.ts.
+  const [privacyData, setPrivacyData] = useState<any>(null);
+  const [privacyBusy, setPrivacyBusy] = useState(false);
+  const [privacyMsg, setPrivacyMsg] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [erasureDetail, setErasureDetail] = useState('');
+
   const [dnsRecords, setDnsRecords] = useState<any[]>([]);
   const [loadingDns, setLoadingDns] = useState(false);
   /// Set when the zone could not be read, so the empty table is explained
@@ -264,9 +270,72 @@ export default function ClientDashboard() {
       .catch(() => setLoading(false));
   };
 
+  const loadPrivacy = async () => {
+    try {
+      const res = await fetch('/api/client/privacy');
+      const json = await res.json();
+      if (json?.success) setPrivacyData(json);
+    } catch {
+      /* the tab shows its own empty state */
+    }
+  };
+
+  const setConsent = async (purpose: string, granted: boolean) => {
+    setPrivacyBusy(true);
+    setPrivacyMsg(null);
+    try {
+      const res = await fetch('/api/client/privacy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'set-consent', purpose, granted }),
+      });
+      const json = await res.json();
+      if (json?.success) {
+        setPrivacyData((d: any) => ({ ...(d || {}), consents: json.consents }));
+        setPrivacyMsg({ kind: 'ok', text: granted ? 'Turned on.' : 'Turned off.' });
+      } else {
+        setPrivacyMsg({ kind: 'error', text: json?.error || 'Could not save that change.' });
+      }
+    } catch {
+      setPrivacyMsg({ kind: 'error', text: 'Could not save that change.' });
+    } finally {
+      setPrivacyBusy(false);
+    }
+  };
+
+  const raiseDataRequest = async (type: 'ACCESS' | 'CORRECTION' | 'ERASURE') => {
+    setPrivacyBusy(true);
+    setPrivacyMsg(null);
+    try {
+      const res = await fetch('/api/client/privacy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'data-request', type, detail: erasureDetail || undefined }),
+      });
+      const json = await res.json();
+      if (json?.success) {
+        setPrivacyMsg({ kind: 'ok', text: json.message || 'Your request has been recorded.' });
+        setErasureDetail('');
+        await loadPrivacy();
+      } else {
+        setPrivacyMsg({ kind: 'error', text: json?.error || 'Could not record your request.' });
+      }
+    } catch {
+      setPrivacyMsg({ kind: 'error', text: 'Could not record your request.' });
+    } finally {
+      setPrivacyBusy(false);
+    }
+  };
+
   useEffect(() => {
     fetchServices();
   }, []);
+
+  // Loaded when the tab is opened rather than on every dashboard visit: most
+  // people never look at it, and it is two extra queries.
+  useEffect(() => {
+    if (activeTab === 'privacy' && !privacyData) loadPrivacy();
+  }, [activeTab, privacyData]);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -1306,6 +1375,7 @@ export default function ClientDashboard() {
             { id: 'addons', label: `Security & Add-ons (${addons.length})`, icon: '🛡️' },
             { id: 'billing', label: `Invoices & Billing (${orders.length})`, icon: '💳' },
             { id: 'tickets', label: `Support Desk (${tickets.length})`, icon: '🎫' },
+            { id: 'privacy', label: 'Privacy & Data', icon: '🔒' },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -2486,6 +2556,212 @@ export default function ClientDashboard() {
                 </tbody>
               </table>
               {renderClientPagination(clientTicketPage, totalClientTicketPages, tickets.length, 'tickets', setClientTicketPage)}
+            </div>
+          </div>
+        )}
+
+        {/* 7. PRIVACY & DATA TAB */}
+        {activeTab === 'privacy' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {privacyMsg && (
+              <div
+                role="status"
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  fontSize: '0.88rem',
+                  lineHeight: 1.6,
+                  background: privacyMsg.kind === 'ok' ? '#F0FDF4' : '#FEF2F2',
+                  border: `1px solid ${privacyMsg.kind === 'ok' ? '#BBF7D0' : '#FECACA'}`,
+                  color: privacyMsg.kind === 'ok' ? '#166534' : '#991B1B',
+                }}
+              >
+                {privacyMsg.text}
+              </div>
+            )}
+
+            {/* --- How your data is used ------------------------------------ */}
+            <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '20px', padding: '28px', boxShadow: 'var(--shadow-sm)' }}>
+              <h3 style={{ fontSize: '1.25rem', margin: '0 0 6px', color: '#0F172A' }}>How your data is used</h3>
+              <p style={{ color: '#64748B', fontSize: '0.88rem', margin: '0 0 18px', lineHeight: 1.6 }}>
+                Itemised by purpose. Anything marked required is needed to provide the service and
+                cannot be switched off while the account is open.
+              </p>
+
+              {!privacyData ? (
+                <div style={{ color: '#64748B', fontSize: '0.9rem' }}>Loading\u2026</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {(privacyData.purposes || []).map((purpose: any) => {
+                    const state = (privacyData.consents || []).find((c: any) => c.purpose === purpose.key);
+                    const granted = Boolean(state?.granted);
+                    return (
+                      <div
+                        key={purpose.key}
+                        style={{
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '14px',
+                          padding: '16px',
+                          background: '#F8FAFC',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          gap: '16px',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <div style={{ minWidth: 0, flex: '1 1 320px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                            <strong style={{ color: '#0F172A', fontSize: '0.95rem' }}>{purpose.label}</strong>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 800,
+                                padding: '1px 7px',
+                                borderRadius: '999px',
+                                background: purpose.optional ? '#EFF6FF' : '#F1F5F9',
+                                color: purpose.optional ? '#1D4ED8' : '#475569',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {purpose.optional ? 'OPTIONAL' : 'REQUIRED'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.84rem', color: '#475569', lineHeight: 1.6, overflowWrap: 'anywhere' }}>
+                            {purpose.data} {purpose.why}
+                          </div>
+                          {purpose.sharedWith && (
+                            <div style={{ fontSize: '0.8rem', color: '#64748B', marginTop: '6px', lineHeight: 1.6, overflowWrap: 'anywhere' }}>
+                              <strong>Shared with:</strong> {purpose.sharedWith}
+                            </div>
+                          )}
+                          {state?.grantedAt && (
+                            <div style={{ fontSize: '0.75rem', color: '#94A3B8', marginTop: '6px' }}>
+                              {granted ? 'Agreed' : 'Withdrawn'}{' '}
+                              {new Date(state.withdrawnAt || state.grantedAt).toLocaleDateString()}
+                              {state.noticeVersion ? ` \u00b7 notice ${state.noticeVersion}` : ''}
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ flexShrink: 0 }}>
+                          {purpose.optional ? (
+                            <button
+                              type="button"
+                              disabled={privacyBusy}
+                              onClick={() => setConsent(purpose.key, !granted)}
+                              className="btn btn-sm"
+                              style={{
+                                background: granted ? '#DCFCE7' : '#F1F5F9',
+                                color: granted ? '#15803D' : '#334155',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {granted ? 'On \u2014 turn off' : 'Off \u2014 turn on'}
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: '#94A3B8', whiteSpace: 'nowrap' }}>
+                              Required
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* --- Your rights ---------------------------------------------- */}
+            <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '20px', padding: '28px', boxShadow: 'var(--shadow-sm)' }}>
+              <h3 style={{ fontSize: '1.25rem', margin: '0 0 6px', color: '#0F172A' }}>Your data rights</h3>
+              <p style={{ color: '#64748B', fontSize: '0.88rem', margin: '0 0 8px', lineHeight: 1.6 }}>
+                You can ask for a copy of what we hold, ask us to correct it, or ask us to erase it.
+              </p>
+              <p style={{ color: '#64748B', fontSize: '0.84rem', margin: '0 0 18px', lineHeight: 1.6 }}>
+                Erasure has limits we would rather state up front than discover together: invoices must
+                be kept for tax purposes, and registrant details lodged with a domain registry cannot be
+                withdrawn while the domain exists. We will tell you specifically what was removed and
+                what was not, and why.
+              </p>
+
+              <textarea
+                value={erasureDetail}
+                onChange={(e) => setErasureDetail(e.target.value)}
+                placeholder="Optional: anything specific you want us to action or explain."
+                rows={3}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '10px',
+                  fontSize: '0.88rem',
+                  fontFamily: 'inherit',
+                  marginBottom: '14px',
+                  resize: 'vertical',
+                }}
+              />
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button type="button" className="btn btn-sm btn-outline" disabled={privacyBusy} onClick={() => raiseDataRequest('ACCESS')}>
+                  Request a copy of my data
+                </button>
+                <button type="button" className="btn btn-sm btn-outline" disabled={privacyBusy} onClick={() => raiseDataRequest('CORRECTION')}>
+                  Request a correction
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={privacyBusy}
+                  onClick={() => raiseDataRequest('ERASURE')}
+                  style={{ background: '#FEF2F2', color: '#991B1B', border: '1px solid #FECACA', fontWeight: 700 }}
+                >
+                  Request erasure
+                </button>
+              </div>
+
+              {privacyData?.requests?.length > 0 && (
+                <div style={{ marginTop: '22px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0F172A', marginBottom: '10px' }}>
+                    Your requests
+                  </div>
+                  <div className="table-responsive">
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
+                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Type</th>
+                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Raised</th>
+                          <th style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>Status</th>
+                          <th style={{ padding: '10px 12px' }}>Outcome</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {privacyData.requests.map((r: any) => (
+                          <tr key={r.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                            <td style={{ padding: '12px', fontWeight: 700, color: '#0F172A' }}>{r.type}</td>
+                            <td style={{ padding: '12px', whiteSpace: 'nowrap', color: '#475569' }}>
+                              {new Date(r.requestedAt).toLocaleDateString()}
+                            </td>
+                            <td style={{ padding: '12px', whiteSpace: 'nowrap', color: '#475569' }}>{r.status}</td>
+                            <td style={{ padding: '12px', color: '#475569' }}>
+                              {r.resolution || <span style={{ color: '#94A3B8' }}>Awaiting our response</span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ fontSize: '0.82rem', color: '#64748B', lineHeight: 1.6 }}>
+              The full{' '}
+              <a href="/legal/privacy" style={{ color: '#10708A' }}>
+                Privacy Policy
+              </a>{' '}
+              explains who your data is shared with and how long it is kept.
             </div>
           </div>
         )}

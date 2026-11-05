@@ -173,6 +173,36 @@ const DDL_STATEMENTS = [
   )`,
 
   // 7. SupportTicket table
+  // DPDP: consent evidence and data-principal requests.
+  `CREATE TABLE IF NOT EXISTS "ConsentRecord" (
+    "id" TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL,
+    "noticeVersion" TEXT NOT NULL,
+    "grantedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "withdrawnAt" TIMESTAMP(3),
+    "source" TEXT NOT NULL DEFAULT 'signup',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS "ConsentRecord_userId_idx" ON "ConsentRecord" ("userId")`,
+  `CREATE INDEX IF NOT EXISTS "ConsentRecord_userId_purpose_idx" ON "ConsentRecord" ("userId", "purpose")`,
+
+  `CREATE TABLE IF NOT EXISTS "DataRequest" (
+    "id" TEXT PRIMARY KEY,
+    "userId" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "detail" TEXT,
+    "resolution" TEXT,
+    "requestedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "respondedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE INDEX IF NOT EXISTS "DataRequest_userId_idx" ON "DataRequest" ("userId")`,
+  `CREATE INDEX IF NOT EXISTS "DataRequest_status_idx" ON "DataRequest" ("status")`,
+
   `CREATE TABLE IF NOT EXISTS "SupportTicket" (
     "id" TEXT PRIMARY KEY,
     "ticketNumber" TEXT UNIQUE NOT NULL,

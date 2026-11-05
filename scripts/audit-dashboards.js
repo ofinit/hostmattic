@@ -151,6 +151,27 @@ const ADMIN_FIXTURE = {
   expirations: EXPIRY,
 };
 
+// What the privacy tab renders from. Long strings on purpose: the shared-with
+// text is the widest content in that panel.
+const PRIVACY_FIXTURE = {
+  success: true,
+  noticeVersion: '2026-11-05.1',
+  purposes: [
+    { key: 'account', label: 'Running your account', data: 'Your name, email address and password (stored only as a one-way hash).', why: 'To create your account, sign you in, and show you the services you hold.', sharedWith: null, optional: false },
+    { key: 'registrant', label: 'Registering a domain in your name', data: 'Your name, postal address, email address and phone number.', why: 'Domain registries require these from the registrant.', sharedWith: 'Our upstream registrar and the registry operating the extension. Some registries publish part of this in a public WHOIS record, and some operate outside India.', optional: false },
+    { key: 'marketing', label: 'Offers and product news', data: 'Your email address.', why: 'To tell you about new services, pricing changes and promotions.', sharedWith: null, optional: true },
+  ],
+  consents: [
+    { purpose: 'account', granted: true, noticeVersion: '2026-11-05.1', grantedAt: '2026-11-05T00:00:00.000Z', withdrawnAt: null },
+    { purpose: 'registrant', granted: true, noticeVersion: '2026-11-05.1', grantedAt: '2026-11-05T00:00:00.000Z', withdrawnAt: null },
+    { purpose: 'marketing', granted: false, noticeVersion: '2026-11-05.1', grantedAt: '2026-11-05T00:00:00.000Z', withdrawnAt: '2026-11-05T00:00:00.000Z' },
+  ],
+  requests: [
+    { id: 'dr1', type: 'ERASURE', status: 'OPEN', requestedAt: '2026-11-05T00:00:00.000Z', resolution: null },
+    { id: 'dr2', type: 'ACCESS', status: 'COMPLETED', requestedAt: '2026-10-01T00:00:00.000Z', resolution: 'A copy of all records held was sent on 3 October 2026.' },
+  ],
+};
+
 const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900 },
   { name: 'laptop', width: 1180, height: 820 },
@@ -220,7 +241,10 @@ const CONSOLES = [
     name: 'client portal', url: '/client/dashboard',
     token: { id: 'usr_1', email: LONG_EMAIL, name: LONG_NAME, role: 'CUSTOMER' },
     api: '**/api/client/services**', fixture: CLIENT_FIXTURE,
-    tabs: ['Dashboard Overview', 'My Domains', 'Web Hosting', 'Security & Add-ons', 'Invoices & Billing', 'Support Desk'],
+    // The privacy tab fetches its own endpoint. Without this it renders its
+    // loading state and the audit measures an empty panel.
+    extraRoutes: [{ pattern: '**/api/client/privacy**', body: PRIVACY_FIXTURE }],
+    tabs: ['Dashboard Overview', 'My Domains', 'Web Hosting', 'Security & Add-ons', 'Invoices & Billing', 'Support Desk', 'Privacy & Data'],
   },
   {
     name: 'admin console', url: '/admin/dashboard',
@@ -252,6 +276,11 @@ const CONSOLES = [
       await page.route(c.api, (route) => route.fulfill({
         status: 200, contentType: 'application/json', body: JSON.stringify(c.fixture),
       }));
+      for (const extra of c.extraRoutes || []) {
+        await page.route(extra.pattern, (route) => route.fulfill({
+          status: 200, contentType: 'application/json', body: JSON.stringify(extra.body),
+        }));
+      }
       // Everything else the console calls on mount: answer, do not hang.
       await page.route('**/api/admin/**', (route) => {
         if (route.request().url().includes('/overview')) return route.fallback();
