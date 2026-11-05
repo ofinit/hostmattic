@@ -2305,7 +2305,20 @@ export default function ClientDashboard() {
                   {paginatedClientOrders.map((ord: any) => (
                     <tr key={ord.id} style={{ borderBottom: '1px solid #F1F5F9', cursor: 'pointer' }} onClick={() => setViewInvoice(ord)}>
                       <td style={{ padding: '16px', fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap' }}>
-                        {ord.orderNumber}
+                        {/*
+                          * The column says Invoice #, so it shows the invoice
+                          * number. It showed the ORDER number, so a customer
+                          * comparing this list against the invoice they opened
+                          * saw two different references for the same purchase.
+                          */}
+                        {ord.invoiceNumber || (
+                          <span style={{ fontWeight: 600, color: '#94A3B8' }}>
+                            {ord.orderNumber}
+                            <span style={{ display: 'block', fontSize: '0.68rem', fontWeight: 600, fontFamily: 'inherit' }}>
+                              order ref - not yet invoiced
+                            </span>
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '16px', color: '#64748B' }}>
                         {ord.items?.[0]?.description || 'Hosting & Domain Provisioning'}
