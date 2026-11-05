@@ -1,5 +1,6 @@
 import { apiClient, isLiveApiConfigured, ApiResponse } from './client';
 import { apiV2, isUnavailable } from './clientV2';
+import { usableNameservers } from '@/lib/dns/nameservers';
 import { getLiveDomainPricing } from './pricing';
 
 export interface DomainCheckResult {
@@ -183,8 +184,14 @@ export async function checkDomainAvailability(
  * registrant can point the domain wherever they like afterwards, and that is
  * a far better outcome than an order that fails with their money taken.
  */
-function nameserverList(supplied?: string[]): string[] {
-  return (supplied || []).map((n) => n.trim()).filter(Boolean).slice(0, 13);
+async function nameserverList(supplied?: string[]): Promise<string[]> {
+  const explicit = (supplied || []).map((n) => n.trim()).filter(Boolean).slice(0, 13);
+  if (explicit.length) return explicit;
+
+  // Nothing explicit, so use the branded set - but only those that genuinely
+  // resolve. An empty result means the key is omitted and upstream applies
+  // the customer's default.
+  return usableNameservers();
 }
 
 /**
@@ -212,7 +219,7 @@ export async function registerDomain(params: {
     };
   }
 
-  const ns = nameserverList(params.nameservers);
+  const ns = await nameserverList(params.nameservers);
 
   // The registry requires all four. Omitting them is what produced
   // "Required parameter missing: reg-contact-id" on the first real order.
@@ -408,7 +415,7 @@ export async function transferDomain(params: {
     return { success: false, error: preflight.reason };
   }
 
-  const ns = nameserverList(params.nameservers);
+  const ns = await nameserverList(params.nameservers);
   const autoRenew = params.autoRenew !== false;
 
   const v2 = await apiV2(`/domains/${encodeURIComponent(params.domainName)}/transfer-in`, {

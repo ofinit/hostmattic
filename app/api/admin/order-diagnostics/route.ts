@@ -5,6 +5,7 @@ import { apiClient, isLiveApiConfigured } from '@/lib/api/client';
 import { getUpstreamCustomerDetails } from '@/lib/api/customers';
 import { getDefaultContacts } from '@/lib/api/contacts';
 import { checkDomainAvailability } from '@/lib/api/domains';
+import { nameserverReport } from '@/lib/dns/nameservers';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -204,6 +205,14 @@ export async function GET(req: NextRequest) {
     balance = { error: err?.message };
   }
 
+  // ---- 7. Are the branded nameservers usable? ----------------------------
+  // A nameserver that does not resolve fails the registration at the registry,
+  // after the customer has paid. This is what failed the first one.
+  const nameservers = await nameserverReport();
+  if (nameservers.configured.length && !nameservers.usable.length) {
+    findings.push(nameservers.verdict);
+  }
+
   if (!findings.length) {
     findings.push(
       'No precondition failed. The stored provisionError on the line above is the authoritative reason; ' +
@@ -227,6 +236,7 @@ export async function GET(req: NextRequest) {
     contactsOnFile,
     availability,
     balance,
+    nameservers,
     findings,
   });
 }
