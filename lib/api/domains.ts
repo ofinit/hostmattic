@@ -559,3 +559,60 @@ export async function listPendingTransfers(
   });
   return { success: res.success, data: res.data, error: res.error };
 }
+
+/**
+ * The upstream order id for a domain, looked up by name.
+ *
+ * Every management call below addresses a domain by its ORDER ID, not its
+ * name. We usually hold one on the Domain row, but a domain that predates
+ * that column - or one repaired by the service backfill - may not have it, so
+ * this falls back to asking upstream and the caller persists what comes back.
+ */
+export async function getDomainOrderId(domainName: string): Promise<ApiResponse<string>> {
+  if (!isLiveApiConfigured()) return { success: true, data: 'mock-order-id', isMock: true };
+
+  const res = await apiClient<any>('/domains/details-by-name.json', {
+    'domain-name': domainName,
+    options: 'OrderDetails',
+  });
+  if (!res.success) return { success: false, error: res.error };
+
+  const id = res.data?.orderid ?? res.data?.entityid;
+  if (!id) {
+    return { success: false, error: `Upstream returned no order id for ${domainName}.` };
+  }
+  return { success: true, data: String(id) };
+}
+
+/**
+ * Point a domain at new nameservers.
+ *
+ * The parameters here are the whole point of this function. An earlier
+ * version in the route handler sent `domain-name` plus `ns1`, `ns2`, `ns3`
+ * ... which is not what this API accepts: it wants `order-id` and `ns`
+ * REPEATED once per server, the same wire format bug-047 established for
+ * registration. Upstream rejected every call, and because the result was
+ * discarded the portal reported success regardless.
+ */
+export async function modifyNameservers(
+  orderId: string,
+  nameservers: string[]
+): Promise<ApiResponse> {
+  const ns = nameservers
+    .map((n) => String(n).trim().toLowerCase())
+    .filter(Boolean)
+    // Upstream rejects a duplicate pair, and a customer who types the same
+    // host twice means two, not one.
+    .filter((n, i, all) => all.indexOf(n) === i)
+    .slice(0, 13);
+
+  if (ns.length < 2) {
+    return { success: false, error: 'At least 2 different nameservers are required.' };
+  }
+  if (!isLiveApiConfigured()) return { success: true, data: { ns }, isMock: true };
+
+  // Record<string, any>: `ns` is an ARRAY and apiClient appends one field per
+  // entry. Joining it with a comma is what broke registration in bug-047.
+  const postData: Record<string, any> = { 'order-id': orderId, ns };
+  return apiClient('/domains/modify-ns.json', postData, 'POST');
+}

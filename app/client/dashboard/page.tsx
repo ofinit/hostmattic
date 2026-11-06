@@ -191,6 +191,10 @@ export default function ClientDashboard() {
   const [ns4, setNs4] = useState('');
   const [savingNs, setSavingNs] = useState(false);
   const [domainActionMsg, setDomainActionMsg] = useState('');
+  // Every handler below used to check `if (json.success)` with no else, so a
+  // refusal from the registry produced no message at all - the dialog simply
+  // sat there and the customer assumed it had worked.
+  const [domainActionError, setDomainActionError] = useState('');
   const [authCodeValue, setAuthCodeValue] = useState('');
   const [copiedEpp, setCopiedEpp] = useState(false);
   const [togglingLock, setTogglingLock] = useState(false);
@@ -563,6 +567,7 @@ export default function ClientDashboard() {
       privacyProtection: domain.privacyEnabled !== undefined ? domain.privacyEnabled : true,
     });
     setDomainActionMsg('');
+    setDomainActionError('');
     setAuthCodeValue('');
     setCopiedEpp(false);
     // Whatever the domain is ACTUALLY delegated to. Unknown stays blank: the
@@ -594,12 +599,19 @@ export default function ClientDashboard() {
       });
       const json = await res.json();
       if (json.success) {
+        setDomainActionError('');
         setDomainActionMsg(json.message || 'Nameservers updated successfully!');
         setSelectedDomainDetails({ ...selectedDomainDetails, nameservers: [ns1, ns2, ns3, ns4].filter(Boolean).join(',') });
         fetchServices();
+      } else {
+        // The registry did not accept the change, so nothing was saved. Saying
+        // so beats a dialog that looks like it worked.
+        setDomainActionMsg('');
+        setDomainActionError(json.error || 'The nameservers could not be updated.');
       }
     } catch {
-      alert('Failed to update nameservers.');
+      setDomainActionMsg('');
+      setDomainActionError('Failed to update nameservers.');
     } finally {
       setSavingNs(false);
     }
@@ -622,12 +634,17 @@ export default function ClientDashboard() {
       });
       const json = await res.json();
       if (json.success) {
+        setDomainActionError('');
         setSelectedDomainDetails({ ...selectedDomainDetails, theftProtection: json.theftProtection });
         setDomainActionMsg(json.message);
         fetchServices();
+      } else {
+        setDomainActionMsg('');
+        setDomainActionError(json.error || 'Could not change the registrar lock.');
       }
     } catch {
-      alert('Could not change registrar lock.');
+      setDomainActionMsg('');
+      setDomainActionError('Could not change registrar lock.');
     } finally {
       setTogglingLock(false);
     }
@@ -650,12 +667,17 @@ export default function ClientDashboard() {
       });
       const json = await res.json();
       if (json.success) {
+        setDomainActionError('');
         setSelectedDomainDetails({ ...selectedDomainDetails, privacyProtection: json.privacyProtection });
         setDomainActionMsg(json.message);
         fetchServices();
+      } else {
+        setDomainActionMsg('');
+        setDomainActionError(json.error || 'Could not change the WHOIS privacy setting.');
       }
     } catch {
-      alert('Could not change WHOIS privacy setting.');
+      setDomainActionMsg('');
+      setDomainActionError('Could not change WHOIS privacy setting.');
     } finally {
       setTogglingPrivacy(false);
     }
@@ -674,10 +696,18 @@ export default function ClientDashboard() {
       });
       const json = await res.json();
       if (json.success) {
+        setDomainActionError('');
         setAuthCodeValue(json.authCode);
+      } else {
+        // Previously a failure left the old code on screen, or nothing at all,
+        // with no hint that the request had been refused.
+        setAuthCodeValue('');
+        setDomainActionMsg('');
+        setDomainActionError(json.error || 'Could not retrieve the EPP code.');
       }
     } catch {
-      alert('Could not retrieve EPP code.');
+      setDomainActionMsg('');
+      setDomainActionError('Could not retrieve EPP code.');
     }
   };
 
@@ -2919,6 +2949,15 @@ export default function ClientDashboard() {
             {domainActionMsg && (
               <div style={{ background: '#EBF7D4', border: '1px solid #C4E58C', color: '#4F7C12', padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', fontSize: '0.85rem', fontWeight: 600 }}>
                 ✓ {domainActionMsg}
+              </div>
+            )}
+
+            {domainActionError && (
+              <div
+                role="alert"
+                style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '12px 16px', borderRadius: '10px', marginBottom: '20px', fontSize: '0.85rem', fontWeight: 600, overflowWrap: 'anywhere' }}
+              >
+                ✕ {domainActionError}
               </div>
             )}
 
