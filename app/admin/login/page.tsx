@@ -14,6 +14,44 @@ export default function AdminLoginPage() {
 
   const [showMasterPass, setShowMasterPass] = useState(false);
 
+  // Administrators had no way to recover an account at all: there was no link
+  // here, and the customer-side flow emailed a token that nothing redeemed.
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotMessage, setForgotMessage] = useState('');
+  const [forgotError, setForgotError] = useState('');
+
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotMessage('');
+    setForgotError('');
+    if (!forgotEmail || !forgotEmail.includes('@')) {
+      setForgotError('Enter the email address on the administrator account.');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // scope only decides which login page the link returns to. The server
+        // ignores it unless the account really is an administrator.
+        body: JSON.stringify({ email: forgotEmail, scope: 'ADMIN' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setForgotMessage(json.message || 'If that account exists, a reset link is on its way.');
+      } else {
+        setForgotError(json.error || 'Could not start a password reset.');
+      }
+    } catch {
+      setForgotError('Could not reach the server. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -148,6 +186,97 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
+
+          <div style={{ textAlign: 'center', marginTop: '18px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setShowForgot(true);
+                setForgotMessage('');
+                setForgotError('');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--brand-cyan)',
+                fontWeight: 600,
+                fontSize: '0.84rem',
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              Forgot the administrator password?
+            </button>
+          </div>
+
+          {showForgot && (
+            <div
+              style={{
+                marginTop: '18px',
+                padding: '16px',
+                background: 'rgba(0,0,0,0.3)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '12px',
+              }}
+            >
+              <form onSubmit={handleForgot}>
+                <label
+                  htmlFor="admin-forgot-email"
+                  style={{ display: 'block', color: '#CBD5E1', fontSize: '0.84rem', fontWeight: 600, marginBottom: '8px' }}
+                >
+                  Administrator email
+                </label>
+                <input
+                  id="admin-forgot-email"
+                  type="email"
+                  className="form-input"
+                  style={{ background: 'rgba(0,0,0,0.35)', color: '#FFF', borderColor: 'rgba(255,255,255,0.15)' }}
+                  placeholder="you@example.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  autoComplete="email"
+                />
+
+                {forgotMessage && (
+                  <div style={{ marginTop: '12px', color: '#A7D64F', fontSize: '0.82rem', lineHeight: 1.55 }}>
+                    {forgotMessage}
+                  </div>
+                )}
+                {forgotError && (
+                  <div role="alert" style={{ marginTop: '12px', color: '#FCA5A5', fontSize: '0.82rem', lineHeight: 1.55 }}>
+                    {forgotError}
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '14px', flexWrap: 'wrap' }}>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="btn btn-primary"
+                    style={{ flex: '1 1 auto', justifyContent: 'center', padding: '10px 18px', background: 'var(--brand-action-green)', fontSize: '0.88rem' }}
+                  >
+                    {forgotLoading ? 'Sending\u2026' : 'Send reset link'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgot(false)}
+                    style={{
+                      flex: '0 0 auto',
+                      background: 'none',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      color: '#CBD5E1',
+                      borderRadius: '8px',
+                      padding: '10px 18px',
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           <div style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.82rem', color: '#64748B' }}>
             Hardware Token • IP Geofencing • Hardware Key FIDO2

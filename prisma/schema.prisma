@@ -44,6 +44,7 @@ model User {
   tickets         SupportTicket[]
   consents        ConsentRecord[]
   dataRequests    DataRequest[]
+  resetTokens     PasswordResetToken[]
 
   @@index([email])
   @@index([email, lockedCurrency])
@@ -341,4 +342,78 @@ model DataRequest {
 
   @@index([userId])
   @@index([status])
+}
+
+/// SMTP / transactional mail configuration, editable from the admin console.
+///
+/// A single row, id = "default_mail_settings". Credentials live here rather
+/// than in the environment so an administrator can change or rotate them
+/// without a redeploy - the same reasoning as PaymentGateway.
+model MailSetting {
+  id String @id @default("default_mail_settings")
+
+  /// "SMTP" | "RESEND" | "NONE". NONE means transactional mail is off, which
+  /// in production is a real outage and is reported as one rather than
+  /// silently simulated.
+  provider String @default("NONE")
+
+  // --- SMTP (nodemailer) ---
+  host     String  @default("")
+  port     Int     @default(587)
+  /// True for implicit TLS (port 465). False for STARTTLS (587), which
+  /// nodemailer upgrades automatically.
+  secure   Boolean @default(false)
+  username String  @default("")
+  /// AES-256-GCM under SETTINGS_ENCRYPTION_KEY. Never plaintext, never
+  /// returned by the API.
+  passwordCipher String @default("")
+  /// So the console can show which credential is installed without revealing
+  /// it.
+  passwordLast4  String @default("")
+  /// Off by default. Only set when a server presents a self-signed
+  /// certificate, and it is shown in the console as the downgrade it is.
+  allowInvalidCert Boolean @default(false)
+
+  // --- Envelope ---
+  fromName  String @default("Hostmattic")
+  fromEmail String @default("")
+  replyTo   String @default("")
+
+  /// Result of the last test send, so the console can show whether this
+  /// configuration has ever actually delivered anything.
+  lastTestAt      DateTime?
+  lastTestOk      Boolean?
+  lastTestError   String?
+  lastTestTo      String?
+
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+/// A single-use password reset grant.
+///
+/// Only the SHA-256 of the token is stored. The raw token exists in the
+/// emailed link and nowhere else, so a database read does not let someone
+/// reset an account - which was the point of the previous implementation
+/// storing nothing at all, except that one also never worked.
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  /// sha256(token), hex. Unique so a lookup is a single indexed read.
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// "CUSTOMER" | "ADMIN" - decides which panel the link returns to. The
+  /// authority still comes from the user's own role, never from this.
+  scope     String   @default("CUSTOMER")
+  expiresAt DateTime
+  /// Set when redeemed. A used token is kept, not deleted, so a second click
+  /// can be told it was already used rather than looking like it never
+  /// existed.
+  usedAt    DateTime?
+  /// For an audit trail after an account takeover.
+  requestedIp String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }

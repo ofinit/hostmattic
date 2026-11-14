@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getMailConfig } from '@/lib/email/mailConfig';
 import {
   sendEmail,
-  getResendConfig,
   generateOrderReceiptEmail,
   generateExpiryAlertEmail,
   generateTicketReplyEmail,
@@ -24,13 +24,18 @@ export async function GET(req: NextRequest) {
   const session = requireAdmin(req);
   if (session instanceof NextResponse) return session;
 
-  const { isConfigured, fromEmail } = getResendConfig();
+  // Reads the configured provider rather than only the Resend environment
+  // key: a deployment sending over SMTP was previously reported here as
+  // unconfigured.
+  const cfg = await getMailConfig();
 
   return NextResponse.json({
     success: true,
-    provider: 'Resend',
-    configured: isConfigured,
-    fromEmail,
+    provider: cfg.provider,
+    source: cfg.source,
+    configured: cfg.provider !== 'NONE',
+    fromEmail: cfg.from,
+    problem: cfg.problem ?? null,
     supportedTypes: [
       'ORDER_RECEIPT',
       'EXPIRATION_ALERT',
@@ -38,7 +43,10 @@ export async function GET(req: NextRequest) {
       'PASSWORD_RESET',
       'CUSTOM',
     ],
-    status: isConfigured ? 'READY (Live Resend API Active)' : 'SIMULATION_MODE (Set RESEND_API_KEY to activate live delivery)',
+    status:
+      cfg.provider === 'NONE'
+        ? `NOT_SENDING (${cfg.problem || 'no provider configured in Admin → Email / SMTP'})`
+        : `READY (${cfg.provider}${cfg.source === 'environment' ? ', from environment' : ''})`,
   });
 }
 

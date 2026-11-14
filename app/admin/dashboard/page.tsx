@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import PaymentGatewaySettings from '@/components/admin/PaymentGatewaySettings';
+import MailSettings from '@/components/admin/MailSettings';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { GST_STATES } from '@/lib/constants/gstStates';
@@ -134,7 +135,7 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'orders' | 'domains' | 'hosting' | 'addons' | 'customers' | 'tickets' | 'taxes' | 'gateway' | 'payments'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'reports' | 'orders' | 'domains' | 'hosting' | 'addons' | 'customers' | 'tickets' | 'taxes' | 'gateway' | 'payments' | 'mail'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Bulk customer selection / deletion
@@ -1194,6 +1195,7 @@ export default function AdminDashboardPage() {
               { id: 'tickets', label: `Support Queue (${tickets.length})`, icon: '🎫' },
               { id: 'taxes', label: 'Tax & GST Settings', icon: '🏛️' },
               { id: 'payments', label: 'Payment Gateways', icon: '💳' },
+              { id: 'mail', label: 'Email / SMTP', icon: '✉️' },
               { id: 'gateway', label: 'API Gateway', icon: '⚙️' },
             ].map((tab) => (
               <button
@@ -1221,7 +1223,7 @@ export default function AdminDashboardPage() {
             ))}
           </div>
 
-          {activeTab !== 'overview' && activeTab !== 'gateway' && activeTab !== 'taxes' && activeTab !== 'payments' && (
+          {activeTab !== 'overview' && activeTab !== 'gateway' && activeTab !== 'taxes' && activeTab !== 'payments' && activeTab !== 'mail' && (
             <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
               <input
                 type="text"
@@ -2837,6 +2839,8 @@ export default function AdminDashboardPage() {
         )}
 
         {activeTab === 'payments' && <PaymentGatewaySettings />}
+
+        {activeTab === 'mail' && <MailSettings />}
 
         {activeTab === 'gateway' && (
           <div style={{ maxWidth: '800px', background: 'rgba(30, 41, 59, 0.5)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '18px', padding: '32px' }}>

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
 import { isLiveApiConfigured } from '@/lib/api/client';
-import { getResendConfig } from '@/lib/email/resend';
+import { getMailConfig } from '@/lib/email/mailConfig';
 import {
   computeFinancialReport,
   computeExpirationAnalytics,
@@ -610,6 +610,9 @@ export async function GET(req: NextRequest) {
       ];
     }
 
+    // What the application is actually sending with right now.
+    const mailConfig = await getMailConfig();
+
     return NextResponse.json({
       success: true,
       metrics: {
@@ -636,13 +639,21 @@ export async function GET(req: NextRequest) {
           authUserIdConfigured: Boolean(process.env.RESELLER_AUTH_USERID?.trim()),
           apiKeyConfigured: Boolean(process.env.RESELLER_API_KEY?.trim()),
         },
-        // Transactional email. There is no SMTP: delivery is the Resend REST
-        // API, and an unset key means receipts, password resets and ticket
-        // replies are not being delivered at all.
-        emailStatus: (() => {
-          const { isConfigured, fromEmail } = getResendConfig();
-          return { configured: isConfigured, fromEmail, transport: 'Resend API' };
-        })(),
+        // Transactional email. Delivery is either SMTP (nodemailer) or the
+        // Resend REST API, chosen in Admin → Email / SMTP. Unconfigured means
+        // receipts, password resets and ticket replies are not reaching
+        // anyone.
+        //
+        // This used to read getResendConfig() directly, which now answers only
+        // "is there a RESEND_API_KEY in the environment" - it would report
+        // email as down on a deployment sending perfectly well over SMTP.
+        emailStatus: {
+          configured: mailConfig.provider !== 'NONE',
+          fromEmail: mailConfig.from,
+          transport: mailConfig.provider === 'SMTP' ? 'SMTP' : mailConfig.provider === 'RESEND' ? 'Resend API' : 'none',
+          source: mailConfig.source,
+          problem: mailConfig.problem ?? null,
+        },
       },
       financials,
       expirations,

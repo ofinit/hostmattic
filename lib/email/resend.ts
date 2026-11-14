@@ -1,107 +1,32 @@
 /**
- * Hostmattic Transactional Email Service via Resend API
+ * Hostmattic transactional email: branded templates.
  *
- * Provides native REST API email dispatch with zero external dependencies.
- * Automatically falls back to simulated logging when RESEND_API_KEY is not yet configured.
+ * This module used to BE the mail transport, talking to the Resend REST API
+ * directly. Delivery now goes through lib/email/send.ts, which chooses
+ * between SMTP (nodemailer) and Resend according to what an administrator has
+ * configured. sendEmail is re-exported here unchanged so the fourteen call
+ * sites that already import it from this module keep working; new code should
+ * import it from lib/email/send.
  */
 
-export interface EmailPayload {
-  to: string | string[];
-  subject: string;
-  html: string;
-  text?: string;
-  from?: string;
-}
+export type { EmailPayload, EmailResult } from '@/lib/email/types';
+export { sendEmail } from '@/lib/email/send';
 
-export interface EmailResult {
-  success: boolean;
-  id?: string;
-  simulated?: boolean;
-  error?: string;
-}
-
+/**
+ * Whether the Resend ENVIRONMENT credentials are present.
+ *
+ * Note what this does NOT tell you: it says nothing about SMTP, and so it is
+ * no longer an answer to "can this deployment send mail". Use
+ * isMailConfigured() from lib/email/mailConfig for that. This remains only
+ * because the admin console reports the Resend environment fallback
+ * separately from the configured provider.
+ */
 export const getResendConfig = () => {
   const apiKey = process.env.RESEND_API_KEY || '';
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'Hostmattic <notifications@hostmattic.com>';
   const isConfigured = !!apiKey && apiKey.trim().length > 0;
   return { apiKey, fromEmail, isConfigured };
 };
-
-/**
- * Dispatch an email via the Resend REST API
- */
-export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
-  const { apiKey, fromEmail, isConfigured } = getResendConfig();
-  const recipientList = Array.isArray(payload.to) ? payload.to : [payload.to];
-
-  // Unconfigured means nothing was sent. In development that is fine and the
-  // message is logged instead; in production it is a failure and must be
-  // reported as one.
-  //
-  // This used to return success: true in every environment, so a live
-  // deployment with no API key told checkout the receipt had gone out while
-  // the customer received nothing and no error was raised anywhere. Same rule
-  // as the payment gateway: simulation is only allowed outside production.
-  if (!isConfigured) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error(
-        `[Email] RESEND_API_KEY is not set, so "${payload.subject}" was NOT sent to ` +
-          `${recipientList.join(', ')}. Transactional email is down.`
-      );
-      return {
-        success: false,
-        error: 'Email delivery is not configured on this deployment.',
-      };
-    }
-
-    const simId = 'sim_' + Math.random().toString(36).substring(2, 11);
-    console.log(`[Resend Notice: Simulated Email] To: ${recipientList.join(', ')} | Subject: "${payload.subject}" | ID: ${simId}`);
-    return {
-      success: true,
-      id: simId,
-      simulated: true,
-    };
-  }
-
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey.trim()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: payload.from || fromEmail,
-        to: recipientList,
-        subject: payload.subject,
-        html: payload.html,
-        text: payload.text || undefined,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      console.error('[Resend API Error]', data);
-      return {
-        success: false,
-        error: data.message || `Resend API rejected request with status ${res.status}`,
-      };
-    }
-
-    return {
-      success: true,
-      id: data.id,
-      simulated: false,
-    };
-  } catch (err: any) {
-    console.error('[Resend Network Error]', err);
-    return {
-      success: false,
-      error: err.message || 'Failed to communicate with Resend API',
-    };
-  }
-}
 
 // ============================================================================
 // BRANDED EMAIL TEMPLATES

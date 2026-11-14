@@ -40,7 +40,7 @@ const ROUTES = [
   '/servers/vps', '/servers/dedicated', '/email/business',
   '/email/google-workspace', '/security/ssl', '/security/sitelock',
   '/security/codeguard', '/security/acronis', '/tools/website-builder',
-  '/login', '/register', '/checkout', '/admin/login',
+  '/login', '/register', '/checkout', '/admin/login', '/reset-password',
   '/contact', '/legal/terms', '/legal/privacy', '/legal/refunds',
 ];
 

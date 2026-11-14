@@ -19,6 +19,10 @@ const PUBLIC_ROUTES = [
   '/api/auth/register',
   '/api/auth/logout',
   '/api/auth/forgot-password',
+  // Redeeming a reset link is by definition done by someone who cannot sign
+  // in. Behind the session guard it would answer 401 to every person it
+  // exists to help. Its authority is the single-use token, not a cookie.
+  '/api/auth/reset-password',
   '/api/auth/end-impersonation', // caller holds a CUSTOMER session; authority is the stashed admin cookie
   '/api/health',
   '/api/domains',           // Public domain search/availability

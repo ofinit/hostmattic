@@ -203,6 +203,43 @@ const DDL_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS "DataRequest_userId_idx" ON "DataRequest" ("userId")`,
   `CREATE INDEX IF NOT EXISTS "DataRequest_status_idx" ON "DataRequest" ("status")`,
 
+  // Transactional mail, configured from the admin console. One row.
+  `CREATE TABLE IF NOT EXISTS "MailSetting" (
+    "id" TEXT PRIMARY KEY,
+    "provider" TEXT NOT NULL DEFAULT 'NONE',
+    "host" TEXT NOT NULL DEFAULT '',
+    "port" INTEGER NOT NULL DEFAULT 587,
+    "secure" BOOLEAN NOT NULL DEFAULT false,
+    "username" TEXT NOT NULL DEFAULT '',
+    "passwordCipher" TEXT NOT NULL DEFAULT '',
+    "passwordLast4" TEXT NOT NULL DEFAULT '',
+    "allowInvalidCert" BOOLEAN NOT NULL DEFAULT false,
+    "fromName" TEXT NOT NULL DEFAULT 'Hostmattic',
+    "fromEmail" TEXT NOT NULL DEFAULT '',
+    "replyTo" TEXT NOT NULL DEFAULT '',
+    "lastTestAt" TIMESTAMP(3),
+    "lastTestOk" BOOLEAN,
+    "lastTestError" TEXT,
+    "lastTestTo" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedBy" TEXT
+  )`,
+
+  // Single-use password reset grants. Only the hash of the token is stored.
+  `CREATE TABLE IF NOT EXISTS "PasswordResetToken" (
+    "id" TEXT PRIMARY KEY,
+    "tokenHash" TEXT NOT NULL,
+    "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+    "scope" TEXT NOT NULL DEFAULT 'CUSTOMER',
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "requestedIp" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "PasswordResetToken_tokenHash_key" ON "PasswordResetToken" ("tokenHash")`,
+  `CREATE INDEX IF NOT EXISTS "PasswordResetToken_userId_idx" ON "PasswordResetToken" ("userId")`,
+  `CREATE INDEX IF NOT EXISTS "PasswordResetToken_expiresAt_idx" ON "PasswordResetToken" ("expiresAt")`,
+
   `CREATE TABLE IF NOT EXISTS "SupportTicket" (
     "id" TEXT PRIMARY KEY,
     "ticketNumber" TEXT UNIQUE NOT NULL,
