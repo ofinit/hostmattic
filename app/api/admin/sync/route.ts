@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { apiClient } from '@/lib/api/client';
 import { hashPassword, requireAdmin } from '@/lib/auth';
+import { getUpstreamCustomerDetails } from '@/lib/api/customers';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -18,6 +19,11 @@ export async function POST(req: NextRequest) {
 }
 
 const MAX_PAGES = 50; // hard stop so a bad `recsindb` cannot spin forever
+
+// One upstream round trip each, so this is capped rather than unbounded: a
+// paginated sync has already exceeded the proxy timeout once (bug-025). The
+// remainder is reported and picked up by the next run.
+const ADDRESS_BACKFILL_LIMIT = 25;
 
 /**
  * Resolve a domain's owner when the customer was not in the customer listing.
@@ -52,6 +58,11 @@ async function recoverCustomer(
         city: d.city || null,
         country: d.country || 'IN',
         phone: telNo ? `+${telCc}${telNo}` : null,
+        // details-by-id returns the full registrant contact - fulfilment.ts
+        // already relies on these exact keys - so take the address here too.
+        address: d['customer.address1'] || d.address1 || null,
+        state: d['customer.state'] || d.state || null,
+        zip: d['customer.zip'] || d.zip || null,
         upstreamCustomerId,
       },
     });
@@ -81,6 +92,8 @@ async function handleSync() {
     totalDomainsInUpstream: 0,
     customersRecovered: 0,   // created from a domain whose owner was not in the customer list
     domainsUnassigned: 0,    // owner could not be resolved; parked on the fallback account
+    addressesBackfilled: 0,  // postal address fetched per-customer because the list lacked it
+    addressesStillMissing: 0, // run the sync again to continue; see ADDRESS_BACKFILL_LIMIT
     errors: [] as string[],
   };
 
@@ -141,6 +154,16 @@ async function handleSync() {
         const telNo = item['customer.telno'] || '';
         const telCc = item['customer.telnocc'] || '';
         const phone = telNo ? `+${telCc}${telNo}` : null;
+        // The postal address, which this loop used to discard. Upstream holds
+        // the real registrant contact, so a checkout that asks the customer to
+        // retype it is asking for something the system already knows. Read
+        // defensively: it is not certain that the bulk search carries these -
+        // the documentation is not publicly readable and the endpoint is
+        // IP-whitelisted to the server - so anything missing here is filled in
+        // by the bounded detail pass below.
+        const address = item['customer.address1'] || null;
+        const state = item['customer.state'] || null;
+        const zip = item['customer.zip'] || null;
         const rawCreation = item['customer.creationtime'];
         const createdAt = rawCreation ? new Date(parseInt(rawCreation, 10) * 1000) : new Date();
 
@@ -163,7 +186,20 @@ async function handleSync() {
           if (existing) {
             user = await prisma.user.update({
               where: { id: existing.id },
-              data: { name, company, upstreamCustomerId, phone, city, country },
+              // Address fields are written only when upstream actually has a
+              // value. `?? undefined` leaves the column alone rather than
+              // blanking an address a customer has since corrected locally.
+              data: {
+                name,
+                company,
+                upstreamCustomerId,
+                phone,
+                city,
+                country,
+                address: address ?? undefined,
+                state: state ?? undefined,
+                zip: zip ?? undefined,
+              },
               select: { id: true },
             });
           } else {
@@ -182,6 +218,9 @@ async function handleSync() {
                 phone,
                 city,
                 country,
+                address,
+                state,
+                zip,
                 createdAt,
               },
               select: { id: true },
@@ -201,6 +240,64 @@ async function handleSync() {
     }
   } catch (err: any) {
     results.errors.push(`Customer search error: ${err.message}`);
+  }
+
+  // 2b. Fill in postal addresses the bulk listing did not carry.
+  //
+  // It is not certain that /customers/search.json returns address1, state and
+  // zip - the documentation is not publicly readable and the endpoint is
+  // IP-whitelisted, so it could not be checked from a development machine. The
+  // loop above reads them when present; this pass covers the case where they
+  // are absent, using details-by-id, which definitely does return them
+  // (lib/services/fulfilment.ts already depends on those exact keys).
+  //
+  // Strictly bounded. This is one upstream round trip per customer, and a
+  // paginated sync has already run past the proxy timeout once (bug-025). A
+  // partial pass that finishes beats a complete one that returns an empty
+  // body, so the remainder is reported and the next run continues.
+  try {
+    const needAddress = await prisma.user.findMany({
+      where: {
+        upstreamCustomerId: { not: null },
+        OR: [{ address: null }, { address: '' }],
+      },
+      select: { id: true, upstreamCustomerId: true },
+      take: ADDRESS_BACKFILL_LIMIT + 1,
+    });
+
+    results.addressesStillMissing = Math.max(0, needAddress.length - ADDRESS_BACKFILL_LIMIT);
+
+    for (const u of needAddress.slice(0, ADDRESS_BACKFILL_LIMIT)) {
+      try {
+        const res = await getUpstreamCustomerDetails(u.upstreamCustomerId as string);
+        if (!res.success || !res.data) continue;
+        const d = res.data as Record<string, any>;
+
+        const address = d['customer.address1'] || d.address1 || null;
+        const state = d['customer.state'] || d.state || null;
+        const zip = d['customer.zip'] || d.zip || d.zipcode || null;
+        const city = d['customer.city'] || d.city || null;
+
+        // Nothing upstream either: do not spend a write, and do not count it.
+        if (!address && !state && !zip) continue;
+
+        await prisma.user.update({
+          where: { id: u.id },
+          data: {
+            address: address ?? undefined,
+            state: state ?? undefined,
+            zip: zip ?? undefined,
+            city: city ?? undefined,
+          },
+        });
+        results.addressesBackfilled++;
+      } catch (e: any) {
+        console.warn(`[Sync] Address backfill failed for ${u.upstreamCustomerId}:`, e?.message);
+      }
+    }
+  } catch (err: any) {
+    // Never fatal: the rest of the sync is more important than an address.
+    results.errors.push(`Address backfill error: ${err.message}`);
   }
 
   // Ensure an admin/fallback user exists for any unlinked domains

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
 import { pricingLineFor, annualInrFrom, toMoney } from '@/lib/pricing/cartLine';
+import { gstStateCodeFor } from '@/lib/customers/stateCode';
 import { GST_STATES, DEFAULT_SELLER_STATE_CODE } from '@/lib/constants/gstStates';
 import { validatePostcode } from '@/lib/validation/postcode';
 import { COUNTRIES, getCountryStates } from '@/lib/constants/countries';
@@ -182,6 +183,38 @@ export default function CheckoutDrawer() {
   // account cannot be created from real data, and inventing one puts a
   // fictional address into WHOIS.
   const [billingZip, setBillingZip] = useState('');
+
+  // Prefill the billing contact from the signed-in customer's record.
+  //
+  // Upstream created the account with a real registrant contact and the sync
+  // stores it, so asking the customer to retype their own address is asking
+  // for something already held - and a retyped address is a second chance to
+  // get the registrant contact wrong.
+  //
+  // Only empty fields are filled, and every one stays editable: this is a
+  // starting point, not an assertion about where they live.
+  const [prefilledFromProfile, setPrefilledFromProfile] = useState(false);
+
+  useEffect(() => {
+    if (!sessionUser || prefilledFromProfile) return;
+    setPrefilledFromProfile(true);
+
+    setCompanyName((v) => v || sessionUser.company || '');
+    setBillingAddress((v) => v || sessionUser.address || '');
+    setBillingCity((v) => v || sessionUser.city || '');
+    setBillingZip((v) => v || sessionUser.zip || '');
+
+    // Place of supply decides CGST + SGST versus IGST and prints on a
+    // statutory invoice, so it is set ONLY on an unambiguous match.
+    // gstStateCodeFor returns null rather than guessing - notably it resolves
+    // "Andhra Pradesh" to 37 and never to the dead pre-bifurcation code 28.
+    // An empty dropdown is a small annoyance; a confidently wrong place of
+    // supply is a misfiled return.
+    if ((sessionUser.country || 'IN').toUpperCase() === 'IN') {
+      const code = gstStateCodeFor(sessionUser.state);
+      if (code) setBillingStateCode((v) => v || code);
+    }
+  }, [sessionUser, prefilledFromProfile]);
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
