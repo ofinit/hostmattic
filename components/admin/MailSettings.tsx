@@ -28,6 +28,10 @@ interface Settings {
   lastTestOk: boolean | null;
   lastTestError: string | null;
   lastTestTo: string | null;
+  lastSendOkAt: string | null;
+  lastSendErrorAt: string | null;
+  lastSendError: string | null;
+  lastSendErrorTo: string | null;
   updatedAt: string | null;
   updatedBy: string | null;
 }
@@ -37,6 +41,15 @@ interface Effective {
   source: string;
   from: string;
   problem: string | null;
+}
+
+/** Resend's own answer on whether it will send from the configured address. */
+interface ResendDomain {
+  checked: boolean;
+  verified?: boolean;
+  domain?: string;
+  status?: string;
+  detail?: string;
 }
 
 const PRESETS: { label: string; host: string; port: number; secure: boolean }[] = [
@@ -110,6 +123,7 @@ export default function MailSettings() {
 
   const [settings, setSettings] = useState<Settings | null>(null);
   const [effective, setEffective] = useState<Effective | null>(null);
+  const [resendDomain, setResendDomain] = useState<ResendDomain | null>(null);
   const [encryptionAvailable, setEncryptionAvailable] = useState(true);
   const [resendEnvKeyPresent, setResendEnvKeyPresent] = useState(false);
   const [testRecipient, setTestRecipient] = useState('');
@@ -125,6 +139,7 @@ export default function MailSettings() {
       if (json.success) {
         setSettings(json.settings);
         setEffective(json.effective);
+        setResendDomain(json.resendDomain ?? null);
         setEncryptionAvailable(Boolean(json.encryptionAvailable));
         setResendEnvKeyPresent(Boolean(json.resendEnvKeyPresent));
         setTestRecipient(json.testRecipient || '');
@@ -230,6 +245,38 @@ export default function MailSettings() {
               No provider is configured, so nothing is being sent at all.
             </div>
           )}
+        </Note>
+      )}
+
+      {/* Resend's own answer on the sending domain. Worth its own banner: an
+          unverified domain still delivers to the account owner, so every
+          in-app check short of this one reports healthy while customers get
+          nothing. */}
+      {resendDomain && resendDomain.checked && !resendDomain.verified && (
+        <Note tone="error">
+          <strong>
+            Resend will not send from {resendDomain.domain}
+            {resendDomain.status ? ` (status: ${resendDomain.status})` : ''}.
+          </strong>
+          {resendDomain.detail && <div style={{ marginTop: '6px' }}>{resendDomain.detail}</div>}
+          <div style={{ marginTop: '6px' }}>
+            Mail to your own address may still arrive, which is why a test send can pass while
+            password resets and receipts to customers are refused.
+          </div>
+        </Note>
+      )}
+
+      {resendDomain && !resendDomain.checked && resendDomain.detail && (
+        <Note tone="info">
+          <strong>Sending domain not checked.</strong>
+          <div style={{ marginTop: '6px' }}>{resendDomain.detail}</div>
+        </Note>
+      )}
+
+      {resendDomain && resendDomain.verified && (
+        <Note tone="ok">
+          <strong>{resendDomain.domain} is verified with Resend.</strong> It will accept mail sent
+          from this address to any recipient.
         </Note>
       )}
 
@@ -493,6 +540,45 @@ export default function MailSettings() {
         </div>
       </form>
 
+      {/* What real outbound mail did. The test below cannot tell you this:
+          it always goes to your own address, which on an unverified Resend
+          account is the one address that still works. */}
+      {(settings.lastSendErrorAt || settings.lastSendOkAt) && (
+        <div style={{ ...panel, marginTop: '20px' }}>
+          <h3 style={{ fontSize: '0.95rem', color: '#0F172A', margin: '0 0 10px' }}>
+            Real outbound mail
+          </h3>
+          <div style={{ fontSize: '0.85rem', color: '#334155', lineHeight: 1.7 }}>
+            {settings.lastSendErrorAt ? (
+              <>
+                <div>
+                  <strong style={{ color: '#991B1B' }}>✕ Last failure</strong> —{' '}
+                  {new Date(settings.lastSendErrorAt).toLocaleString()}
+                  {settings.lastSendErrorTo ? ` sending to ${settings.lastSendErrorTo}` : ''}
+                </div>
+                {settings.lastSendError && (
+                  <div style={{ color: '#991B1B', marginTop: '6px', overflowWrap: 'anywhere' }}>
+                    {settings.lastSendError}
+                  </div>
+                )}
+                <div style={{ color: '#64748B', marginTop: '6px' }}>
+                  Password reset replies the same way whether or not it sent — it has to, or the
+                  reply would reveal which addresses have accounts — so a failure there is silent
+                  to the customer and to you. This is where it shows up.
+                </div>
+              </>
+            ) : (
+              <div>
+                <strong style={{ color: '#4F7C12' }}>✓ No recent failures</strong>
+                {settings.lastSendOkAt
+                  ? ` — last successful send ${new Date(settings.lastSendOkAt).toLocaleString()}`
+                  : ''}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {settings.lastTestAt && (
         <div style={{ ...panel, marginTop: '20px' }}>
           <h3 style={{ fontSize: '0.95rem', color: '#0F172A', margin: '0 0 10px' }}>Last test</h3>
@@ -512,7 +598,9 @@ export default function MailSettings() {
             {settings.lastTestOk && (
               <div style={{ color: '#64748B', marginTop: '6px' }}>
                 The server accepted it. That is not proof it reached the inbox — check the mailbox,
-                and the spam folder.
+                and the spam folder. It is also not proof that mail reaches <em>customers</em>:
+                this test always goes to your own address, and on an unverified sending domain
+                that is the only address that works.
               </div>
             )}
           </div>

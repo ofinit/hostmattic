@@ -8,6 +8,7 @@ import {
   invalidateMailConfig,
   formatFrom,
 } from '@/lib/email/mailConfig';
+import { checkResendDomain } from '@/lib/email/resendDomains';
 import { verifySmtp, resetTransport } from '@/lib/email/providers/smtpTransport';
 import { sendEmail } from '@/lib/email/send';
 import { renderEmail } from '@/lib/email/resend';
@@ -66,6 +67,12 @@ export async function GET(req: NextRequest) {
         lastTestOk: row?.lastTestOk ?? null,
         lastTestError: row?.lastTestError ?? null,
         lastTestTo: row?.lastTestTo ?? null,
+        // What real outbound mail did, which the test button cannot tell you:
+        // the test always goes to the administrator's own address.
+        lastSendOkAt: row?.lastSendOkAt ?? null,
+        lastSendErrorAt: row?.lastSendErrorAt ?? null,
+        lastSendError: row?.lastSendError ?? null,
+        lastSendErrorTo: row?.lastSendErrorTo ?? null,
         updatedAt: row?.updatedAt ?? null,
         updatedBy: row?.updatedBy ?? null,
       },
@@ -78,6 +85,14 @@ export async function GET(req: NextRequest) {
         from: effective.from,
         problem: effective.problem ?? null,
       },
+      // Ask Resend whether it will actually send from this address. The test
+      // button cannot answer this: it goes to the administrator's own address,
+      // which on an unverified account is the one address that still works, so
+      // it passes while every customer email is refused with a 403.
+      resendDomain:
+        effective.provider === 'RESEND'
+          ? await checkResendDomain(effective.resendApiKey, effective.from)
+          : null,
       // Where the test message will go. Fixed to the signed-in administrator:
       // an arbitrary recipient would make this an open relay.
       testRecipient: session.email,

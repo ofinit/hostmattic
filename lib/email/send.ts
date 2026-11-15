@@ -17,6 +17,7 @@
 import { getMailConfig } from '@/lib/email/mailConfig';
 import { sendViaSmtp } from '@/lib/email/providers/smtpTransport';
 import { sendViaResend } from '@/lib/email/providers/resendTransport';
+import { recordSendOutcome } from '@/lib/email/sendLog';
 import type { EmailPayload, EmailResult } from '@/lib/email/types';
 
 export type { EmailPayload, EmailResult } from '@/lib/email/types';
@@ -46,9 +47,16 @@ export async function sendEmail(payload: EmailPayload): Promise<EmailResult> {
     return { success: true, id: simId, simulated: true, provider: 'NONE' };
   }
 
-  if (cfg.provider === 'SMTP' && cfg.smtp) {
-    return sendViaSmtp(payload, cfg.smtp, cfg.from, cfg.replyTo);
-  }
+  const result =
+    cfg.provider === 'SMTP' && cfg.smtp
+      ? await sendViaSmtp(payload, cfg.smtp, cfg.from, cfg.replyTo)
+      : await sendViaResend(payload, cfg.resendApiKey, cfg.from, cfg.replyTo);
 
-  return sendViaResend(payload, cfg.resendApiKey, cfg.from, cfg.replyTo);
+  // Several senders are deliberately quiet about failure - password reset has
+  // to answer the same way whether or not the address has an account - so
+  // without this the only record of a refusal is a console line. Reporting
+  // only: it cannot change what was just sent, and it swallows its own errors.
+  await recordSendOutcome(result.success, recipients, result.error);
+
+  return result;
 }

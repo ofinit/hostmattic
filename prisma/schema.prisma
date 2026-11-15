@@ -381,10 +381,27 @@ model MailSetting {
 
   /// Result of the last test send, so the console can show whether this
   /// configuration has ever actually delivered anything.
+  ///
+  /// NOTE: the test always sends to the signed-in administrator, so that it
+  /// cannot be used as an open relay. On an unverified Resend account that is
+  /// the one address which still works, so a PASSING test does not prove mail
+  /// reaches customers. The real-world fields below are what prove that.
   lastTestAt      DateTime?
   lastTestOk      Boolean?
   lastTestError   String?
   lastTestTo      String?
+
+  /// Outcome of real outbound mail, recorded by lib/email/send.ts.
+  ///
+  /// Password reset answers neutrally whether or not the send worked - it has
+  /// to, or the reply would reveal which addresses have accounts - and a
+  /// receipt that fails is equally quiet. That left console logs as the only
+  /// record, so an administrator watching the console saw silence and no
+  /// reason for it. These make the last real failure visible.
+  lastSendOkAt     DateTime?
+  lastSendErrorAt  DateTime?
+  lastSendError    String?
+  lastSendErrorTo  String?
 
   updatedAt DateTime @updatedAt
   updatedBy String?

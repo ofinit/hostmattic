@@ -225,6 +225,16 @@ const DDL_STATEMENTS = [
     "updatedBy" TEXT
   )`,
 
+  // Added after MailSetting shipped, so the table already exists on live
+  // deployments and CREATE TABLE IF NOT EXISTS above will not add them.
+  // The outcome of real outbound mail: password reset answers neutrally
+  // whether or not the send worked, so without these a failure is visible
+  // only in the container logs.
+  `ALTER TABLE "MailSetting" ADD COLUMN IF NOT EXISTS "lastSendOkAt" TIMESTAMP(3)`,
+  `ALTER TABLE "MailSetting" ADD COLUMN IF NOT EXISTS "lastSendErrorAt" TIMESTAMP(3)`,
+  `ALTER TABLE "MailSetting" ADD COLUMN IF NOT EXISTS "lastSendError" TEXT`,
+  `ALTER TABLE "MailSetting" ADD COLUMN IF NOT EXISTS "lastSendErrorTo" TEXT`,
+
   // Single-use password reset grants. Only the hash of the token is stored.
   `CREATE TABLE IF NOT EXISTS "PasswordResetToken" (
     "id" TEXT PRIMARY KEY,
