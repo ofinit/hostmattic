@@ -1183,7 +1183,7 @@ export default function AdminDashboardPage() {
 
         {/* Tab Selection Bar & Search */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-          <div className="horizontal-scroll-touch" style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '4px', gap: '4px', maxWidth: '100%' }}>
+          <div className="tab-strip" style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.8)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '4px', gap: '4px', maxWidth: '100%' }}>
             {[
               { id: 'overview', label: 'Overview', icon: '📊' },
               { id: 'reports', label: 'Reports & P&L', icon: '📈' },

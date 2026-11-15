@@ -1397,7 +1397,7 @@ export default function ClientDashboard() {
         )}
 
         {/* Navigation Tabs */}
-        <div className="dashboard-tabs-bar">
+        <div className="dashboard-tabs-bar tab-strip">
           {[
             { id: 'overview', label: 'Dashboard Overview', icon: '📊' },
             { id: 'domains', label: `My Domains (${domains.length})`, icon: '🌐' },

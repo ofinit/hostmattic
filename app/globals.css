@@ -2389,15 +2389,35 @@ h4 { font-size: 1.15rem; }
    COMPREHENSIVE RESPONSIVE UTILITY SYSTEM
    ========================================================================== */
 
-/* Touch Horizontal Scrolling for Tabs and Wide Containers */
-.horizontal-scroll-touch {
+/* Tab strips, reachable from every input device.
+ *
+ * overflow-x: auto with the scrollbar hidden can be operated by a finger and
+ * by a trackpad, and by nothing else. With a mouse there is no bar to drag and
+ * a vertical wheel does not pan sideways, so any tab past the right edge is
+ * simply gone - which is how Payment Gateways, Email / SMTP and API Gateway
+ * disappeared from the admin console once the strip grew to twelve tabs.
+ *
+ * Where there is a fine pointer, wrap instead: every tab is on screen, so no
+ * scroll affordance is needed and none can be missed. Keep the scrolling strip
+ * for coarse pointers, where it works correctly and where wrapping twelve tabs
+ * would push the content far down a phone screen.
+ *
+ * -ms-overflow-style is left off deliberately: it only applies to the browsers
+ * that have no (hover: hover) support either, and there it would restore the
+ * same trap. */
+.tab-strip {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE 10+ */
 }
-.horizontal-scroll-touch::-webkit-scrollbar {
+.tab-strip::-webkit-scrollbar {
   display: none; /* Chrome, Safari, Edge */
+}
+@media (hover: hover) and (pointer: fine) {
+  .tab-strip {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
 }
 
 /* Responsive Table Card Wrapper */
@@ -2638,18 +2658,14 @@ h4 { font-size: 1.15rem; }
   }
 }
 
-/* Dashboard Tab Bar Smooth Scrolling */
+/* Dashboard Tab Bar. Scrolling and wrapping come from .tab-strip, which the
+   element also carries - see the note there: a hidden scrollbar is a mouse
+   trap. This rule is appearance only. */
 .dashboard-tabs-bar {
   display: flex;
   gap: 8px;
   border-bottom: 1px solid #CBD5E1;
   margin-bottom: 32px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.dashboard-tabs-bar::-webkit-scrollbar {
-  display: none;
 }
 
 /* Admin Operations Telemetry Subheader Flex Wrap */

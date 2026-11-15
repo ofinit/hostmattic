@@ -9,6 +9,11 @@
 //              is hidden or clip, so there is no way to scroll to the rest.
 //              This is how the portal domain table lost its Actions column.
 //
+//   mousetrap - an element overflows and CAN scroll, but hides its scrollbar.
+//              Reachable with a finger or a trackpad; unreachable with a
+//              mouse, which has no bar to drag and no sideways wheel. This is
+//              how the admin console lost three tabs, Email / SMTP included.
+//
 //   escapes  - an element paints outside its parent box. A card with the
 //              default overflow: visible does not clip, so the check above
 //              misses it entirely - yet a price painted past the edge of its
@@ -104,6 +109,25 @@ const PROBE = () => {
   }
   out.escapes.sort((a, b) => b.spill - a.spill);
   out.escapes = out.escapes.slice(0, 6);
+
+  // Content reachable only by touch. overflow-x: auto is scrollable, so the
+  // clipped probe above skips it - but a strip that ALSO hides its scrollbar
+  // offers a mouse nothing to drag, and a vertical wheel does not pan
+  // sideways. The overflow is then just as unreachable as if it were clipped,
+  // on every desktop. This is how three tabs vanished from the admin console.
+  out.mousetraps = [];
+  for (const el of document.querySelectorAll('*')) {
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    if (cs.overflowX !== 'auto' && cs.overflowX !== 'scroll') continue;
+    if (cs.scrollbarWidth !== 'none') continue;
+    const over = el.scrollWidth - el.clientWidth;
+    if (over <= 2) continue;
+    out.mousetraps.push({ sel: label(el), over });
+  }
+  out.mousetraps.sort((a, b) => b.over - a.over);
+  out.mousetraps = out.mousetraps.slice(0, 6);
+
   // Deepest offenders only: a clipped child reported with its clipped parent
   // is one fault, not two.
   out.clipped.sort((a, b) => b.over - a.over);
@@ -163,6 +187,9 @@ const PROBE = () => {
         for (const c of r.escapes || []) {
           findings.push({ route, vp: vp.name, kind: 'escapes', detail: `${c.spill}px  ${c.sel}` });
         }
+        for (const c of r.mousetraps || []) {
+          findings.push({ route, vp: vp.name, kind: 'mousetrap', detail: `${c.over}px  ${c.sel}` });
+        }
 
         // The search results are the densest layout in the app and only exist
         // after a query. A long label is what broke them, so use one.
@@ -181,6 +208,9 @@ const PROBE = () => {
             }
             for (const c of r2.escapes || []) {
               findings.push({ route: route + ' [searched]', vp: vp.name, kind: 'escapes', detail: `${c.spill}px  ${c.sel}` });
+            }
+            for (const c of r2.mousetraps || []) {
+              findings.push({ route: route + ' [searched]', vp: vp.name, kind: 'mousetrap', detail: `${c.over}px  ${c.sel}` });
             }
           } catch (e) {
             findings.push({ route: route + ' [searched]', vp: vp.name, kind: 'error', detail: e.message.slice(0, 80) });
