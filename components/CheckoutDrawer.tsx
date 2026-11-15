@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useCart } from './CartContext';
 import { useCurrency } from './CurrencyContext';
+import { pricingLineFor, annualInrFrom, toMoney } from '@/lib/pricing/cartLine';
 import { GST_STATES, DEFAULT_SELLER_STATE_CODE } from '@/lib/constants/gstStates';
 import { validatePostcode } from '@/lib/validation/postcode';
 import { COUNTRIES, getCountryStates } from '@/lib/constants/countries';
@@ -186,6 +187,115 @@ export default function CheckoutDrawer() {
   const [errorMessage, setErrorMessage] = useState('');
   const [orderCompleteData, setOrderCompleteData] = useState<any>(null);
 
+  // Lines whose price moved since they were added, kept so the change can be
+  // stated rather than applied behind the customer's back.
+  const [priceUpdates, setPriceUpdates] = useState<
+    { key: string; name: string; was: number; now: number }[]
+  >([]);
+  const [repricing, setRepricing] = useState(false);
+
+  /** Money as money. These are amounts someone is about to be charged. */
+  const money = (n: number) =>
+    currency === 'INR'
+      ? `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : `$${n.toFixed(2)}`;
+
+  // Only adding or removing a line should trigger a re-check. Depending on
+  // `items` itself would re-run the effect on the very corrections it applies.
+  const cartSignature = items.map((i) => i.id).join('|');
+
+  // Price the basket against the live catalogue when the drawer opens.
+  //
+  // The cart is localStorage and each line stores the price as it was when it
+  // was added, so a basket filled before a price change keeps quoting the old
+  // figure. /api/orders/checkout already refuses such an order, but only after
+  // the customer has filled in the form and pressed a button showing a total
+  // nobody meant to honour. Checking here means the amount on the button is
+  // the amount that will be accepted.
+  useEffect(() => {
+    if (!isCartOpen || items.length === 0) {
+      setPriceUpdates([]);
+      return;
+    }
+
+    let cancelled = false;
+    const rate = currency === 'INR' ? usdInr : 1;
+    const lines = items.map((i) => pricingLineFor(i, currency, rate));
+
+    // Fail open on a slow answer as well as a failed one: the button must not
+    // stay disabled because pricing is unreachable.
+    const abort = new AbortController();
+    const timer = setTimeout(() => abort.abort(), 6000);
+
+    setRepricing(true);
+    fetch('/api/cart/reprice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: lines, currency }),
+      signal: abort.signal,
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.success || !Array.isArray(data.lines)) return;
+
+        const announced: { key: string; name: string; was: number; now: number }[] = [];
+
+        for (const line of data.lines) {
+          // Indexed, not matched by name: two lines can share a display name.
+          const item = items[line.index];
+          if (!item || line.status === 'unverified') continue;
+          if (typeof line.expected !== 'number' || !(line.expected > 0)) continue;
+
+          const annualInr = annualInrFrom(line.expected, item.billingPeriod, currency);
+          const base = toMoney(line.expected / rate);
+          const current = item.billingPeriod === 'annual' ? item.priceAnnual : item.priceMonthly;
+
+          // Most opens find nothing to change. Writing anyway would re-render
+          // the drawer and rewrite localStorage on every single open.
+          const unchanged =
+            current === base && (annualInr === undefined || item.priceAnnualInr === annualInr);
+
+          if (!unchanged) {
+            updateItemPrice(item.id, {
+              ...(item.billingPeriod === 'annual' ? { priceAnnual: base } : { priceMonthly: base }),
+              ...(annualInr ? { priceAnnualInr: annualInr } : {}),
+            });
+          }
+
+          // An 'ok' line is corrected too, but only to the catalogue's exact
+          // figure - a few paise of rounding drift. That is a precision fix,
+          // not a price change, and announcing it would be noise.
+          if (line.status === 'mismatch') {
+            announced.push({
+              key: `${line.index}-${line.name}`,
+              name: line.name,
+              was: line.submitted,
+              now: line.expected,
+            });
+          }
+        }
+
+        setPriceUpdates(announced);
+      })
+      .catch(() => {
+        // Fail open. A pricing check that cannot run must never stop someone
+        // buying - checkout re-prices again and refuses a stale basket, so the
+        // wrong amount still cannot be charged.
+      })
+      .finally(() => {
+        clearTimeout(timer);
+        if (!cancelled) setRepricing(false);
+      });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      abort.abort();
+    };
+    // `items` is intentionally absent: see cartSignature above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCartOpen, currency, cartSignature, usdInr]);
+
   useEffect(() => {
     fetch('/api/tax/settings')
       .then((r) => r.json())
@@ -362,25 +472,13 @@ export default function CheckoutDrawer() {
       const rate = currency === 'INR' ? usdInr : 1;
 
       const payload = {
+        // Same builder the drawer's own price check uses, so the total shown
+        // and the total submitted are computed identically.
         items: items.map((item) => ({
-          type: item.type,
-          productType: item.productType || 'SERVICE',
-          name: item.name,
+          ...pricingLineFor(item, currency, rate),
           sacCode: '998315',
-          domainName: item.domainName || (item.type === 'DOMAIN' ? item.name : undefined),
-          upstreamPlan: item.upstreamPlan,
           priceAnnualInr: item.priceAnnualInr,
           authCode: item.authCode,
-          years: item.years,
-          // The rupee figure where the catalogue has one, so the charge, the
-          // invoice and the server's re-price all agree to the paisa.
-          price:
-            currency === 'INR' && typeof item.priceAnnualInr === 'number' && item.priceAnnualInr > 0
-              ? item.billingPeriod === 'annual'
-                ? item.priceAnnualInr
-                : Math.round((item.priceAnnualInr / 12) * 100) / 100
-              : (item.billingPeriod === 'annual' ? item.priceAnnual : item.priceMonthly) * rate,
-          period: item.billingPeriod === 'annual' ? '1 Year' : '1 Month',
         })),
         customer: {
           name: customerName,
@@ -431,11 +529,17 @@ export default function CheckoutDrawer() {
           for (const line of data.lines) {
             const item = items.find((i) => i.name === line.item);
             if (!item || typeof line.now !== 'number') continue;
-            const inBase = line.now / rate;
-            updateItemPrice(
-              item.id,
-              item.billingPeriod === 'annual' ? { priceAnnual: inBase } : { priceMonthly: inBase }
-            );
+            const inBase = toMoney(line.now / rate);
+            // Carry the rupee figure too. Without it the corrected line falls
+            // straight back onto the dollar round trip and is wrong again by
+            // a few paise - Rs1,880 returns as Rs1,879.59.
+            const annualInr = annualInrFrom(line.now, item.billingPeriod, currency);
+            updateItemPrice(item.id, {
+              ...(item.billingPeriod === 'annual'
+                ? { priceAnnual: inBase }
+                : { priceMonthly: inBase }),
+              ...(annualInr ? { priceAnnualInr: annualInr } : {}),
+            });
           }
           setErrorMessage(
             data.error +
@@ -1383,6 +1487,29 @@ export default function CheckoutDrawer() {
                 </div>
               </div>
 
+              {/* A price that moved is stated, never applied silently. The
+                  basket has already been corrected by the time this shows, so
+                  the total above is the one that will be charged - but the
+                  customer chose to buy at the old figure and is owed the
+                  difference in plain words before they pay. */}
+              {priceUpdates.length > 0 && (
+                <div
+                  role="status"
+                  style={{ background: '#FFFBEB', border: '1px solid #FCD34D', color: '#92400E', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', marginTop: '14px' }}
+                >
+                  <strong>Prices updated since you added these.</strong>
+                  <ul style={{ margin: '6px 0 0', paddingLeft: '18px' }}>
+                    {priceUpdates.map((u) => (
+                      <li key={u.key}>
+                        {u.name}:{' '}
+                        <span style={{ textDecoration: 'line-through' }}>{money(u.was)}</span>{' '}
+                        <strong>{money(u.now)}</strong>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {errorMessage && (
                 <div style={{ background: '#FEF2F2', border: '1px solid #F87171', color: '#B91C1C', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', marginTop: '14px' }}>
                   {errorMessage}
@@ -1392,13 +1519,20 @@ export default function CheckoutDrawer() {
               {/* Submit CTA */}
               <button
                 type="submit"
-                disabled={loading || !billingAddress.trim() || !billingCity.trim() || !validatePostcode(billingZip, billingCountry).ok || (countryStates.length > 0 && !billingStateCode)}
+                /* `repricing` is held for at most six seconds by the abort
+                   timer, so a pricing check that never answers releases the
+                   button rather than trapping the sale behind it. */
+                disabled={loading || repricing || !billingAddress.trim() || !billingCity.trim() || !validatePostcode(billingZip, billingCountry).ok || (countryStates.length > 0 && !billingStateCode)}
                 className="btn btn-primary"
                 style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: '1rem', marginTop: '20px' }}
               >
                 {loading ? (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                     <span className="spinner-inline" /> Provisioning Order with Cloud Engine...
+                  </span>
+                ) : repricing ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="spinner-inline" /> Checking current prices...
                   </span>
                 ) : (
                   `Pay ${

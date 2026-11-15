@@ -38,8 +38,17 @@ interface CartContextType {
   addItem: (item: Omit<CartItem, 'id'> & { id?: string }, autoOpen?: boolean) => void;
   removeItem: (id: string) => void;
   updateItemCycle: (id: string, cycle: 'monthly' | 'annual') => void;
-  /** Correct a line to the authoritative price returned by checkout. */
-  updateItemPrice: (id: string, prices: { priceMonthly?: number; priceAnnual?: number }) => void;
+  /**
+   * Correct a line to the authoritative price the server returned.
+   *
+   * `priceAnnualInr` matters as much as the base figure: without it the line
+   * falls back to the dollar round trip and the corrected price is wrong again
+   * by a few paise. See the note on CartItem.priceAnnualInr.
+   */
+  updateItemPrice: (
+    id: string,
+    prices: { priceMonthly?: number; priceAnnual?: number; priceAnnualInr?: number }
+  ) => void;
   clearCart: () => void;
   isCartOpen: boolean;
   openCart: () => void;
@@ -108,7 +117,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateItemPrice = (
     id: string,
-    prices: { priceMonthly?: number; priceAnnual?: number }
+    prices: { priceMonthly?: number; priceAnnual?: number; priceAnnualInr?: number }
   ) => {
     setItems((prev) =>
       prev.map((i) =>
@@ -117,6 +126,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
               ...i,
               priceMonthly: prices.priceMonthly ?? i.priceMonthly,
               priceAnnual: prices.priceAnnual ?? i.priceAnnual,
+              priceAnnualInr: prices.priceAnnualInr ?? i.priceAnnualInr,
             }
           : i
       )

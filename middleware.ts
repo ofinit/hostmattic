@@ -50,6 +50,13 @@ const PUBLIC_ROUTES = [
   // exists to remove. It publishes a shop rate and nothing else.
   '/api/fx',
 
+  // Checks a basket against the live catalogue before the customer pays. The
+  // cart works before anyone signs in, so behind the session guard this would
+  // 401 for most shoppers and the drawer would keep showing a stale total.
+  // It returns only prices the storefront already publishes, and writes
+  // nothing.
+  '/api/cart/reprice',
+
   // The reminder scheduler has no session - it is a cron caller - so it
   // authenticates with CRON_SECRET in the route itself and would otherwise be
   // rejected here for having no cookie.
