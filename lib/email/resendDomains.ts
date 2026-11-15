@@ -57,15 +57,22 @@ export async function checkResendDomain(
     clearTimeout(timer);
 
     if (!res.ok) {
-      // An unusable key is worth saying out loud, but it is still "could not
-      // check" rather than "the domain is bad".
+      // "Could not check", never "the domain is bad".
+      //
+      // 401/403 here does NOT mean the key is broken. A Resend key restricted
+      // to sending cannot list domains at all, which is the normal shape of a
+      // key created for an application - so reporting it as a rejected key
+      // sends an administrator off to replace a key that is working. Say what
+      // is actually known: the question could not be asked.
+      const restricted = res.status === 401 || res.status === 403 || res.status === 400;
       return {
         checked: false,
         domain,
-        detail:
-          res.status === 401 || res.status === 403
-            ? 'Resend rejected the API key, so the sending domain could not be checked.'
-            : `Resend returned ${res.status} when listing domains.`,
+        detail: restricted
+          ? 'This API key cannot list domains, so the sending domain could not be checked. ' +
+            'That is normal for a key restricted to sending. If mail is also failing, check ' +
+            'whether the key is authorised for the domain in the From address.'
+          : `Resend returned ${res.status} when listing domains.`,
       };
     }
 
